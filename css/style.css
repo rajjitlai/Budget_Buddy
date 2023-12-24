@@ -104,6 +104,40 @@ nav {
     color: var(--m-alt-hover);
 }
 
+.bbLoginContainer{
+    display: flex;
+    justify-content: space-around;
+    flex-direction: row;
+    gap: 1.5rem;
+}
+
+.bbLoginContainer button{
+    padding: 10px;
+    border: none;
+    width: 100%;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--b);
+    font-weight: var(--f-sb);
+    transition: background 0.3s ease;
+}
+
+.signupBtn{
+    background: var(--main);
+}
+
+.signupBtn:hover{
+    background: var(--main-hover);
+}
+
+.loginBtn{
+    background: var(--m-alt);
+}
+
+.loginBtn:hover{
+    background: var(--m-alt-hover);
+}
+
 footer {
     position: relative;
     bottom: 0;
