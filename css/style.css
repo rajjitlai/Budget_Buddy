@@ -7,6 +7,13 @@
     box-sizing: border-box;
 }
 
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0;
+}
+
 :root {
     --b: #000;
     --w: #fff;
@@ -20,14 +27,19 @@
     --f-b: 700;
     --main-gradient: linear-gradient(to right, rgba(111, 234, 182, 0.85) 0%, rgba(0, 190, 196, 0.85) 100%);
     --m-alt-gradient: linear-gradient(to right, rgba(0, 190, 196, 0.85) 0%, rgba(111, 234, 182, 0.85) 100%);
+    --bg: #f9f9f9;
 }
 
 img {
     width: 100px;
 }
 
+.bbMainContainer {
+    flex: 1;
+}
+
 header {
-    background-color: #f9f9f9;
+    background-color: var(--bg);
     padding: 20px 0;
     position: fixed;
     top: 0;
@@ -37,7 +49,6 @@ header {
     box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.1),
         -5px -5px 15px rgba(255, 255, 255, 0.8) inset;
 }
-
 
 nav {
     display: flex;
@@ -63,7 +74,7 @@ nav {
 
 .bbLogo h3 {
     font-size: 24px;
-    font-weight: bold;
+    font-weight: var(--f-b);
 }
 
 .bbLogo h3 span {
@@ -85,10 +96,56 @@ nav {
     text-decoration: none;
     color: var(--m-alt);
     text-transform: capitalize;
-    font-weight: bold;
+    font-weight: var(--f-b);
     transition: color 0.3s ease;
 }
 
 .bbNavLinks li a:hover {
+    color: var(--m-alt-hover);
+}
+
+footer {
+    position: relative;
+    bottom: 0;
+    background-color: var(--bg);
+    padding: 20px 0;
+    border-radius: 12px;
+    box-shadow: 0px -5px 15px rgba(0, 0, 0, 0.1),
+        0px 5px 15px rgba(255, 255, 255, 0.8) inset;
+
+}
+
+bbFooterContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+footer p {
+    text-align: center;
+    margin-bottom: 10px;
+    font-weight: var(--f-sb);
+    color: var(--b);
+}
+
+.bbFooterLinks {
+    list-style: none;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.bbFooterLinks li {
+    margin-right: 20px;
+}
+
+.bbFooterLinks li a {
+    text-decoration: none;
+    color: var(--m-alt);
+    transition: color 0.3s ease;
+    font-weight: var(--f-b);
+}
+
+.bbFooterLinks li a:hover {
     color: var(--m-alt-hover);
 }
