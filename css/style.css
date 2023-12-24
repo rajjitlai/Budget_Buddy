@@ -1,10 +1,94 @@
-*{
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+* {
     margin: 0;
     padding: 0;
     font-family: 'Poppins', sans-serif;
     box-sizing: border-box;
 }
 
-body{
-    background: #000;
+:root {
+    --b: #000;
+    --w: #fff;
+    --main: #6feab6;
+    --m-alt: #00bec4;
+    --main-hover: #6feab7a6;
+    --m-alt-hover: #00bec48f;
+    --f-r: 400;
+    --f-m: 500;
+    --f-sb: 600;
+    --f-b: 700;
+    --main-gradient: linear-gradient(to right, rgba(111, 234, 182, 0.85) 0%, rgba(0, 190, 196, 0.85) 100%);
+    --m-alt-gradient: linear-gradient(to right, rgba(0, 190, 196, 0.85) 0%, rgba(111, 234, 182, 0.85) 100%);
+}
+
+img {
+    width: 100px;
+}
+
+header {
+    background-color: #f9f9f9;
+    padding: 20px 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 999;
+    border-radius: 12px;
+    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.1),
+        -5px -5px 15px rgba(255, 255, 255, 0.8) inset;
+}
+
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.bbLogo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: var(--main);
+}
+
+.bbLogo img {
+    width: 60px;
+    height: auto;
+    margin-right: 10px;
+}
+
+.bbLogo h3 {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.bbLogo h3 span {
+    color: var(--m-alt);
+}
+
+.bbNavLinks {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+}
+
+.bbNavLinks li {
+    margin-right: 20px;
+}
+
+.bbNavLinks li a {
+    text-decoration: none;
+    color: var(--m-alt);
+    text-transform: capitalize;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+.bbNavLinks li a:hover {
+    color: var(--m-alt-hover);
 }
