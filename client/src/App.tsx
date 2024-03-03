@@ -1,8 +1,11 @@
 import "./index.css"
+import { SignUpForm } from "./pages/SignUpForm"
 
 const App = () => {
   return (
-    <div>App</div>
+    <main className="w-full h-screen flex justify-center items-center dark">
+      <SignUpForm />
+    </main>
   )
 }
 

@@ -10,10 +10,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@radix-ui/react-label": "^2.0.2",
+    "@tabler/icons-react": "^2.47.0",
+    "clsx": "^2.1.0",
+    "framer-motion": "^11.0.8",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "tailwind-merge": "^2.2.1"
   },
   "devDependencies": {
+    "@types/node": "^20.11.24",
     "@types/react": "^18.2.56",
     "@types/react-dom": "^18.2.19",
     "@typescript-eslint/eslint-plugin": "^7.0.2",
