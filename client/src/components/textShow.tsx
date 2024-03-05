@@ -21,7 +21,7 @@ export function TextShow() {
         },
     ];
     return (
-        <div className="flex flex-col items-center justify-center h-[20rem]">
+        <div className="flex flex-col items-center justify-center h-[10rem] lg:h-[20rem]">
             <TypewriterEffect words={words} />            
         </div>
     );
