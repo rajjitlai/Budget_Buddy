@@ -1,13 +1,14 @@
 import Topbar from "../shared/Topbar"
 import Footer from "../shared/Footer"
+import Calc from "../pages/Calc"
+import { TextShow } from "../components/textShow"
 
 const Home = () => {
     return (
-        <div className="w-full relative">
+        <div className="w-full relative flex flex-col items-center">
             <Topbar />
-            <div className="flex flex-col items-center justify-center">
-                <h1 className="text-4xl font-bold text-gray-900">Home</h1>
-            </div>
+            <TextShow />
+            <Calc />
             <Footer />
         </div>
     )
