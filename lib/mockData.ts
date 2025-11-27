@@ -109,8 +109,7 @@ export const mockTransactions: Transaction[] = [
     category: 'electricity',
     sourceAccountId: '1',
     notes: 'Monthly electricity bill',
-    date: '
-2024-01-10',
+    date: '2024-01-10',
     type: 'expense',
   },
   {
@@ -185,24 +184,10 @@ export const mockMonthlyPlan: MonthlyPlan = {
     savings: 30000,
     emergency: 5000,
   },
-};
-
-// Category options
-export const categories = [
-  { id: 'food', label: 'Food & Groceries', icon: 'UtensilsCrossed' },
-  { id: 'utilities', label: 'Utilities', icon: 'Wrench' },
-  { id: 'el
-ectricity', label: 'Electricity', icon: 'Zap' },
-  { id: 'internet', label: 'Internet', icon: 'Wifi' },
-  { id: 'mobile', label: 'Mobile', icon: 'Smartphone' },
-  { id: 'transport', label: 'Transport', icon: 'Car' },
-  { id: 'entertainment', label: 'Entertainment', icon: 'Film' },
-  { id: 'shopping', label: 'Shopping', icon: 'ShoppingBag' },
-  { id: 'health', label: 'Health', icon: 'Heart' },
   { id: 'education', label: 'Education', icon: 'GraduationCap' },
-  { id: 'transfer', label: 'Transfer', icon: 'ArrowLeftRight' },
-  { id: 'salary', label: 'Salary', icon: 'Banknote' },
-  { id: 'other', label: 'Other', icon: 'MoreHorizontal' },
+{ id: 'transfer', label: 'Transfer', icon: 'ArrowLeftRight' },
+{ id: 'salary', label: 'Salary', icon: 'Banknote' },
+{ id: 'other', label: 'Other', icon: 'MoreHorizontal' },
 ];
 
 // Account type options

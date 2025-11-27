@@ -16,7 +16,7 @@ export const colors = {
     800: '#065f46',
     900: '#064e3b',
   },
-  
+
   // Neutral backgrounds
   slate: {
     50: '#f8fafc',
@@ -31,13 +31,13 @@ export const colors = {
     900: '#0f172a',
     950: '#020617',
   },
-  
+
   // Semantic colors
   success: '#10b981',
   warning: '#f59e0b',
   error: '#ef4444',
   info: '#3b82f6',
-  
+
   // Background colors
   background: {
     light: '#f8fafc',
@@ -47,7 +47,7 @@ export const colors = {
       dark: '#1e293b',
     },
   },
-  
+
   // Text colors
   text: {
     primary: {
@@ -63,7 +63,7 @@ export const colors = {
       dark: '#64748b',
     },
   },
-  
+
   // Gradient presets
   gradients: {
     emerald: ['#10b981', '#059669'],
@@ -124,8 +124,7 @@ export const typography = {
   },
 };
 
-export c
-onst shadows = {
+export const shadows = {
   sm: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
