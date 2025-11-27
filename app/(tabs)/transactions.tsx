@@ -59,8 +59,7 @@ export default function TransactionScreen() {
 
   const handleSubmit = () => {
     if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Hapti
-cs.NotificationFeedbackType.Success);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     // Reset form
     setAmount('');
@@ -128,8 +127,7 @@ cs.NotificationFeedbackType.Success);
                 style={[
                   styles.typeButton,
                   isActive && {
-                
-    backgroundColor: `${getTypeColor(type, true)}15`,
+                    backgroundColor: `${getTypeColor(type, true)}15`,
                     borderColor: getTypeColor(type, true),
                   },
                 ]}
@@ -191,8 +189,7 @@ cs.NotificationFeedbackType.Success);
 
           {/* Account Selection */}
           <SelectField
-            lab
-el={transactionType === 'transfer' ? 'From Account' : 'Account'}
+            label={transactionType === 'transfer' ? 'From Account' : 'Account'}
             options={accountOptions}
             value={sourceAccount}
             onChange={setSourceAccount}
@@ -247,8 +244,7 @@ el={transactionType === 'transfer' ? 'From Account' : 'Account'}
           </View>
         </Animated.View>
       </ScrollView>
-    </SafeAreaVi
-ew>
+    </SafeAreaView>
   );
 }
 

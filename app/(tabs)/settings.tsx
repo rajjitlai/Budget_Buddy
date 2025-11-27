@@ -41,7 +41,7 @@ interface SettingItem {
   selectedOption?: string;
 }
 
-const currencies = ['INR (?)', 'USD ($)', 'EUR (?)', 'GBP (ú)', 'JPY (ù)'];
+const currencies = ['INR (?)', 'USD ($)', 'EUR (?)', 'GBP (ÔøΩ)', 'JPY (ÔøΩ)'];
 
 export default function SettingsScreen() {
   const { isDarkMode, toggleDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
@@ -72,8 +72,7 @@ export default function SettingsScreen() {
 
   const renderSettingItem = (
     icon: React.ComponentType<{ size: number; color: string }>,
-    title: str
-ing,
+    title: string,
     subtitle: string | undefined,
     type: 'toggle' | 'select' | 'link',
     value?: boolean,
@@ -131,8 +130,7 @@ ing,
           entering={FadeInDown.delay(100).duration(500)}
           style={styles.header}
         >
-          <Text style={[styles.title, { color
-: textPrimary }]}>
+          <Text style={[styles.title, { color: textPrimary }]}>
             Budget Buddy Settings
           </Text>
           <Text style={[styles.subtitle, { color: textSecondary }]}>
@@ -190,8 +188,7 @@ ing,
               () => handleToggle('advancedCharts')
             )}
             {renderSettingItem(
-              
-LayoutGrid,
+              LayoutGrid,
               'Use Compact Layout',
               'Show more information on screen',
               'toggle',
@@ -256,8 +253,7 @@ LayoutGrid,
           <Text style={[styles.appVersion, { color: textSecondary }]}>
             Version 1.0.0
           </Text>
-          <Text s
-tyle={[styles.appTagline, { color: textSecondary }]}>
+          <Text style={[styles.appTagline, { color: textSecondary }]}>
             Your personal finance companion
           </Text>
         </Animated.View>

@@ -184,10 +184,20 @@ export const mockMonthlyPlan: MonthlyPlan = {
     savings: 30000,
     emergency: 5000,
   },
+};
+
+// Transaction categories
+export const categories = [
+  { id: 'food', label: 'Food & Dining', icon: 'Utensils' },
+  { id: 'transport', label: 'Transportation', icon: 'Car' },
+  { id: 'shopping', label: 'Shopping', icon: 'ShoppingBag' },
+  { id: 'entertainment', label: 'Entertainment', icon: 'Film' },
+  { id: 'bills', label: 'Bills & Utilities', icon: 'Receipt' },
+  { id: 'healthcare', label: 'Healthcare', icon: 'Heart' },
   { id: 'education', label: 'Education', icon: 'GraduationCap' },
-{ id: 'transfer', label: 'Transfer', icon: 'ArrowLeftRight' },
-{ id: 'salary', label: 'Salary', icon: 'Banknote' },
-{ id: 'other', label: 'Other', icon: 'MoreHorizontal' },
+  { id: 'transfer', label: 'Transfer', icon: 'ArrowLeftRight' },
+  { id: 'salary', label: 'Salary', icon: 'Banknote' },
+  { id: 'other', label: 'Other', icon: 'MoreHorizontal' },
 ];
 
 // Account type options

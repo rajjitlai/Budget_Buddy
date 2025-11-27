@@ -140,8 +140,7 @@ export function AIInsightCard({ insight, onActionPress }: AIInsightCardProps) {
           </View>
           <Text
             style={[styles.description, { color: textSecondary }]}
-            numberOfLines={isExpanded ? un
-defined : 2}
+            numberOfLines={isExpanded ? undefined : 2}
           >
             {insight.description}
           </Text>

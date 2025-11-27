@@ -72,8 +72,7 @@ export function CircularProgress({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
-    alignItems: '
-center',
+    alignItems: 'center',
     justifyContent: 'center',
   },
   centerContent: {

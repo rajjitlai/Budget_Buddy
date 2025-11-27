@@ -7,8 +7,11 @@ import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
+// Use a placeholder URL if Convex is not configured (for UI testing)
+const baseURL = process.env.EXPO_PUBLIC_CONVEX_SITE_URL || "http://localhost:3000";
+
 export const authClient = createAuthClient({
-    baseURL: process.env.EXPO_PUBLIC_CONVEX_SITE_URL,
+    baseURL,
     plugins: [
         anonymousClient(),
         ...(Platform.OS === "web"
@@ -20,8 +23,7 @@ export const authClient = createAuthClient({
                       storage: SecureStore,
                   }),
               ]),
-        convexClient(),
+        // Only add convexClient if Convex URL is configured
+        ...(process.env.EXPO_PUBLIC_CONVEX_URL ? [convexClient()] : []),
     ],
 });
-
-

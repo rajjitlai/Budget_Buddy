@@ -79,8 +79,7 @@ export default function AIRecommendationScreen() {
     },
     {
       id: 'savings',
-      title: 'Savings Rate
-',
+      title: 'Savings Rate',
       value: '35%',
       subtitle: 'Above average!',
       icon: TrendingUp,
@@ -138,8 +137,7 @@ export default function AIRecommendationScreen() {
           entering={FadeInDown.delay(100).duration(500)}
           style={styles.header}
         >
-          <View 
-style={styles.headerIcon}>
+          <View style={styles.headerIcon}>
             <Sparkles size={28} color={colors.primary[500]} />
           </View>
           <Text style={[styles.title, { color: textPrimary }]}>
@@ -193,8 +191,7 @@ style={styles.headerIcon}>
           <SectionHeader
             title="Recommended Actions"
             subtitle="Take these steps to optimize your finances"
-         
- />
+          />
           <View style={styles.actionsContainer}>
             {mockAIInsights.filter((i) => i.action).map((insight) => (
               <AIInsightCard key={insight.id} insight={insight} />
@@ -247,8 +244,7 @@ style={styles.headerIcon}>
                   )}
                 </TouchableOpacity>
               );
-        
-    })}
+            })}
           </View>
         </Animated.View>
 
@@ -328,8 +324,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   metricValue: {
-    fontS
-ize: typography.fontSizes.xl,
+    fontSize: typography.fontSizes.xl,
     fontWeight: typography.fontWeights.bold,
     marginBottom: spacing.xs,
   },

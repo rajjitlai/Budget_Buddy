@@ -55,8 +55,7 @@ export default function MonthlyPlannerScreen() {
   ];
 
   const totalEssentials = useMemo(() => {
-    retur
-n Object.values(essentials).reduce((sum, val) => sum + val, 0);
+    return Object.values(essentials).reduce((sum, val) => sum + val, 0);
   }, [essentials]);
 
   const allocations = useMemo(() => {
@@ -114,8 +113,7 @@ n Object.values(essentials).reduce((sum, val) => sum + val, 0);
         </Animated.View>
 
         {/* Salary Input */}
-       
- <Animated.View
+        <Animated.View
           entering={FadeInDown.delay(200).duration(500)}
           style={[styles.salaryCard, { backgroundColor: cardBackground }]}
         >
@@ -164,8 +162,7 @@ n Object.values(essentials).reduce((sum, val) => sum + val, 0);
                     <Text style={[styles.essentialLabel, { color: textSecondary }]}>
                       {item.label}
                     </Text>
-         
-         </View>
+                  </View>
                   <View style={[styles.essentialInput, { borderColor }]}>
                     <Text style={[styles.currencyPrefix, { color: textSecondary }]}>?</Text>
                     <TextInput
@@ -210,8 +207,7 @@ n Object.values(essentials).reduce((sum, val) => sum + val, 0);
                 </View>
                 <View style={styles.allocationItem}>
                   <View style={[styles.dot, { backgroundColor: colors.info }]} />
-                  <Text style={[styles.allocationLabel, { color: textSecondary
- }]}>
+                  <Text style={[styles.allocationLabel, { color: textSecondary }]}>
                     Spending
                   </Text>
                   <Text style={[styles.allocationValue, { color: textPrimary }]}>
@@ -257,8 +253,7 @@ n Object.values(essentials).reduce((sum, val) => sum + val, 0);
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Expenses</Text>
-            <Tex
-t style={styles.summaryValue}>{formatCurrency(totalEssentials + allocations.spending)}</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(totalEssentials + allocations.spending)}</Text>
           </View>
           <View style={[styles.summaryRow, styles.summaryHighlight]}>
             <Text style={styles.summaryLabelBold}>Net Savings</Text>
@@ -342,8 +337,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   essentialLabel: {
-    fontSize: typo
-graphy.fontSizes.sm,
+    fontSize: typography.fontSizes.sm,
     flex: 1,
   },
   essentialInput: {
@@ -434,8 +428,7 @@ graphy.fontSizes.sm,
     borderTopColor: 'rgba(255, 255, 255, 0.2)',
   },
   summaryLabelBold: {
-    fontSize: typography
-.fontSizes.lg,
+    fontSize: typography.fontSizes.lg,
     fontWeight: typography.fontWeights.semibold,
     color: '#ffffff',
   },

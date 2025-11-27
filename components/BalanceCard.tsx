@@ -80,8 +80,7 @@ export function BalanceCard({ account, onPress }: BalanceCardProps) {
             { backgroundColor: `${account.color}15` },
           ]}
         >
-          <Ico
-nComponent size={20} color={account.color} />
+          <IconComponent size={20} color={account.color} />
         </View>
         <View style={styles.headerText}>
           <Text style={[styles.accountName, { color: textPrimary }]}>

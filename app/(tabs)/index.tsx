@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import {
   View,
@@ -112,20 +111,33 @@ export default function DashboardScreen() {
             title="Your Accounts"
             subtitle={`${accounts.length} accounts`}
             actionLabel="See all"
-
-            {/* AI Insights Section */}
-        <Animated.View entering={FadeInDown.delay(400).duration(500)}>
-            <SectionHeader
-              title="Budget Buddy AI Insights"
-              subtitle="Personalized recommendations"
-              icon={<Sparkles size={20} color={colors.primary[500]} />}
+            onAction={() => {}}
+          />
+          <AccountList accounts={accounts} />
+          <View style={styles.addButtonContainer}>
+            <PrimaryButton
+              title="Add Account"
+              onPress={() => setIsAddModalVisible(true)}
+              variant="outline"
+              icon={<Plus size={18} color={colors.primary[500]} />}
+              fullWidth
             />
-            <View style={styles.insightsContainer}>
-              {mockAIInsights.slice(0, 3).map((insight) => (
-                <AIInsightCard key={insight.id} insight={insight} />
-              ))}
-            </View>
-          </Animated.View>
+          </View>
+        </Animated.View>
+
+        {/* AI Insights Section */}
+        <Animated.View entering={FadeInDown.delay(400).duration(500)}>
+          <SectionHeader
+            title="Budget Buddy AI Insights"
+            subtitle="Personalized recommendations"
+            icon={<Sparkles size={20} color={colors.primary[500]} />}
+          />
+          <View style={styles.insightsContainer}>
+            {mockAIInsights.slice(0, 3).map((insight) => (
+              <AIInsightCard key={insight.id} insight={insight} />
+            ))}
+          </View>
+        </Animated.View>
       </ScrollView>
 
       {/* Add Account Modal */}
@@ -159,59 +171,71 @@ export default function DashboardScreen() {
             <PrimaryButton
               title="Cancel"
               onPress={() => setIsAddModalVisible(false)}
+              variant="ghost"
+              style={styles.cancelButton}
+            />
+            <PrimaryButton
+              title="Add Account"
+              onPress={handleAddAccount}
+              disabled={!newAccountName || !newAccountType || !newAccountBalance}
+              style={styles.submitButton}
+            />
+          </View>
+        </View>
+      </ModalSheet>
+    </SafeAreaView>
+  );
 }
 
-            const styles = StyleSheet.create({
-              container: {
-              flex: 1,
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
   },
-            scrollContent: {
-              paddingBottom: spacing['5xl'],
+  scrollContent: {
+    paddingBottom: spacing['5xl'],
   },
-            header: {
-              flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingHorizontal: spacing.xl,
-            paddingVertical: spacing.lg,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
   },
-            greeting: {
-              fontSize: typography.fontSizes.sm,
-            marginBottom: 2,
+  greeting: {
+    fontSize: typography.fontSizes.sm,
+    marginBottom: 2,
   },
-            title: {
-              fontSize: typography.fontSizes['2xl'],
-            fontWeight: typography.fontWeights.bold,
+  title: {
+    fontSize: typography.fontSizes['2xl'],
+    fontWeight: typography.fontWeights.bold,
   },
-            notificationButton: {
-              width: 44,
-            height: 44,
-            borderRadius: borderRadius.lg,
-            alignItems: 'center',
-            justifyContent: 'center',
-            ...shadows.sm,
+  notificationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.sm,
   },
-            addButtonContainer: {
-              paddingHorizontal: spacing.lg,
-            marginTop: spacing.sm,
+  addButtonContainer: {
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.sm,
   },
-            insightsContainer: {
-              paddingHorizontal: spacing.lg,
+  insightsContainer: {
+    paddingHorizontal: spacing.lg,
   },
-            modalContent: {
-              paddingBottom: spacing['3xl'],
+  modalContent: {
+    paddingBottom: spacing['3xl'],
   },
-            modalActions: {
-              flexDirection: 'row',
-            gap: spacing.md,
-            marginTop: spacing.lg,
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.lg,
   },
-            cancelButton: {
-              flex: 1,
+  cancelButton: {
+    flex: 1,
   },
-            submitButton: {
-              flex: 2,
+  submitButton: {
+    flex: 2,
   },
 });
-
-
