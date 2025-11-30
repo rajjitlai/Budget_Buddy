@@ -1,10 +1,8 @@
-
-
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
-import { colors, typography, spacing } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { colors, spacing, typography } from '@/lib/theme';
 
 interface SectionHeaderProps {
   title: string;
@@ -25,9 +23,9 @@ export function SectionHeader({
 
   return (
     <View style={styles.container}>
-      <View style={styles.leftContent}>
+      <View style={styles.leftSection}>
         {icon && <View style={styles.iconContainer}>{icon}</View>}
-        <View>
+        <View style={styles.textContainer}>
           <Text style={[styles.title, { color: textPrimary }]}>{title}</Text>
           {subtitle && (
             <Text style={[styles.subtitle, { color: textSecondary }]}>
@@ -39,10 +37,12 @@ export function SectionHeader({
       {actionLabel && onAction && (
         <TouchableOpacity
           onPress={onAction}
-          style={styles.actionButton}
           activeOpacity={0.7}
+          style={styles.actionButton}
         >
-          <Text style={styles.actionLabel}>{actionLabel}</Text>
+          <Text style={[styles.actionText, { color: colors.primary[500] }]}>
+            {actionLabel}
+          </Text>
           <ChevronRight size={16} color={colors.primary[500]} />
         </TouchableOpacity>
       )}
@@ -53,22 +53,26 @@ export function SectionHeader({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.md,
+    alignItems: 'center',
     paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
   },
-  leftContent: {
+  leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
   iconContainer: {
-    marginRight: spacing.md,
+    marginRight: spacing.sm,
+  },
+  textContainer: {
+    flex: 1,
   },
   title: {
     fontSize: typography.fontSizes.lg,
     fontWeight: typography.fontWeights.bold,
+    marginBottom: 2,
   },
   subtitle: {
     fontSize: typography.fontSizes.sm,
@@ -77,12 +81,10 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.xs,
   },
-  actionLabel: {
+  actionText: {
     fontSize: typography.fontSizes.sm,
-    fontWeight: typography.fontWeights.medium,
-    color: colors.primary[500],
-    marginRight: 2,
+    fontWeight: typography.fontWeights.semibold,
   },
 });
-

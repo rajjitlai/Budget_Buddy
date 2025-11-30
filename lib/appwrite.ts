@@ -16,11 +16,11 @@ export const appwriteClient = new Client()
 export const account = new Account(appwriteClient);
 export const databases = new Databases(appwriteClient);
 
-// Collection IDs
+// Collection IDs - can be overridden via environment variables
 export const COLLECTIONS = {
-  ACCOUNTS: 'accounts',
-  TRANSACTIONS: 'transactions',
-  MONTHLY_PLANS: 'monthlyPlans',
+  ACCOUNTS: process.env.EXPO_PUBLIC_APPWRITE_COLLECTION_ACCOUNTS || 'accounts',
+  TRANSACTIONS: process.env.EXPO_PUBLIC_APPWRITE_COLLECTION_TRANSACTIONS || 'transactions',
+  MONTHLY_PLANS: process.env.EXPO_PUBLIC_APPWRITE_COLLECTION_MONTHLY_PLANS || 'monthlyPlans',
 } as const;
 
 // Helper to get current user ID

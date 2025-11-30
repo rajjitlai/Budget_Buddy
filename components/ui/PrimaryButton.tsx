@@ -1,137 +1,121 @@
-
-
 import React from 'react';
-import {
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ViewStyle,
-  TextStyle,
-  Platform,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, Platform } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { colors, borderRadius, typography, shadows } from '@/lib/theme';
+import { useTheme } from '@/lib/ThemeContext';
+import { colors, spacing, typography, borderRadius, shadows } from '@/lib/theme';
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface PrimaryButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
-  disabled?: boolean;
-  loading?: boolean;
+  variant?: 'primary' | 'outline' | 'ghost';
   icon?: React.ReactNode;
-  iconPosition?: 'left' | 'right';
-  style?: ViewStyle;
-  textStyle?: TextStyle;
   fullWidth?: boolean;
+  disabled?: boolean;
+  style?: ViewStyle;
+  size?: 'sm' | 'md' | 'lg';
 }
-
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 export function PrimaryButton({
   title,
   onPress,
   variant = 'primary',
-  size = 'md',
-  disabled = false,
-  loading = false,
   icon,
-  iconPosition = 'left',
-  style,
-  textStyle,
   fullWidth = false,
+  disabled = false,
+  style,
+  size = 'md',
 }: PrimaryButtonProps) {
+  const { isDarkMode, textPrimary, textSecondary } = useTheme();
   const scale = useSharedValue(1);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
   const handlePressIn = () => {
-    scale.value = withSpring(0.96, { damping: 15, stiffness: 400 });
+    if (!disabled) {
+      scale.value = withSpring(0.97, { damping: 15, stiffness: 400 });
+    }
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 400 });
+    if (!disabled) {
+      scale.value = withSpring(1, { damping: 15, stiffness: 400 });
+    }
   };
 
   const handlePress = () => {
+    if (disabled) return;
+    
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     onPress();
   };
 
-  const getVariantStyles = (): ViewStyle => {
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const getButtonStyle = () => {
     switch (variant) {
-      case 'secondary':
+      case 'primary':
         return {
-          backgroundColor: colors.slate[100],
+          backgroundColor: disabled ? colors.slate[400] : colors.primary[500],
+          borderWidth: 0,
         };
       case 'outline':
         return {
           backgroundColor: 'transparent',
-          borderWidth: 1.5,
-          borderColor: colors.primary[500],
+          borderWidth: 1,
+          borderColor: disabled ? colors.slate[400] : colors.primary[500],
         };
       case 'ghost':
         return {
           backgroundColor: 'transparent',
+          borderWidth: 0,
         };
       default:
-        return {
-          backgroundColor: colors.primary[500],
-        };
+        return {};
     }
   };
 
-
-  const getTextColor = (): string => {
+  const getTextColor = () => {
     switch (variant) {
-      case 'secondary':
-        return colors.slate[700];
+      case 'primary':
+        return '#ffffff';
       case 'outline':
+        return disabled ? colors.slate[400] : colors.primary[500];
       case 'ghost':
-        return colors.primary[500];
+        return disabled ? colors.slate[400] : textPrimary;
       default:
         return '#ffffff';
     }
   };
 
-  const getSizeStyles = (): ViewStyle => {
+  const getSizeStyle = () => {
     switch (size) {
       case 'sm':
         return {
-          paddingVertical: 8,
-          paddingHorizontal: 16,
+          paddingVertical: spacing.sm,
+          paddingHorizontal: spacing.md,
+          fontSize: typography.fontSizes.sm,
         };
       case 'lg':
         return {
-          paddingVertical: 16,
-          paddingHorizontal: 28,
+          paddingVertical: spacing.lg,
+          paddingHorizontal: spacing.xl,
+          fontSize: typography.fontSizes.lg,
         };
       default:
         return {
-          paddingVertical: 12,
-          paddingHorizontal: 24,
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.lg,
+          fontSize: typography.fontSizes.md,
         };
-    }
-  };
-
-  const getTextSize = (): number => {
-    switch (size) {
-      case 'sm':
-        return typography.fontSizes.sm;
-      case 'lg':
-        return typography.fontSizes.lg;
-      default:
-        return typography.fontSizes.md;
     }
   };
 
@@ -140,37 +124,31 @@ export function PrimaryButton({
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      disabled={disabled || loading}
-      activeOpacity={0.8}
+      activeOpacity={disabled ? 1 : 0.8}
+      disabled={disabled}
       style={[
         styles.button,
-        getVariantStyles(),
-        getSizeStyles(),
+        getButtonStyle(),
         fullWidth && styles.fullWidth,
+        getSizeStyle(),
         disabled && styles.disabled,
-        animatedStyle,
         style,
+        animatedStyle,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator color={getTextColor()} size="small" />
-      ) : (
-        <>
-          {icon && iconPosition === 'left' && icon}
-          <Text
-            style={[
-              styles.text,
-              { color: getTextColor(), fontSize: getTextSize() },
-              icon && iconPosition === 'left' ? styles.textWithLeftIcon : undefined,
-              icon && iconPosition === 'right' ? styles.textWithRightIcon : undefined,
-              textStyle,
-            ]}
-          >
-            {title}
-          </Text>
-          {icon && iconPosition === 'right' && icon}
-        </>
-      )}
+      <View style={styles.content}>
+        {icon && <View style={styles.iconContainer}>{icon}</View>}
+        <Text
+          style={[
+            styles.text,
+            { color: getTextColor() },
+            size === 'sm' && styles.textSm,
+            size === 'lg' && styles.textLg,
+          ]}
+        >
+          {title}
+        </Text>
+      </View>
     </AnimatedTouchable>
   );
 }
@@ -180,23 +158,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: borderRadius.xl,
-    ...shadows.md,
+    borderRadius: borderRadius.lg,
+    ...shadows.sm,
   },
   fullWidth: {
     width: '100%',
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.6,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   text: {
     fontWeight: typography.fontWeights.semibold,
   },
-  textWithLeftIcon: {
-    marginLeft: 8,
+  textSm: {
+    fontSize: typography.fontSizes.sm,
   },
-  textWithRightIcon: {
-    marginRight: 8,
+  textLg: {
+    fontSize: typography.fontSizes.lg,
   },
 });
-

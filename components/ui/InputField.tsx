@@ -1,84 +1,56 @@
-
-
 import React, { useState } from 'react';
-import {
-  View,
-  TextInput,
-  Text,
-  StyleSheet,
-  ViewStyle,
-  TextInputProps,
-} from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  interpolateColor,
-} from 'react-native-reanimated';
-import { colors, borderRadius, typography, spacing } from '@/lib/theme';
+import { View, Text, TextInput, StyleSheet, ViewStyle } from 'react-native';
 import { useTheme } from '@/lib/ThemeContext';
+import { colors, spacing, typography, borderRadius } from '@/lib/theme';
 
-interface InputFieldProps extends TextInputProps {
+interface InputFieldProps {
   label: string;
+  placeholder: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  keyboardType?: 'default' | 'numeric' | 'email-address' | 'phone-pad';
+  secureTextEntry?: boolean;
+  multiline?: boolean;
+  numberOfLines?: number;
   error?: string;
   icon?: React.ReactNode;
   containerStyle?: ViewStyle;
 }
 
-const AnimatedView = Animated.createAnimatedComponent(View);
-
 export function InputField({
   label,
+  placeholder,
+  value,
+  onChangeText,
+  keyboardType = 'default',
+  secureTextEntry = false,
+  multiline = false,
+  numberOfLines = 1,
   error,
   icon,
   containerStyle,
-  ...props
 }: InputFieldProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
-  const focusAnimation = useSharedValue(0);
 
-  const handleFocus = () => {
-    setIsFocused(true);
-    focusAnimation.value = withTiming(1, { duration: 200 });
-  };
-
-  const handleBlur = () => {
-    setIsFocused(false);
-    focusAnimation.value = withTiming(0, { duration: 200 });
-  };
-
-  const animatedBorderStyle = useAnimatedStyle(() => {
-    const borderColorValue = interpolateColor(
-      focusAnimation.value,
-      [0, 1],
-      [borderColor, colors.primary[500]]
-    );
-    return {
-      borderColor: borderColorValue,
-      borderWidth: focusAnimation.value === 1 ? 2 : 1,
-    };
-  });
-
-  const animatedLabelStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(
-      focusAnimation.value,
-      [0, 1],
-      [textSecondary, colors.primary[500]]
-    ),
-  }));
+  const borderColorStyle = error
+    ? colors.error
+    : isFocused
+    ? colors.primary[500]
+    : borderColor;
 
   return (
     <View style={[styles.container, containerStyle]}>
-      <Animated.Text style={[styles.label, animatedLabelStyle]}>
-        {label}
-      </Animated.Text>
-      <AnimatedView
+      {label ? (
+        <Text style={[styles.label, { color: textPrimary }]}>{label}</Text>
+      ) : null}
+      <View
         style={[
           styles.inputContainer,
-          { backgroundColor: cardBackground },
-          animatedBorderStyle,
-          error && styles.errorBorder,
+          {
+            backgroundColor: cardBackground,
+            borderColor: borderColorStyle,
+          },
         ]}
       >
         {icon && <View style={styles.iconContainer}>{icon}</View>}
@@ -86,15 +58,24 @@ export function InputField({
           style={[
             styles.input,
             { color: textPrimary },
-            icon ? styles.inputWithIcon : undefined,
+            multiline && styles.inputMultiline,
           ]}
-          placeholderTextColor={isDarkMode ? colors.slate[500] : colors.slate[400]}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          {...props}
+          placeholder={placeholder}
+          placeholderTextColor={textSecondary}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType={keyboardType}
+          secureTextEntry={secureTextEntry}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
         />
-      </AnimatedView>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      </View>
+      {error && (
+        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+      )}
     </View>
   );
 }
@@ -106,34 +87,32 @@ const styles = StyleSheet.create({
   label: {
     fontSize: typography.fontSizes.sm,
     fontWeight: typography.fontWeights.medium,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
     borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.lg,
-    minHeight: 52,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minHeight: 44,
   },
   iconContainer: {
-    marginRight: spacing.md,
+    marginRight: spacing.sm,
   },
   input: {
     flex: 1,
     fontSize: typography.fontSizes.md,
-    paddingVertical: spacing.md,
+    padding: 0,
   },
-  inputWithIcon: {
-    paddingLeft: 0,
-  },
-  errorBorder: {
-    borderColor: colors.error,
-    borderWidth: 2,
+  inputMultiline: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+    paddingTop: spacing.sm,
   },
   errorText: {
-    color: colors.error,
-    fontSize: typography.fontSizes.sm,
+    fontSize: typography.fontSizes.xs,
     marginTop: spacing.xs,
   },
 });
-

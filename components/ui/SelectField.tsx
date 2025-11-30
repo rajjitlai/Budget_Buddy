@@ -1,261 +1,249 @@
-
-
 import React, { useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    Modal,
-    FlatList,
-    ViewStyle,
-    Platform,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  FlatList,
+  Platform,
 } from 'react-native';
-import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
-    withTiming,
-    FadeIn,
-    FadeOut,
-    SlideInDown,
-    SlideOutDown,
-} from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { ChevronDown, Check } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { colors, spacing, typography, borderRadius, shadows } from '@/lib/theme';
 
-interface SelectOption {
-    id: string;
-    label: string;
-    icon?: string;
+export interface SelectOption {
+  id: string;
+  label: string;
+  icon?: string;
 }
 
 interface SelectFieldProps {
-    label: string;
-    options: SelectOption[];
-    value: string | null;
-    onChange: (value: string) => void;
-    placeholder?: string;
-    error?: string;
-    containerStyle?: ViewStyle;
+  label: string;
+  options: SelectOption[];
+  value: string | null;
+  onChange: (value: string) => void;
+  placeholder: string;
+  error?: string;
 }
 
 export function SelectField({
-    label,
-    options,
-    value,
-    onChange,
-    placeholder = 'Select an option',
-    error,
-    containerStyle,
+  label,
+  options,
+  value,
+  onChange,
+  placeholder,
+  error,
 }: SelectFieldProps) {
-    const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor, backgroundColor } = useTheme();
-    const [isOpen, setIsOpen] = useState(false);
-    const rotation = useSharedValue(0);
+  const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor, backgroundColor } =
+    useTheme();
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
-    const selectedOption = options.find((opt) => opt.id === value);
+  const selectedOption = options.find((opt) => opt.id === value);
 
-    const handleOpen = () => {
-        if (Platform.OS !== 'web') {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-        setIsOpen(true);
-        rotation.value = withSpring(180);
-    };
+  const borderColorStyle = error
+    ? colors.error
+    : isFocused
+    ? colors.primary[500]
+    : borderColor;
 
-    const handleClose = () => {
-        setIsOpen(false);
-        rotation.value = withSpring(0);
-    };
+  const handleSelect = (optionId: string) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onChange(optionId);
+    setIsModalVisible(false);
+    setIsFocused(false);
+  };
 
-    const handleSelect = (optionId: string) => {
-        if (Platform.OS !== 'web') {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        }
-        onChange(optionId);
-        handleClose();
-    };
+  const handleOpen = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setIsModalVisible(true);
+    setIsFocused(true);
+  };
 
-    const animatedChevronStyle = useAnimatedStyle(() => ({
-        transform: [{ rotate: `${rotation.value}deg` }],
-    }));
+  const handleClose = () => {
+    setIsModalVisible(false);
+    setIsFocused(false);
+  };
 
-    return (
-        <View style={[styles.container, containerStyle]}>
-            <Text style={[styles.label, { color: textSecondary }]}>{label}</Text>
-            <TouchableOpacity
+  return (
+    <View style={styles.container}>
+      {label ? (
+        <Text style={[styles.label, { color: textPrimary }]}>{label}</Text>
+      ) : null}
+      <TouchableOpacity
+        style={[
+          styles.selectContainer,
+          {
+            backgroundColor: cardBackground,
+            borderColor: borderColorStyle,
+          },
+        ]}
+        onPress={handleOpen}
+        activeOpacity={0.7}
+      >
+        <Text
+          style={[
+            styles.selectText,
+            {
+              color: selectedOption ? textPrimary : textSecondary,
+            },
+          ]}
+        >
+          {selectedOption ? selectedOption.label : placeholder}
+        </Text>
+        <ChevronDown size={20} color={textSecondary} />
+      </TouchableOpacity>
+      {error && (
+        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+      )}
 
-                onPress={handleOpen}
-                activeOpacity={0.7}
-                style={[
-                    styles.selectButton,
-                    {
-                        backgroundColor: cardBackground,
-                        borderColor: error ? colors.error : borderColor,
-                    },
-                ]}
-            >
-                <Text
-                    style={[
-                        styles.selectText,
-                        { color: selectedOption ? textPrimary : textSecondary },
-                    ]}
-                >
-                    {selectedOption?.label || placeholder}
+      <Modal
+        visible={isModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleClose}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={handleClose}
+        >
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(200)}
+            style={[styles.modalContent, { backgroundColor: cardBackground }]}
+          >
+            <SafeAreaView edges={['bottom']}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: textPrimary }]}>
+                  {label}
                 </Text>
-                <Animated.View style={animatedChevronStyle}>
-                    <ChevronDown size={20} color={textSecondary} />
-                </Animated.View>
-            </TouchableOpacity>
-            {error && <Text style={styles.errorText}>{error}</Text>}
-
-            <Modal
-                visible={isOpen}
-                transparent
-                animationType="none"
-                onRequestClose={handleClose}
-            >
-                <Animated.View
-                    entering={FadeIn.duration(200)}
-                    exiting={FadeOut.duration(200)}
-                    style={styles.modalOverlay}
-                >
+                <TouchableOpacity onPress={handleClose}>
+                  <Text style={[styles.modalClose, { color: colors.primary[500] }]}>
+                    Done
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={options}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => {
+                  const isSelected = value === item.id;
+                  return (
                     <TouchableOpacity
-                        style={styles.modalBackdrop}
-                        activeOpacity={1}
-                        onPress={handleClose}
-                    />
-                    <Animated.View
-                        entering={SlideInDown.springify().damping(20)}
-                        exiting={SlideOutDown.springify().damping(20)}
-                        style={[
-                            styles.modalContent,
-                            { backgroundColor: isDarkMode ? colors.slate[800] : '#ffffff' },
-                        ]}
+                      style={[
+                        styles.optionItem,
+                        isSelected && { backgroundColor: `${colors.primary[500]}10` },
+                      ]}
+                      onPress={() => handleSelect(item.id)}
+                      activeOpacity={0.7}
                     >
-                        <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: textPrimary }]}>
-                                {label}
-                            </Text>
-                            <View
-                                style={[styles.modalHandle, { backgroundColor: borderColor }]}
-                            />
-                        </View>
-                        <FlatList
-                            data={options}
-                            keyExtractor={(item) => item.id}
-                            renderItem={({ item }) => (
-                                <TouchableOpacity
-                                    onPress={() => handleSelect(item.id)}
-                                    style={[
-                                        styles.optionItem,
-                                        value === item.id && {
-                                            backgroundColor: isDarkMode
-                                                ? colors.primary[900]
-                                                : colors.primary[50],
-                                        },
-                                    ]}
-                                >
-                                    <Text
-                                        style={[
-                                            styles.optionText,
-                                            { color: textPrimary },
-                                            value === item.id && { color: colors.primary[500] },
-                                        ]}
-                                    >
-                                        {item.label}
-                                    </Text>
-                                    {value === item.id && (
-                                        <Check size={20} color={colors.primary[500]} />
-                                    )}
-                                </TouchableOpacity>
-                            )}
-                            showsVerticalScrollIndicator={false}
-                            style={styles.optionsList}
-                        />
-                    </Animated.View>
-                </Animated.View>
-            </Modal>
-        </View>
-    );
+                      <Text
+                        style={[
+                          styles.optionText,
+                          {
+                            color: isSelected ? colors.primary[500] : textPrimary,
+                            fontWeight: isSelected
+                              ? typography.fontWeights.semibold
+                              : typography.fontWeights.normal,
+                          },
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                      {isSelected && (
+                        <Check size={20} color={colors.primary[500]} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+                style={styles.optionsList}
+              />
+            </SafeAreaView>
+          </Animated.View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        marginBottom: spacing.lg,
-    },
-    label: {
-        fontSize: typography.fontSizes.sm,
-        fontWeight: typography.fontWeights.medium,
-        marginBottom: spacing.sm,
-    },
-    selectButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderRadius: borderRadius.lg,
-        borderWidth: 1,
-        paddingHorizontal: spacing.lg,
-        minHeight: 52,
-    },
-    selectText: {
-        fontSize: typography.fontSizes.md,
-        flex: 1,
-    },
-    errorText: {
-        color: colors.error,
-        fontSize: typography.fontSizes.sm,
-        marginTop: spacing.xs,
-    },
-    modalOverlay: {
-        flex: 1,
-        justifyContent: 'flex-end',
-    },
-    modalBackdrop: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    modalContent: {
-        borderTopLeftRadius: borderRadius['3xl'],
-        borderTopRightRadius: borderRadius['3xl'],
-        maxHeight: '70%',
-        ...shadows.xl,
-    },
-    modalHeader: {
-        alignItems: 'center',
-        paddingTop: spacing.md,
-        paddingBottom: spacing.lg,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.slate[200],
-    },
-    modalHandle: {
-        width: 40,
-        height: 4,
-        borderRadius: 2,
-        marginBottom: spacing.md,
-    },
-    modalTitle: {
-        fontSize: typography.fontSizes.lg,
-        fontWeight: typography.fontWeights.semibold,
-    },
-    optionsList: {
-        paddingHorizontal: spacing.lg,
-        paddingBottom: spacing['3xl'],
-    },
-    optionItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: spacing.lg,
-        paddingHorizontal: spacing.lg,
-        borderRadius: borderRadius.lg,
-        marginVertical: spacing.xs,
-    },
-    optionText: {
-        fontSize: typography.fontSizes.md,
-        fontWeight: typography.fontWeights.medium,
-    },
+  container: {
+    marginBottom: spacing.lg,
+  },
+  label: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.medium,
+    marginBottom: spacing.xs,
+  },
+  selectContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minHeight: 44,
+  },
+  selectText: {
+    flex: 1,
+    fontSize: typography.fontSizes.md,
+  },
+  errorText: {
+    fontSize: typography.fontSizes.xs,
+    marginTop: spacing.xs,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: borderRadius['2xl'],
+    borderTopRightRadius: borderRadius['2xl'],
+    maxHeight: '70%',
+    ...shadows.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate[200],
+  },
+  modalTitle: {
+    fontSize: typography.fontSizes.lg,
+    fontWeight: typography.fontWeights.bold,
+  },
+  modalClose: {
+    fontSize: typography.fontSizes.md,
+    fontWeight: typography.fontWeights.semibold,
+  },
+  optionsList: {
+    maxHeight: 400,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate[100],
+  },
+  optionText: {
+    fontSize: typography.fontSizes.md,
+    flex: 1,
+  },
 });
-
