@@ -24,11 +24,16 @@ import {
   Shield,
   Bell,
   HelpCircle,
+  LogOut,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { useAppwrite } from '@/lib/AppwriteContext';
+import { signOut } from '@/lib/services/auth';
+import { useRouter } from 'expo-router';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { Avatar } from '@/components/Avatar';
 
 interface SettingItem {
   id: string;
@@ -45,6 +50,8 @@ const currencies = ['INR (?)', 'USD ($)', 'EUR (?)', 'GBP (�)', 'JPY (�)'];
 
 export default function SettingsScreen() {
   const { isDarkMode, toggleDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
+  const { user, refreshUser } = useAppwrite();
+  const router = useRouter();
   
   const [settings, setSettings] = useState({
     smartPlanner: true,
@@ -53,6 +60,16 @@ export default function SettingsScreen() {
     notifications: true,
     currency: 'INR (?)',
   });
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      await refreshUser();
+      router.replace('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   const handleToggle = (key: string) => {
     if (Platform.OS !== 'web') {
@@ -130,8 +147,19 @@ export default function SettingsScreen() {
           entering={FadeInDown.delay(100).duration(500)}
           style={styles.header}
         >
+          <View style={styles.userSection}>
+            <Avatar name={user?.name || 'User'} size={64} />
+            <View style={styles.userInfo}>
+              <Text style={[styles.userName, { color: textPrimary }]}>
+                {user?.name || 'User'}
+              </Text>
+              <Text style={[styles.userEmail, { color: textSecondary }]}>
+                {user?.email || ''}
+              </Text>
+            </View>
+          </View>
           <Text style={[styles.title, { color: textPrimary }]}>
-            Budget Buddy Settings
+            Settings
           </Text>
           <Text style={[styles.subtitle, { color: textSecondary }]}>
             Customize your experience
@@ -244,6 +272,21 @@ export default function SettingsScreen() {
           </View>
         </Animated.View>
 
+        {/* Account Section */}
+        <Animated.View entering={FadeInDown.delay(600).duration(500)}>
+          <SectionHeader title="Account" />
+          <View style={[styles.settingsCard, { backgroundColor: cardBackground }]}>
+            {renderSettingItem(
+              LogOut,
+              'Sign Out',
+              'Sign out of your account',
+              'link',
+              undefined,
+              handleLogout
+            )}
+          </View>
+        </Animated.View>
+
         {/* App Info */}
         <Animated.View
           entering={FadeInDown.delay(600).duration(500)}
@@ -272,6 +315,24 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
+  },
+  userSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
+  userInfo: {
+    marginLeft: spacing.md,
+    flex: 1,
+  },
+  userName: {
+    fontSize: typography.fontSizes.lg,
+    fontWeight: typography.fontWeights.bold,
+    marginBottom: spacing.xs,
+  },
+  userEmail: {
+    fontSize: typography.fontSizes.sm,
   },
   title: {
     fontSize: typography.fontSizes['2xl'],

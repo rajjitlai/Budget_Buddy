@@ -57,8 +57,15 @@ export async function signOut() {
 export async function getCurrentUser() {
   try {
     return await account.get();
-  } catch (error) {
-    console.error('Get current user error:', error);
+  } catch (error: any) {
+    // Silently handle missing scopes error (user not authenticated)
+    if (error?.message?.includes('missing scopes') || error?.message?.includes('User')) {
+      return null;
+    }
+    // Only log non-scope errors
+    if (error?.code !== 401) {
+      console.error('Get current user error:', error);
+    }
     return null;
   }
 }
@@ -88,8 +95,15 @@ export async function restoreSession() {
       return user;
     }
     return null;
-  } catch (error) {
-    console.error('Restore session error:', error);
+  } catch (error: any) {
+    // Silently handle missing scopes error (user not authenticated)
+    if (error?.message?.includes('missing scopes') || error?.message?.includes('User')) {
+      return null;
+    }
+    // Only log non-scope errors
+    if (error?.code !== 401) {
+      console.error('Restore session error:', error);
+    }
     return null;
   }
 }

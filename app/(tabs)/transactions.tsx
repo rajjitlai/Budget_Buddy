@@ -1,6 +1,6 @@
 
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,10 +22,13 @@ import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import {
-  initialAccounts,
   categories,
   formatCurrency,
 } from '@/lib/mockData';
+import { getAccounts, AccountDocument } from '@/lib/services/accounts';
+import { createTransaction } from '@/lib/services/transactions';
+import { useAppwrite } from '@/lib/AppwriteContext';
+import { Account } from '@/lib/mockData';
 import { InputField } from '@/components/ui/InputField';
 import { SelectField } from '@/components/ui/SelectField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -35,6 +38,9 @@ type TransactionType = 'expense' | 'income' | 'transfer';
 
 export default function TransactionScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
+  const { user } = useAppwrite();
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
   
   const [transactionType, setTransactionType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
@@ -43,8 +49,33 @@ export default function TransactionScreen() {
   const [destinationAccount, setDestinationAccount] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [submitting, setSubmitting] = useState(false);
 
-  const accountOptions = initialAccounts.map((acc) => ({
+  useEffect(() => {
+    loadAccounts();
+  }, []);
+
+  const loadAccounts = async () => {
+    try {
+      setLoading(true);
+      const accountDocs = await getAccounts();
+      const accountList: Account[] = accountDocs.map((doc) => ({
+        id: doc.$id,
+        name: doc.name,
+        type: doc.type,
+        balance: doc.balance,
+        icon: doc.icon,
+        color: doc.color,
+      }));
+      setAccounts(accountList);
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const accountOptions = accounts.map((acc) => ({
     id: acc.id,
     label: `${acc.name} (${formatCurrency(acc.balance)})`,
   }));
@@ -57,16 +88,42 @@ export default function TransactionScreen() {
     setCategory(null);
   };
 
-  const handleSubmit = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const handleSubmit = async () => {
+    if (!amount || !sourceAccount || (transactionType !== 'transfer' && !category)) {
+      return;
     }
-    // Reset form
-    setAmount('');
-    setCategory(null);
-    setSourceAccount(null);
-    setDestinationAccount(null);
-    setNotes('');
+
+    try {
+      setSubmitting(true);
+      await createTransaction({
+        amount: parseFloat(amount),
+        category: category || 'other',
+        sourceAccountId: sourceAccount,
+        destinationAccountId: transactionType === 'transfer' ? destinationAccount : undefined,
+        notes,
+        date,
+        type: transactionType,
+      });
+
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+
+      // Reset form
+      setAmount('');
+      setCategory(null);
+      setSourceAccount(null);
+      setDestinationAccount(null);
+      setNotes('');
+      setDate(new Date().toISOString().split('T')[0]);
+      
+      // Reload accounts to update balances
+      await loadAccounts();
+    } catch (error) {
+      console.error('Error creating transaction:', error);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const getTypeIcon = (type: TransactionType) => {
@@ -188,13 +245,21 @@ export default function TransactionScreen() {
           </View>
 
           {/* Account Selection */}
-          <SelectField
-            label={transactionType === 'transfer' ? 'From Account' : 'Account'}
-            options={accountOptions}
-            value={sourceAccount}
-            onChange={setSourceAccount}
-            placeholder="Select account"
-          />
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <Text style={[styles.loadingText, { color: textSecondary }]}>
+                Loading accounts...
+              </Text>
+            </View>
+          ) : (
+            <SelectField
+              label={transactionType === 'transfer' ? 'From Account' : 'Account'}
+              options={accountOptions}
+              value={sourceAccount}
+              onChange={setSourceAccount}
+              placeholder="Select account"
+            />
+          )}
 
           {transactionType === 'transfer' && (
             <Animated.View entering={FadeInUp.duration(300)}>
@@ -222,9 +287,9 @@ export default function TransactionScreen() {
           {/* Submit Button */}
           <View style={styles.submitContainer}>
             <PrimaryButton
-              title={`Add ${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)}`}
+              title={submitting ? 'Adding...' : `Add ${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)}`}
               onPress={handleSubmit}
-              disabled={!amount || !sourceAccount || (transactionType !== 'transfer' && !category)}
+              disabled={!amount || !sourceAccount || (transactionType !== 'transfer' && !category) || submitting || loading}
               fullWidth
               size="lg"
             />
@@ -332,6 +397,13 @@ const styles = StyleSheet.create({
   tipText: {
     fontSize: typography.fontSizes.sm,
     lineHeight: 20,
+  },
+  loadingContainer: {
+    padding: spacing.lg,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: typography.fontSizes.sm,
   },
 });
 

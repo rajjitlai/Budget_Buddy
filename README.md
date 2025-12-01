@@ -116,9 +116,24 @@ Budget_Buddy/
    
    Create a `.env` file in the root directory:
    ```env
+   # Convex / Better Auth
    CONVEX_DEPLOYMENT=your-deployment-name
    EXPO_PUBLIC_CONVEX_URL=https://your-convex-url.convex.cloud
+
+   # Appwrite
+   EXPO_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+   EXPO_PUBLIC_APPWRITE_PROJECT_ID=your-project-id
+   EXPO_PUBLIC_APPWRITE_DATABASE_ID=your-database-id
+   EXPO_PUBLIC_APPWRITE_COLLECTION_ACCOUNTS=accounts
+   EXPO_PUBLIC_APPWRITE_COLLECTION_TRANSACTIONS=transactions
+   EXPO_PUBLIC_APPWRITE_COLLECTION_MONTHLY_PLANS=monthlyPlans
+
+   # AI (OpenRouter Gemma 3 4B IT)
+   EXPO_PUBLIC_OPENROUTER_API_KEY=sk-or-v1-your-key
+   EXPO_PUBLIC_APP_URL=https://your-app-url.com
    ```
+
+   > 🔐 Never commit `.env` files. The OpenRouter key is used directly from the device to call `google/gemma-3-4b-it:free`.
 
 4. **Start Convex development server**
    ```bash
@@ -138,6 +153,18 @@ Budget_Buddy/
    - Press `i` for iOS simulator
    - Press `a` for Android emulator
    - Scan QR code with Expo Go app for physical device
+
+### Appwrite Database Setup
+
+Create the following collections in your Appwrite project (IDs can be customized, just keep the values in `.env` in sync):
+
+| Collection | Required Attributes (type) |
+|------------|----------------------------|
+| `accounts` | `name` (string), `type` (enum), `balance` (float), `icon` (string), `color` (string), `userId` (string) |
+| `transactions` | `amount` (float), `category` (string), `sourceAccountId` (string), `destinationAccountId` (string, optional), `notes` (string), `date` (datetime), `type` (enum), `userId` (string) |
+| `monthlyPlans` | `salary` (float), `essentials` (object), `allocations` (object), `month` (string), `year` (integer), `userId` (string) |
+
+Make sure the API keys used by the app have read/write access to these collections.
 
 ## 🐛 Known Issues & Debugging
 

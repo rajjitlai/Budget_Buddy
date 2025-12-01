@@ -8,10 +8,10 @@ import { formatCurrency } from '@/lib/mockData';
 
 interface NetWorthCardProps {
   totalBalance: number;
-  changePercent?: number;
+  changePercent?: number | null;
 }
 
-export function NetWorthCard({ totalBalance, changePercent = 2.5 }: NetWorthCardProps) {
+export function NetWorthCard({ totalBalance, changePercent = null }: NetWorthCardProps) {
   return (
     <View style={styles.container}>
       <View style={styles.gradientContainer}>
@@ -24,12 +24,15 @@ export function NetWorthCard({ totalBalance, changePercent = 2.5 }: NetWorthCard
               <Text style={styles.label}>Total Net Worth</Text>
             </View>
             <Text style={styles.balance}>{formatCurrency(totalBalance)}</Text>
-            <View style={styles.changeContainer}>
-              <TrendingUp size={16} color={colors.primary[200]} />
-              <Text style={styles.changeText}>
-                +{changePercent}% from last month
-              </Text>
-            </View>
+            {typeof changePercent === 'number' && (
+              <View style={styles.changeContainer}>
+                <TrendingUp size={16} color={colors.primary[200]} />
+                <Text style={styles.changeText}>
+                  {changePercent >= 0 ? '+' : ''}
+                  {changePercent}% from last month
+                </Text>
+              </View>
+            )}
           </View>
           <View style={styles.decorativeCircle1} />
           <View style={styles.decorativeCircle2} />

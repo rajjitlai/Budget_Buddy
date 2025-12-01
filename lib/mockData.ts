@@ -48,143 +48,6 @@ export interface MonthlyPlan {
   };
 }
 
-// Initial mock accounts
-export const initialAccounts: Account[] = [
-  {
-    id: '1',
-    name: 'Salary Account',
-    type: 'salary',
-    balance: 85000,
-    icon: 'Wallet',
-    color: '#10b981',
-  },
-  {
-    id: '2',
-    name: 'Daily Spending',
-    type: 'spending',
-    balance: 12500,
-    icon: 'CreditCard',
-    color: '#3b82f6',
-  },
-  {
-    id: '3',
-    name: 'Pocket Money',
-    type: 'pocket',
-    balance: 3500,
-    icon: 'Coins',
-    color: '#f59e0b',
-  },
-  {
-    id: '4',
-    name: 'Emergency Savings',
-    type: 'savings',
-    balance: 150000,
-    icon: 'PiggyBank',
-    color: '#8b5cf6',
-  },
-  {
-    id: '5',
-    name: 'Fixed Deposit',
-    type: 'fd',
-    balance: 500000,
-    icon: 'Landmark',
-    color: '#ec4899',
-  },
-];
-
-// Mock transactions
-export const mockTransactions: Transaction[] = [
-  {
-    id: 't1',
-    amount: 2500,
-    category: 'food',
-    sourceAccountId: '2',
-    notes: 'Weekly groceries',
-    date: '2024-01-15',
-    type: 'expense',
-  },
-  {
-    id: 't2',
-    amount: 1200,
-    category: 'electricity',
-    sourceAccountId: '1',
-    notes: 'Monthly electricity bill',
-    date: '2024-01-10',
-    type: 'expense',
-  },
-  {
-    id: 't3',
-    amount: 5000,
-    category: 'transfer',
-    sourceAccountId: '1',
-    destinationAccountId: '2',
-    notes: 'Weekly spending allowance',
-    date: '2024-01-08',
-    type: 'transfer',
-  },
-  {
-    id: 't4',
-    amount: 85000,
-    category: 'salary',
-    sourceAccountId: '1',
-    notes: 'Monthly salary credit',
-    date: '2024-01-01',
-    type: 'income',
-  },
-];
-
-// Mock AI insights
-export const mockAIInsights: AIInsight[] = [
-  {
-    id: 'ai1',
-    title: 'Optimize Spending Allocation',
-    description: 'Based on your spending patterns, consider moving ?4,000 from Salary to Spending account for better cash flow management.',
-    type: 'recommendation',
-    action: 'Move ?4,000 from Salary  Spending',
-    priority: 'high',
-  },
-  {
-    id: 'ai2',
-    title: 'Emergency Fund Alert',
-    description: 'Your emergency fund covers 4.5 months of expenses. Consider increasing it to 6 months for better security.',
-    type: 'warning',
-    action: 'Increase emergency reserve by ?2,500/month',
-    priority: 'medium',
-  },
-  {
-    id: 'ai3',
-    title: 'Savings Goal Progress',
-    description: 'You\'re on track to reach your annual savings goal! Keep up the great work.',
-    type: 'success',
-    priority: 'low',
-  },
-  {
-    id: 'ai4',
-    title: 'Bill Payment Reminder',
-    description: 'Your internet bill of ?999 is due in 3 days. Ensure sufficient balance in spending account.',
-    type: 'info',
-    action: 'Schedule payment',
-    priority: 'medium',
-  },
-];
-
-// Mock monthly plan
-export const mockMonthlyPlan: MonthlyPlan = {
-  salary: 85000,
-  essentials: {
-    electricity: 1500,
-    internet: 999,
-    mobile: 599,
-    food: 12000,
-    utilities: 2000,
-  },
-  allocations: {
-    spending: 25000,
-    salaryBuffer: 10000,
-    savings: 30000,
-    emergency: 5000,
-  },
-};
 
 // Transaction categories
 export const categories = [
@@ -210,13 +73,38 @@ export const accountTypes = [
   { id: 'custom', label: 'Custom Account', icon: 'Folder' },
 ];
 
-// Helper function to format currency
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
+const currencySymbols: Record<string, string> = {
+  INR: '₹',
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+};
+
+// Helper function to format currency with consistent symbol rendering
+export const formatCurrency = (amount: number, currency: string = 'INR'): string => {
+  const formatterOptions: Intl.NumberFormatOptions = {
     maximumFractionDigits: 0,
-  }).format(amount);
+  };
+
+  try {
+    const formatter = new Intl.NumberFormat('en-IN', {
+      ...formatterOptions,
+      style: 'currency',
+      currency,
+    });
+    const formatted = formatter.format(amount);
+
+    // Some Android fonts render currency glyphs as '?'.
+    if (formatted.includes('?')) {
+      const numeric = new Intl.NumberFormat('en-IN', formatterOptions).format(amount);
+      return `${currencySymbols[currency] ?? ''}${numeric}`;
+    }
+
+    return formatted;
+  } catch {
+    const numeric = new Intl.NumberFormat('en-IN', formatterOptions).format(amount);
+    return `${currencySymbols[currency] ?? ''}${numeric}`;
+  }
 };
 
 // Helper function to calculate total balance

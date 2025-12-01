@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -14,17 +15,17 @@ import { Plus, Sparkles, Bell } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { useAppwrite } from '@/lib/AppwriteContext';
 import {
   Account,
-  initialAccounts,
-  mockAIInsights,
   calculateNetWorth,
   formatCurrency,
   accountTypes,
 } from '@/lib/mockData';
+import { getAccounts, createAccount, AccountDocument } from '@/lib/services/accounts';
+import { createTransaction } from '@/lib/services/transactions';
 import { NetWorthCard } from '@/components/NetWorthCard';
 import { AccountList } from '@/components/AccountList';
-import { AIInsightCard } from '@/components/AIInsightCard';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ModalSheet } from '@/components/ui/ModalSheet';
@@ -33,7 +34,9 @@ import { SelectField } from '@/components/ui/SelectField';
 
 export default function DashboardScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground } = useTheme();
-  const [accounts, setAccounts] = useState<Account[]>(initialAccounts);
+  const { user } = useAppwrite();
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [newAccountName, setNewAccountName] = useState('');
   const [newAccountType, setNewAccountType] = useState<string | null>(null);
@@ -41,36 +44,76 @@ export default function DashboardScreen() {
 
   const netWorth = calculateNetWorth(accounts);
 
-  const handleAddAccount = () => {
+  useEffect(() => {
+    loadAccounts();
+  }, []);
+
+  const loadAccounts = async () => {
+    try {
+      setLoading(true);
+      const accountDocs = await getAccounts();
+      const accountList: Account[] = accountDocs.map((doc) => ({
+        id: doc.$id,
+        name: doc.name,
+        type: doc.type,
+        balance: doc.balance,
+        icon: doc.icon,
+        color: doc.color,
+      }));
+      setAccounts(accountList);
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddAccount = async () => {
     if (!newAccountName || !newAccountType || !newAccountBalance) return;
 
-    const typeConfig = accountTypes.find((t) => t.id === newAccountType);
-    const colorOptions = [
-      colors.primary[500],
-      colors.info,
-      colors.warning,
-      '#8b5cf6',
-      '#ec4899',
-      '#f97316',
-    ];
+    try {
+      const typeConfig = accountTypes.find((t) => t.id === newAccountType);
+      const colorOptions = [
+        colors.primary[500],
+        colors.info,
+        colors.warning,
+        '#8b5cf6',
+        '#ec4899',
+        '#f97316',
+      ];
 
-    const newAccount: Account = {
-      id: Date.now().toString(),
-      name: newAccountName,
-      type: newAccountType as Account['type'],
-      balance: parseFloat(newAccountBalance) || 0,
-      icon: typeConfig?.icon || 'Wallet',
-      color: colorOptions[accounts.length % colorOptions.length],
-    };
+      const accountData = {
+        name: newAccountName,
+        type: newAccountType as Account['type'],
+        balance: parseFloat(newAccountBalance) || 0,
+        icon: typeConfig?.icon || 'Wallet',
+        color: colorOptions[accounts.length % colorOptions.length],
+      };
 
-    setAccounts([...accounts, newAccount]);
-    setIsAddModalVisible(false);
-    setNewAccountName('');
-    setNewAccountType(null);
-    setNewAccountBalance('');
+      const createdAccount = await createAccount(accountData);
 
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (accountData.balance > 0) {
+        await createTransaction({
+          amount: accountData.balance,
+          category: 'other',
+          sourceAccountId: createdAccount.$id,
+          notes: 'Initial balance',
+          date: new Date().toISOString(),
+          type: 'income',
+        });
+      }
+
+      await loadAccounts();
+      setIsAddModalVisible(false);
+      setNewAccountName('');
+      setNewAccountType(null);
+      setNewAccountBalance('');
+
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error('Error creating account:', error);
     }
   };
 
@@ -87,7 +130,7 @@ export default function DashboardScreen() {
         >
           <View>
             <Text style={[styles.greeting, { color: textSecondary }]}>
-              Welcome back
+              Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
             </Text>
             <Text style={[styles.title, { color: textPrimary }]}>
               Budget Buddy
@@ -109,33 +152,31 @@ export default function DashboardScreen() {
         <Animated.View entering={FadeInDown.delay(300).duration(500)}>
           <SectionHeader
             title="Your Accounts"
-            subtitle={`${accounts.length} accounts`}
+            subtitle={`${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'}`}
             actionLabel="See all"
             onAction={() => {}}
           />
-          <AccountList accounts={accounts} />
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary[500]} />
+            </View>
+          ) : accounts.length > 0 ? (
+            <AccountList accounts={accounts} />
+          ) : (
+            <View style={[styles.emptyContainer, { backgroundColor: cardBackground }]}>
+              <Text style={[styles.emptyText, { color: textSecondary }]}>
+                No accounts yet. Add your first account to get started!
+              </Text>
+            </View>
+          )}
           <View style={styles.addButtonContainer}>
             <PrimaryButton
               title="Add Account"
               onPress={() => setIsAddModalVisible(true)}
-              variant="outline"
-              icon={<Plus size={18} color={colors.primary[500]} />}
+              icon={<Plus size={18} color="#ffffff" />}
               fullWidth
+              size="lg"
             />
-          </View>
-        </Animated.View>
-
-        {/* AI Insights Section */}
-        <Animated.View entering={FadeInDown.delay(400).duration(500)}>
-          <SectionHeader
-            title="Budget Buddy AI Insights"
-            subtitle="Personalized recommendations"
-            icon={<Sparkles size={20} color={colors.primary[500]} />}
-          />
-          <View style={styles.insightsContainer}>
-            {mockAIInsights.slice(0, 3).map((insight) => (
-              <AIInsightCard key={insight.id} insight={insight} />
-            ))}
           </View>
         </Animated.View>
       </ScrollView>
@@ -223,6 +264,21 @@ const styles = StyleSheet.create({
   },
   insightsContainer: {
     paddingHorizontal: spacing.lg,
+  },
+  loadingContainer: {
+    paddingVertical: spacing['3xl'],
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    marginHorizontal: spacing.lg,
+    padding: spacing.xl,
+    borderRadius: borderRadius.xl,
+    alignItems: 'center',
+    ...shadows.sm,
+  },
+  emptyText: {
+    fontSize: typography.fontSizes.md,
+    textAlign: 'center',
   },
   modalContent: {
     paddingBottom: spacing['3xl'],

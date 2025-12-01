@@ -20,8 +20,16 @@ export function AppwriteProvider({ children }: { children: ReactNode }) {
     try {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
-    } catch (error) {
-      console.error('Error refreshing user:', error);
+    } catch (error: any) {
+      // Silently handle missing scopes error (user not authenticated)
+      if (error?.message?.includes('missing scopes') || error?.message?.includes('User')) {
+        setUser(null);
+        return;
+      }
+      // Only log non-scope errors
+      if (error?.code !== 401) {
+        console.error('Error refreshing user:', error);
+      }
       setUser(null);
     }
   };
@@ -33,8 +41,11 @@ export function AppwriteProvider({ children }: { children: ReactNode }) {
         await restoreSession();
         // Get current user
         await refreshUser();
-      } catch (error) {
-        console.error('Auth initialization error:', error);
+      } catch (error: any) {
+        // Silently handle missing scopes error (user not authenticated)
+        if (!error?.message?.includes('missing scopes') && !error?.message?.includes('User')) {
+          console.error('Auth initialization error:', error);
+        }
         setUser(null);
       } finally {
         setLoading(false);

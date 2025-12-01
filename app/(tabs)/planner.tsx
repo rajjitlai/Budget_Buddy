@@ -22,8 +22,13 @@ import {
 } from 'lucide-react-native';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { formatCurrency, mockMonthlyPlan } from '@/lib/mockData';
+import { formatCurrency } from '@/lib/mockData';
+import { getCurrentMonthlyPlan, upsertMonthlyPlan } from '@/lib/services/monthlyPlans';
+import { useEffect } from 'react';
+import { MonthlyPlan } from '@/lib/mockData';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { Save } from 'lucide-react-native';
 import { CircularProgress } from '@/components/CircularProgress';
 import { StackedBarChart } from '@/components/StackedBarChart';
 
@@ -36,15 +41,59 @@ interface Essential {
 
 export default function MonthlyPlannerScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   
-  const [salary, setSalary] = useState(mockMonthlyPlan.salary);
+  const [salary, setSalary] = useState(0);
   const [essentials, setEssentials] = useState({
-    electricity: mockMonthlyPlan.essentials.electricity,
-    internet: mockMonthlyPlan.essentials.internet,
-    mobile: mockMonthlyPlan.essentials.mobile,
-    food: mockMonthlyPlan.essentials.food,
-    utilities: mockMonthlyPlan.essentials.utilities,
+    electricity: 0,
+    internet: 0,
+    mobile: 0,
+    food: 0,
+    utilities: 0,
   });
+
+  useEffect(() => {
+    loadPlan();
+  }, []);
+
+  const loadPlan = async () => {
+    try {
+      setLoading(true);
+      const plan = await getCurrentMonthlyPlan();
+      if (plan) {
+        setSalary(plan.salary);
+        setEssentials(plan.essentials);
+      }
+    } catch (error) {
+      console.error('Error loading plan:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const savePlan = async () => {
+    try {
+      setSaving(true);
+      const now = new Date();
+      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const planData: MonthlyPlan = {
+        salary,
+        essentials,
+        allocations: {
+          spending: 0,
+          salaryBuffer: 0,
+          savings: 0,
+          emergency: 0,
+        },
+      };
+      await upsertMonthlyPlan(month, now.getFullYear(), planData);
+    } catch (error) {
+      console.error('Error saving plan:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const essentialsList: Essential[] = [
     { key: 'electricity', label: 'Electricity', icon: Zap, value: essentials.electricity },
@@ -69,7 +118,6 @@ export default function MonthlyPlannerScreen() {
       };
     }
     
-    // Smart allocation logic (mock)
     const spending = Math.round(remaining * 0.35);
     const salaryBuffer = Math.round(remaining * 0.15);
     const savings = Math.round(remaining * 0.35);
@@ -260,6 +308,20 @@ export default function MonthlyPlannerScreen() {
             <Text style={styles.summaryValueBold}>
               {formatCurrency(allocations.savings + allocations.emergency + allocations.salaryBuffer)}
             </Text>
+          </View>
+        </Animated.View>
+
+        {/* Save Button */}
+        <Animated.View entering={FadeInDown.delay(500).duration(500)}>
+          <View style={styles.saveContainer}>
+            <PrimaryButton
+              title={saving ? 'Saving...' : 'Save Plan'}
+              onPress={savePlan}
+              disabled={saving || loading}
+              fullWidth
+              size="lg"
+              icon={<Save size={20} color="#ffffff" />}
+            />
           </View>
         </Animated.View>
       </ScrollView>

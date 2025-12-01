@@ -128,6 +128,7 @@ export function PrimaryButton({
       disabled={disabled}
       style={[
         styles.button,
+        variant !== 'ghost' && styles.buttonShadow,
         getButtonStyle(),
         fullWidth && styles.fullWidth,
         getSizeStyle(),
@@ -159,6 +160,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.lg,
+  },
+  buttonShadow: {
     ...shadows.sm,
   },
   fullWidth: {

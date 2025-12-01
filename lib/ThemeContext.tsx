@@ -1,7 +1,48 @@
 
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { Appearance, Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { colors } from './theme';
+
+const THEME_STORAGE_KEY = 'budget_buddy_theme';
+
+async function getStoredTheme(): Promise<'light' | 'dark' | null> {
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window?.localStorage) {
+        const value = window.localStorage.getItem(THEME_STORAGE_KEY);
+        return value === 'dark' || value === 'light' ? value : null;
+      }
+      return null;
+    }
+
+    const isAvailable = await SecureStore.isAvailableAsync();
+    if (!isAvailable) return null;
+    const stored = await SecureStore.getItemAsync(THEME_STORAGE_KEY);
+    return stored === 'dark' || stored === 'light' ? stored : null;
+  } catch (error) {
+    console.warn('Failed to load theme preference:', error);
+    return null;
+  }
+}
+
+async function setStoredTheme(value: 'light' | 'dark') {
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window?.localStorage) {
+        window.localStorage.setItem(THEME_STORAGE_KEY, value);
+      }
+      return;
+    }
+
+    const isAvailable = await SecureStore.isAvailableAsync();
+    if (!isAvailable) return;
+    await SecureStore.setItemAsync(THEME_STORAGE_KEY, value);
+  } catch (error) {
+    console.warn('Failed to save theme preference:', error);
+  }
+}
 
 interface ThemeContextType {
   isDarkMode: boolean;
@@ -18,9 +59,28 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const systemPrefersDark = Appearance.getColorScheme() === 'dark';
+  const [isDarkMode, setIsDarkMode] = useState(systemPrefersDark);
 
-  const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
+  useEffect(() => {
+    let isMounted = true;
+    const loadThemePreference = async () => {
+      const storedTheme = await getStoredTheme();
+      if (storedTheme && isMounted) {
+        setIsDarkMode(storedTheme === 'dark');
+      }
+    };
+    loadThemePreference();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setStoredTheme(isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
 
   const getColor = (colorPath: string): string => {
     const parts = colorPath.split('.');
