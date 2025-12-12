@@ -44,8 +44,7 @@ A modern, feature-rich personal finance management mobile application built with
 - **Lucide React Native** - Beautiful icon library
 
 ### Backend & Services
-- **Convex** - Real-time backend platform
-- **Better Auth** - Authentication solution
+- **Appwrite** - Backend-as-a-Service for authentication and database
 - **Expo Secure Store** - Secure credential storage
 
 ### UI/UX
@@ -74,8 +73,7 @@ Budget_Buddy/
 │   ├── NetWorthCard.tsx         # Net worth display card
 │   └── StackedBarChart.tsx      # Chart component
 ├── lib/                         # Utilities and configuration
-│   ├── auth-client.ts           # Authentication client setup
-│   ├── mockData.ts              # Mock data and type definitions
+││   ├── mockData.ts              # Mock data and type definitions
 │   ├── theme.ts                 # Theme configuration
 │   └── ThemeContext.tsx         # Theme context provider
 ├── assets/                      # Static assets
@@ -95,7 +93,7 @@ Budget_Buddy/
 - **npm** or **bun** package manager
 - **Expo CLI** (installed globally or via npx)
 - **iOS Simulator** (for Mac) or **Android Emulator** (for development)
-- **Convex Account** (for backend services)
+- **Appwrite Account** (for backend services)
 
 ### Installation
 
@@ -116,10 +114,6 @@ Budget_Buddy/
    
    Create a `.env` file in the root directory:
    ```env
-   # Convex / Better Auth
-   CONVEX_DEPLOYMENT=your-deployment-name
-   EXPO_PUBLIC_CONVEX_URL=https://your-convex-url.convex.cloud
-
    # Appwrite
    EXPO_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
    EXPO_PUBLIC_APPWRITE_PROJECT_ID=your-project-id
@@ -135,21 +129,14 @@ Budget_Buddy/
 
    > 🔐 Never commit `.env` files. The OpenRouter key is used directly from the device to call `google/gemma-3-4b-it:free`.
 
-4. **Start Convex development server**
-   ```bash
-   npm run dev
-   # or
-   bunx convex dev
-   ```
-
-5. **Start Expo development server**
+4. **Start Expo development server**
    ```bash
    npm start
    # or
    expo start
    ```
 
-6. **Run on your device**
+5. **Run on your device**
    - Press `i` for iOS simulator
    - Press `a` for Android emulator
    - Scan QR code with Expo Go app for physical device
@@ -188,17 +175,19 @@ The application currently has **missing UI component files** that are imported b
 - Should be: `components/AIInsightCard.tsx`
 - The import statements expect `AIInsightCard` but the file is named `AllInsightCard`
 
-### Convex Backend Setup
+### Appwrite Backend Setup
 
-The app requires a Convex backend to be set up and configured. Without proper Convex setup:
+The app requires an Appwrite backend to be set up and configured. Without proper Appwrite setup:
 - Authentication won't work
 - Data persistence will fail
-- Real-time features will be unavailable
+- All features will be unavailable
+
+See `APPWRITE_SCHEMA.md` for complete database schema setup instructions.
 
 ### Environment Configuration
 
 Missing or incorrect environment variables will cause:
-- Convex connection failures
+- Appwrite connection failures
 - Authentication errors
 - Runtime crashes
 
@@ -210,10 +199,7 @@ Missing or incorrect environment variables will cause:
   "expo": "^54.0.20",
   "react": "19.1.0",
   "react-native": "0.81.5",
-  "convex": "^1.29.3",
-  "better-auth": "1.3.27",
-  "@better-auth/expo": "1.3.27",
-  "@convex-dev/better-auth": "^0.9.5"
+  "appwrite": "^21.4.0"
 }
 ```
 
@@ -246,7 +232,7 @@ Budget Buddy uses a comprehensive theme system with:
 
 ## 🔐 Authentication
 
-Budget Buddy uses Better Auth with Expo integration for:
+Budget Buddy uses Appwrite for:
 - Secure user authentication
 - Session management
 - Protected routes
@@ -254,7 +240,7 @@ Budget Buddy uses Better Auth with Expo integration for:
 
 ## 💾 Data Management
 
-- **Convex**: Real-time database and backend
+- **Appwrite**: Backend-as-a-Service for authentication and database
 - **Mock Data**: Development data for testing
 - **Type Safety**: Full TypeScript type definitions
 
@@ -275,7 +261,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🙏 Acknowledgments
 
 - **Expo Team** - For the amazing development platform
-- **Convex** - For the real-time backend infrastructure
+- **Appwrite** - For the backend infrastructure and authentication
 - **Lucide Icons** - For the beautiful icon library
 - **React Native Community** - For the ecosystem and support
 
