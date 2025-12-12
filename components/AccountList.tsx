@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { BalanceCard } from './BalanceCard';
 import { Account } from '@/lib/mockData';
 import { spacing } from '@/lib/theme';
@@ -8,9 +8,16 @@ import { spacing } from '@/lib/theme';
 interface AccountListProps {
   accounts: Account[];
   onAccountPress?: (account: Account) => void;
+  onAccountEdit?: (account: Account) => void;
+  onAccountDelete?: (account: Account) => void;
 }
 
-export function AccountList({ accounts, onAccountPress }: AccountListProps) {
+export function AccountList({ 
+  accounts, 
+  onAccountPress,
+  onAccountEdit,
+  onAccountDelete 
+}: AccountListProps) {
   return (
     <View style={styles.container}>
       {accounts.map((account) => (
@@ -18,6 +25,8 @@ export function AccountList({ accounts, onAccountPress }: AccountListProps) {
           key={account.id}
           account={account}
           onPress={() => onAccountPress?.(account)}
+          onEdit={onAccountEdit ? () => onAccountEdit(account) : undefined}
+          onDelete={onAccountDelete ? () => onAccountDelete(account) : undefined}
         />
       ))}
     </View>

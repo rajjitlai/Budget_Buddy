@@ -74,8 +74,7 @@ export function StackedBarChart({
       {showLegend && (
         <View style={styles.legend}>
           {segments.map((segment, index) => (
-            <View key={index} sty
-le={styles.legendItem}>
+            <View key={index} style={styles.legendItem}>
               <View
                 style={[styles.legendDot, { backgroundColor: segment.color }]}
               />

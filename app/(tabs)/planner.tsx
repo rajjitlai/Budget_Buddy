@@ -8,10 +8,12 @@ import {
   ScrollView,
   TextInput,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Slider from '@react-native-community/slider';
+import * as Haptics from 'expo-haptics';
 import {
   Zap,
   Wifi,
@@ -52,6 +54,12 @@ export default function MonthlyPlannerScreen() {
     food: 0,
     utilities: 0,
   });
+  const [savedAllocations, setSavedAllocations] = useState({
+    spending: 0,
+    salaryBuffer: 0,
+    savings: 0,
+    emergency: 0,
+  });
 
   useEffect(() => {
     loadPlan();
@@ -64,6 +72,10 @@ export default function MonthlyPlannerScreen() {
       if (plan) {
         setSalary(plan.salary);
         setEssentials(plan.essentials);
+        // Load saved allocations if they exist
+        if (plan.allocations) {
+          setSavedAllocations(plan.allocations);
+        }
       }
     } catch (error) {
       console.error('Error loading plan:', error);
@@ -77,19 +89,30 @@ export default function MonthlyPlannerScreen() {
       setSaving(true);
       const now = new Date();
       const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Use the calculated allocations
       const planData: MonthlyPlan = {
         salary,
         essentials,
         allocations: {
-          spending: 0,
-          salaryBuffer: 0,
-          savings: 0,
-          emergency: 0,
+          spending: allocations.spending,
+          salaryBuffer: allocations.salaryBuffer,
+          savings: allocations.savings,
+          emergency: allocations.emergency,
         },
       };
+      
       await upsertMonthlyPlan(month, now.getFullYear(), planData);
-    } catch (error) {
+      
+      // Update saved allocations after successful save
+      setSavedAllocations(allocations);
+      
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error: any) {
       console.error('Error saving plan:', error);
+      Alert.alert('Error', error.message || 'Failed to save plan');
     } finally {
       setSaving(false);
     }
@@ -118,13 +141,23 @@ export default function MonthlyPlannerScreen() {
       };
     }
     
+    // Use saved allocations if they exist and sum matches remaining, otherwise calculate
+    const savedSum = savedAllocations.spending + savedAllocations.salaryBuffer + 
+                     savedAllocations.savings + savedAllocations.emergency;
+    
+    if (savedSum > 0 && Math.abs(savedSum - remaining) < 100) {
+      // Use saved allocations if they're close to the calculated remaining amount
+      return savedAllocations;
+    }
+    
+    // Otherwise calculate new allocations
     const spending = Math.round(remaining * 0.35);
     const salaryBuffer = Math.round(remaining * 0.15);
     const savings = Math.round(remaining * 0.35);
     const emergency = Math.round(remaining * 0.15);
     
     return { spending, salaryBuffer, savings, emergency };
-  }, [salary, totalEssentials]);
+  }, [salary, totalEssentials, savedAllocations]);
 
   const chartSegments = [
     { value: totalEssentials, color: colors.error, label: 'Essentials' },

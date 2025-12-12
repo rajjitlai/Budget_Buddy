@@ -14,6 +14,8 @@ import {
   PiggyBank,
   Landmark,
   Folder,
+  Edit,
+  Trash2,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
@@ -23,6 +25,8 @@ import { Account, formatCurrency } from '@/lib/mockData';
 interface BalanceCardProps {
   account: Account;
   onPress?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -36,7 +40,7 @@ const iconMap: Record<string, React.ComponentType<{ size: number; color: string 
   Folder,
 };
 
-export function BalanceCard({ account, onPress }: BalanceCardProps) {
+export function BalanceCard({ account, onPress, onEdit, onDelete }: BalanceCardProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
   const scale = useSharedValue(1);
 
@@ -55,6 +59,22 @@ export function BalanceCard({ account, onPress }: BalanceCardProps) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     onPress?.();
+  };
+
+  const handleEdit = (e: any) => {
+    e.stopPropagation();
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onEdit?.();
+  };
+
+  const handleDelete = (e: any) => {
+    e.stopPropagation();
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    onDelete?.();
   };
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -91,9 +111,33 @@ export function BalanceCard({ account, onPress }: BalanceCardProps) {
           </Text>
         </View>
       </View>
-      <Text style={[styles.balance, { color: textPrimary }]}>
-        {formatCurrency(account.balance)}
-      </Text>
+      <View style={styles.balanceRow}>
+        <Text style={[styles.balance, { color: textPrimary }]}>
+          {formatCurrency(account.balance)}
+        </Text>
+        {(onEdit || onDelete) && (
+          <View style={styles.actions}>
+            {onEdit && (
+              <TouchableOpacity
+                onPress={handleEdit}
+                style={[styles.actionButton, { backgroundColor: `${colors.primary[500]}15` }]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Edit size={16} color={colors.primary[500]} />
+              </TouchableOpacity>
+            )}
+            {onDelete && (
+              <TouchableOpacity
+                onPress={handleDelete}
+                style={[styles.actionButton, { backgroundColor: `${colors.error}15` }]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Trash2 size={16} color={colors.error} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
       <View style={[styles.accentBar, { backgroundColor: account.color }]} />
     </AnimatedTouchable>
   );
@@ -131,9 +175,26 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.sm,
     marginTop: 2,
   },
+  balanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   balance: {
     fontSize: typography.fontSizes['3xl'],
     fontWeight: typography.fontWeights.bold,
+    flex: 1,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  actionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   accentBar: {
     position: 'absolute',
