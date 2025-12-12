@@ -85,6 +85,18 @@ export default function MonthlyPlannerScreen() {
   };
 
   const savePlan = async () => {
+    // Validation: Prevent saving empty plans
+    if (salary <= 0) {
+      Alert.alert('Validation Error', 'Please enter a valid salary amount.');
+      return;
+    }
+
+    const totalEssentialsValue = Object.values(essentials).reduce((sum, val) => sum + val, 0);
+    if (totalEssentialsValue <= 0) {
+      Alert.alert('Validation Error', 'Please enter at least one essential expense.');
+      return;
+    }
+
     try {
       setSaving(true);
       const now = new Date();
@@ -106,6 +118,8 @@ export default function MonthlyPlannerScreen() {
       
       // Update saved allocations after successful save
       setSavedAllocations(allocations);
+      
+      Alert.alert('Success', 'Monthly plan saved successfully!');
       
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -245,7 +259,7 @@ export default function MonthlyPlannerScreen() {
                     </Text>
                   </View>
                   <View style={[styles.essentialInput, { borderColor }]}>
-                    <Text style={[styles.currencyPrefix, { color: textSecondary }]}>?</Text>
+                    <Text style={[styles.currencyPrefix, { color: textSecondary }]}>Rs.</Text>
                     <TextInput
                       style={[styles.input, { color: textPrimary }]}
                       value={item.value.toString()}
@@ -351,9 +365,9 @@ export default function MonthlyPlannerScreen() {
               title={saving ? 'Saving...' : 'Save Plan'}
               onPress={savePlan}
               disabled={saving || loading}
-              fullWidth
-              size="lg"
-              icon={<Save size={20} color="#ffffff" />}
+              size="md"
+              icon={<Save size={16} color="#ffffff" />}
+              style={styles.saveButton}
             />
           </View>
         </Animated.View>
@@ -377,9 +391,12 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes['2xl'],
     fontWeight: typography.fontWeights.bold,
     marginBottom: spacing.xs,
+    marginHorizontal: spacing.md,
   },
   subtitle: {
     fontSize: typography.fontSizes.md,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.xs,
   },
   salaryCard: {
     marginHorizontal: spacing.lg,
@@ -396,10 +413,12 @@ const styles = StyleSheet.create({
   salaryLabel: {
     fontSize: typography.fontSizes.md,
     fontWeight: typography.fontWeights.medium,
+    marginBottom: spacing.xs,
   },
   salaryValue: {
     fontSize: typography.fontSizes['4xl'],
     fontWeight: typography.fontWeights.bold,
+    marginTop: spacing.sm,
     marginBottom: spacing.lg,
   },
   slider: {
@@ -434,6 +453,7 @@ const styles = StyleSheet.create({
   essentialLabel: {
     fontSize: typography.fontSizes.sm,
     flex: 1,
+    marginBottom: spacing.xs,
   },
   essentialInput: {
     flexDirection: 'row',
@@ -531,6 +551,16 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.lg,
     fontWeight: typography.fontWeights.bold,
     color: '#ffffff',
+  },
+  saveContainer: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing['3xl'],
+    alignItems: 'center',
+  },
+  saveButton: {
+    maxWidth: 200,
+    alignSelf: 'center',
   },
 });
 

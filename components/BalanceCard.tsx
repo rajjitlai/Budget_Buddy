@@ -1,6 +1,6 @@
 
 
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -16,6 +16,8 @@ import {
   Folder,
   Edit,
   Trash2,
+  Eye,
+  EyeOff,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
@@ -43,8 +45,20 @@ const iconMap: Record<string, React.ComponentType<{ size: number; color: string 
 export function BalanceCard({ account, onPress, onEdit, onDelete }: BalanceCardProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
   const scale = useSharedValue(1);
+  const [isVisible, setIsVisible] = useState(false);
 
   const IconComponent = iconMap[account.icon] || Wallet;
+
+  const toggleVisibility = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setIsVisible(!isVisible);
+  };
+
+  const getHiddenBalance = () => {
+    return 'Rs. ••••••';
+  };
 
   const handlePressIn = () => {
     scale.value = withSpring(0.97, { damping: 15, stiffness: 400 });
@@ -110,10 +124,21 @@ export function BalanceCard({ account, onPress, onEdit, onDelete }: BalanceCardP
             {account.type.charAt(0).toUpperCase() + account.type.slice(1)}
           </Text>
         </View>
+        <TouchableOpacity
+          onPress={toggleVisibility}
+          style={styles.eyeButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          {isVisible ? (
+            <Eye size={18} color={textSecondary} />
+          ) : (
+            <EyeOff size={18} color={textSecondary} />
+          )}
+        </TouchableOpacity>
       </View>
       <View style={styles.balanceRow}>
         <Text style={[styles.balance, { color: textPrimary }]}>
-          {formatCurrency(account.balance)}
+          {isVisible ? formatCurrency(account.balance) : getHiddenBalance()}
         </Text>
         {(onEdit || onDelete) && (
           <View style={styles.actions}>
@@ -154,6 +179,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing.lg,
   },
   iconContainer: {
@@ -166,14 +192,20 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+    marginRight: spacing.sm,
+  },
+  eyeButton: {
+    padding: spacing.xs,
+    borderRadius: borderRadius.md,
   },
   accountName: {
     fontSize: typography.fontSizes.md,
     fontWeight: typography.fontWeights.semibold,
+    marginBottom: spacing.xs,
   },
   accountType: {
     fontSize: typography.fontSizes.sm,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   balanceRow: {
     flexDirection: 'row',

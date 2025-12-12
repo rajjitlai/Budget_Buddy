@@ -197,6 +197,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.md,
     borderRadius: borderRadius.xl,
+    marginHorizontal: spacing.lg,
     marginBottom: spacing.sm,
     borderWidth: 1,
     ...shadows.sm,
@@ -228,6 +229,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.semibold,
     flex: 1,
     marginRight: spacing.sm,
+    marginBottom: spacing.xs,
   },
   amount: {
     fontSize: typography.fontSizes.md,
@@ -249,6 +251,7 @@ const styles = StyleSheet.create({
   notes: {
     fontSize: typography.fontSizes.xs,
     fontStyle: 'italic',
+    marginTop: spacing.xs,
   },
   actions: {
     flexDirection: 'row',

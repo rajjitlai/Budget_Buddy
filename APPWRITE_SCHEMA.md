@@ -133,13 +133,15 @@ delete("userId = request.auth.uid")
 | Attribute Name | Type | Size | Required | Array | Default | Example |
 |---------------|------|------|----------|-------|---------|---------|
 | `salary` | double | - | ✅ Yes | ❌ No | 0 | 50000.00 |
-| `essentials` | object | - | ✅ Yes | ❌ No | {} | See below |
-| `allocations` | object | - | ✅ Yes | ❌ No | {} | See below |
+| `essentials` | string | 500 | ✅ Yes | ❌ No | "{}" | JSON string |
+| `allocations` | string | 500 | ✅ Yes | ❌ No | "{}" | JSON string |
 | `month` | string | 10 | ✅ Yes | ❌ No | - | "2025-12" |
 | `year` | integer | - | ✅ Yes | ❌ No | - | 2025 |
 | `userId` | string | 36 | ✅ Yes | ❌ No | - | Auto-set |
 
-### Essentials Object Structure
+### Essentials JSON Structure
+
+The `essentials` attribute is stored as a **JSON string** (not an object). The structure should be:
 
 ```json
 {
@@ -151,9 +153,11 @@ delete("userId = request.auth.uid")
 }
 ```
 
-All values are `double` type.
+**Important:** Store this as a JSON string, not an object. The application will automatically stringify/parse it.
 
-### Allocations Object Structure
+### Allocations JSON Structure
+
+The `allocations` attribute is stored as a **JSON string** (not an object). The structure should be:
 
 ```json
 {
@@ -164,7 +168,7 @@ All values are `double` type.
 }
 ```
 
-All values are `double` type.
+**Important:** Store this as a JSON string, not an object. The application will automatically stringify/parse it.
 
 ### Month Format
 
@@ -225,9 +229,9 @@ For each collection, add all attributes listed above:
 
 **Important Notes:**
 - For `double` type attributes, set **Min** to `0` if appropriate
-- For `string` type attributes, set the **Size** limit
+- For `string` type attributes, set the **Size** limit (500 for `essentials` and `allocations`)
 - For `datetime` type, ensure it accepts ISO 8601 format
-- For `object` type (monthlyPlans), ensure the structure matches the schema
+- For `essentials` and `allocations` in `monthlyPlans`: Use **string** type (not object), size 500, as they are stored as JSON strings
 
 ### Step 4: Create Indexes
 
@@ -300,8 +304,11 @@ EXPO_PUBLIC_APPWRITE_COLLECTION_MONTHLY_PLANS=monthlyPlans
 ### Monthly Plans Collection
 - `month` format must be `YYYY-MM`
 - `year` must match the year in `month`
-- `essentials` and `allocations` objects must have all required keys
-- All numeric values in objects should be non-negative
+- `essentials` and `allocations` are stored as JSON strings (not objects)
+- The application automatically stringifies objects when saving and parses strings when reading
+- All numeric values in the JSON objects should be non-negative
+- `salary` must be greater than 0 to save a plan
+- At least one essential expense must be greater than 0 to save a plan
 
 ---
 

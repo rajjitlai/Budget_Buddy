@@ -37,7 +37,18 @@ export async function getMonthlyPlan(
       return null;
     }
 
-    return response.documents[0] as unknown as MonthlyPlanDocument;
+    const doc = response.documents[0];
+    
+    // Parse JSON strings back to objects
+    return {
+      ...doc,
+      essentials: typeof doc.essentials === 'string' 
+        ? JSON.parse(doc.essentials) 
+        : doc.essentials,
+      allocations: typeof doc.allocations === 'string'
+        ? JSON.parse(doc.allocations)
+        : doc.allocations,
+    } as unknown as MonthlyPlanDocument;
   } catch (error) {
     console.error('Error getting monthly plan:', error);
     return null;
@@ -66,20 +77,30 @@ export async function upsertMonthlyPlan(
   // Check if plan exists
   const existing = await getMonthlyPlan(month, year);
 
+  // Convert objects to JSON strings for Appwrite storage
+  const documentData = {
+    salary: planData.salary,
+    essentials: JSON.stringify(planData.essentials),
+    allocations: JSON.stringify(planData.allocations),
+    month,
+    year,
+  };
+
   if (existing) {
     // Update existing plan
     const updated = await databases.updateDocument(
       process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
       COLLECTIONS.MONTHLY_PLANS,
       existing.$id,
-      {
-        ...planData,
-        month,
-        year,
-      }
+      documentData
     );
 
-    return updated as unknown as MonthlyPlanDocument;
+    // Parse JSON strings back to objects
+    return {
+      ...updated,
+      essentials: JSON.parse(updated.essentials as string),
+      allocations: JSON.parse(updated.allocations as string),
+    } as unknown as MonthlyPlanDocument;
   } else {
     // Create new plan
     const created = await databases.createDocument(
@@ -87,14 +108,17 @@ export async function upsertMonthlyPlan(
       COLLECTIONS.MONTHLY_PLANS,
       ID.unique(),
       {
-        ...planData,
-        month,
-        year,
+        ...documentData,
         userId,
       }
     );
 
-    return created as unknown as MonthlyPlanDocument;
+    // Parse JSON strings back to objects
+    return {
+      ...created,
+      essentials: JSON.parse(created.essentials as string),
+      allocations: JSON.parse(created.allocations as string),
+    } as unknown as MonthlyPlanDocument;
   }
 }
 
@@ -114,7 +138,16 @@ export async function getAllMonthlyPlans(): Promise<MonthlyPlanDocument[]> {
     ]
   );
 
-  return response.documents as unknown as MonthlyPlanDocument[];
+  // Parse JSON strings back to objects for all documents
+  return response.documents.map((doc) => ({
+    ...doc,
+    essentials: typeof doc.essentials === 'string'
+      ? JSON.parse(doc.essentials)
+      : doc.essentials,
+    allocations: typeof doc.allocations === 'string'
+      ? JSON.parse(doc.allocations)
+      : doc.allocations,
+  })) as unknown as MonthlyPlanDocument[];
 }
 
 /**

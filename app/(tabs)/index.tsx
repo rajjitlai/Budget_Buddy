@@ -12,11 +12,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Plus, Sparkles, Bell } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAppwrite } from '@/lib/AppwriteContext';
+import { useRouter } from 'expo-router';
 import {
   Account,
   calculateNetWorth,
@@ -25,13 +26,11 @@ import {
 } from '@/lib/mockData';
 import { getAccounts, createAccount, updateAccount, deleteAccount, AccountDocument } from '@/lib/services/accounts';
 import { getTransactions, TransactionDocument } from '@/lib/services/transactions';
-import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
-import { generateAIInsights } from '@/lib/services/ai';
-import { AIInsight, Transaction } from '@/lib/mockData';
 import { transactionDocumentToTransaction } from '@/lib/utils/converters';
 import { NetWorthCard } from '@/components/NetWorthCard';
+import { BalanceCard } from '@/components/BalanceCard';
 import { AccountList } from '@/components/AccountList';
-import { AIInsightCard } from '@/components/AIInsightCard';
+import { TransactionItem } from '@/components/TransactionItem';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ModalSheet } from '@/components/ui/ModalSheet';
@@ -41,12 +40,15 @@ import { SelectField } from '@/components/ui/SelectField';
 export default function DashboardScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground } = useTheme();
   const { user } = useAppwrite();
+  const router = useRouter();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [transactions, setTransactions] = useState<TransactionDocument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [insights, setInsights] = useState<AIInsight[]>([]);
-  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [showAllAccounts, setShowAllAccounts] = useState(false);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isViewAllModalVisible, setIsViewAllModalVisible] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [newAccountName, setNewAccountName] = useState('');
   const [newAccountType, setNewAccountType] = useState<string | null>(null);
@@ -56,13 +58,8 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     loadAccounts();
+    loadRecentTransactions();
   }, []);
-
-  useEffect(() => {
-    if (accounts.length > 0) {
-      loadInsights();
-    }
-  }, [accounts]);
 
   const loadAccounts = async () => {
     try {
@@ -84,35 +81,15 @@ export default function DashboardScreen() {
     }
   };
 
-  const loadInsights = async () => {
+  const loadRecentTransactions = async () => {
     try {
-      setInsightsLoading(true);
-      
-      // Load transactions and monthly plan
-      const [transactionDocs, monthlyPlan] = await Promise.all([
-        getTransactions({ limit: 100 }), // Get recent transactions
-        getCurrentMonthlyPlan(),
-      ]);
-
-      // Convert transaction documents to Transaction type
-      const transactions: Transaction[] = transactionDocs.map((doc) =>
-        transactionDocumentToTransaction(doc)
-      );
-
-      // Generate insights
-      const generatedInsights = await generateAIInsights({
-        accounts,
-        transactions,
-        monthlyPlan: monthlyPlan || undefined,
-      });
-
-      setInsights(generatedInsights);
+      setTransactionsLoading(true);
+      const transactionDocs = await getTransactions({ limit: 10 }); // Get 10 most recent
+      setTransactions(transactionDocs);
     } catch (error) {
-      console.error('Error loading insights:', error);
-      // Set empty insights on error
-      setInsights([]);
+      console.error('Error loading transactions:', error);
     } finally {
-      setInsightsLoading(false);
+      setTransactionsLoading(false);
     }
   };
 
@@ -148,11 +125,9 @@ export default function DashboardScreen() {
       await createAccount(accountData);
 
       await loadAccounts();
+      await loadRecentTransactions();
       setIsAddModalVisible(false);
       resetForm();
-
-      // Reload insights after adding account
-      await loadInsights();
 
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -188,9 +163,6 @@ export default function DashboardScreen() {
       setIsEditModalVisible(false);
       resetForm();
 
-      // Reload insights after updating account
-      await loadInsights();
-
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -225,7 +197,6 @@ export default function DashboardScreen() {
               try {
                 await deleteAccount(account.id);
                 await loadAccounts();
-                await loadInsights();
 
                 if (Platform.OS !== 'web') {
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -261,11 +232,6 @@ export default function DashboardScreen() {
               Budget Buddy
             </Text>
           </View>
-          <TouchableOpacity
-            style={[styles.notificationButton, { backgroundColor: cardBackground }]}
-          >
-            <Bell size={22} color={textPrimary} />
-          </TouchableOpacity>
         </Animated.View>
 
         {/* Net Worth Card */}
@@ -278,19 +244,30 @@ export default function DashboardScreen() {
           <SectionHeader
             title="Your Accounts"
             subtitle={`${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'}`}
-            actionLabel="See all"
-            onAction={() => {}}
+            actionLabel={showAllAccounts ? "Show less" : "See all"}
+            onAction={() => {
+              if (accounts.length > 3) {
+                setShowAllAccounts(!showAllAccounts);
+              } else {
+                setIsViewAllModalVisible(true);
+              }
+            }}
           />
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={colors.primary[500]} />
             </View>
           ) : accounts.length > 0 ? (
-            <AccountList 
-              accounts={accounts}
-              onAccountEdit={handleEditAccount}
-              onAccountDelete={handleDeleteAccount}
-            />
+            <View style={styles.accountsContainer}>
+              {(showAllAccounts ? accounts : accounts.slice(0, 3)).map((account) => (
+                <BalanceCard
+                  key={account.id}
+                  account={account}
+                  onEdit={() => handleEditAccount(account)}
+                  onDelete={() => handleDeleteAccount(account)}
+                />
+              ))}
+            </View>
           ) : (
             <View style={[styles.emptyContainer, { backgroundColor: cardBackground }]}>
               <Text style={[styles.emptyText, { color: textSecondary }]}>
@@ -309,34 +286,43 @@ export default function DashboardScreen() {
           </View>
         </Animated.View>
 
-        {/* AI Insights Section */}
-        {insights.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(400).duration(500)}>
-            <SectionHeader
-              title="Budget Buddy AI Insights"
-              subtitle="Personalized recommendations"
-              icon={<Sparkles size={20} color={colors.primary[500]} />}
-              actionLabel="See all"
-              onAction={() => {}}
-            />
-            <View style={styles.insightsContainer}>
-              {insights.slice(0, 3).map((insight) => (
-                <AIInsightCard key={insight.id} insight={insight} />
-              ))}
-            </View>
-          </Animated.View>
-        )}
-
-        {insightsLoading && (
-          <Animated.View entering={FadeInDown.delay(400).duration(500)}>
-            <View style={styles.insightsLoadingContainer}>
+        {/* Recent Transactions Section */}
+        <Animated.View entering={FadeInDown.delay(400).duration(500)} style={styles.recentTransactionsContainer}>
+          <SectionHeader
+            title="Recent Transactions"
+            subtitle="Your latest activity"
+            actionLabel="See all"
+            onAction={() => router.push('/(tabs)/transactions')}
+          />
+          {transactionsLoading ? (
+            <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color={colors.primary[500]} />
-              <Text style={[styles.insightsLoadingText, { color: textSecondary }]}>
-                Generating insights...
+            </View>
+          ) : transactions.length > 0 ? (
+            <View style={styles.transactionsContainer}>
+              {transactions.map((transaction) => {
+                const sourceAccount = accounts.find((acc) => acc.id === transaction.sourceAccountId);
+                const destinationAccount = transaction.destinationAccountId
+                  ? accounts.find((acc) => acc.id === transaction.destinationAccountId)
+                  : undefined;
+                return (
+                  <TransactionItem
+                    key={transaction.$id}
+                    transaction={transaction}
+                    sourceAccount={sourceAccount}
+                    destinationAccount={destinationAccount}
+                  />
+                );
+              })}
+            </View>
+          ) : (
+            <View style={[styles.emptyContainer, { backgroundColor: cardBackground }]}>
+              <Text style={[styles.emptyText, { color: textSecondary }]}>
+                No transactions yet. Add your first transaction to get started!
               </Text>
             </View>
-          </Animated.View>
-        )}
+          )}
+        </Animated.View>
       </ScrollView>
 
       {/* Add Account Modal */}
@@ -438,6 +424,40 @@ export default function DashboardScreen() {
           </View>
         </View>
       </ModalSheet>
+
+      {/* View All Accounts Modal */}
+      <ModalSheet
+        visible={isViewAllModalVisible}
+        onClose={() => setIsViewAllModalVisible(false)}
+        title="All Accounts"
+      >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.viewAllModalScroll}
+          contentContainerStyle={styles.viewAllModalContent}
+        >
+          {loading ? (
+            <View style={styles.viewAllLoadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary[500]} />
+            </View>
+          ) : accounts.length > 0 ? (
+            <AccountList 
+              accounts={accounts}
+              onAccountEdit={(account) => {
+                setIsViewAllModalVisible(false);
+                handleEditAccount(account);
+              }}
+              onAccountDelete={handleDeleteAccount}
+            />
+          ) : (
+            <View style={[styles.viewAllEmptyContainer, { backgroundColor: cardBackground }]}>
+              <Text style={[styles.viewAllEmptyText, { color: textSecondary }]}>
+                No accounts yet. Add your first account to get started!
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      </ModalSheet>
     </SafeAreaView>
   );
 }
@@ -458,11 +478,13 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: typography.fontSizes.sm,
-    marginBottom: 2,
+    marginBottom: spacing.xs,
+    marginLeft: spacing.xs,
   },
   title: {
     fontSize: typography.fontSizes['2xl'],
     fontWeight: typography.fontWeights.bold,
+    marginLeft: spacing.xs,
   },
   notificationButton: {
     width: 44,
@@ -476,18 +498,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginTop: spacing.sm,
   },
-  insightsContainer: {
+  accountsContainer: {
     paddingHorizontal: spacing.lg,
   },
-  insightsLoadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xl,
-    gap: spacing.sm,
+  recentTransactionsContainer: {
+    marginTop: spacing.xl,
   },
-  insightsLoadingText: {
-    fontSize: typography.fontSizes.sm,
+  transactionsContainer: {
+    paddingBottom: spacing.md,
   },
   loadingContainer: {
     paddingVertical: spacing['3xl'],
@@ -503,6 +521,8 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: typography.fontSizes.md,
     textAlign: 'center',
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
   },
   modalContent: {
     paddingBottom: spacing['3xl'],
@@ -517,5 +537,26 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
+  },
+  viewAllModalScroll: {
+    maxHeight: 600,
+  },
+  viewAllModalContent: {
+    paddingBottom: spacing.xl,
+  },
+  viewAllLoadingContainer: {
+    paddingVertical: spacing['3xl'],
+    alignItems: 'center',
+  },
+  viewAllEmptyContainer: {
+    marginHorizontal: spacing.lg,
+    padding: spacing.xl,
+    borderRadius: borderRadius.xl,
+    alignItems: 'center',
+    ...shadows.sm,
+  },
+  viewAllEmptyText: {
+    fontSize: typography.fontSizes.md,
+    textAlign: 'center',
   },
 });

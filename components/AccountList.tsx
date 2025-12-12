@@ -36,6 +36,7 @@ export function AccountList({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
   },
 });
 

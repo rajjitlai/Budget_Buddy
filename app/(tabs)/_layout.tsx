@@ -6,7 +6,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 import {
   LayoutDashboard,
   ArrowLeftRight,
-  Calculator,
+  BarChart3,
   Sparkles,
   Settings,
 } from 'lucide-react-native';
@@ -56,11 +56,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="planner"
+        name="charts"
         options={{
-          title: 'Planner',
+          title: 'Charts',
           tabBarIcon: ({ color, size }) => (
-            <Calculator size={22} color={color} />
+            <BarChart3 size={22} color={color} />
           ),
         }}
       />

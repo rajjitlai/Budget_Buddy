@@ -395,7 +395,7 @@ export default function TransactionScreen() {
       >
         {/* Amount Input */}
         <View style={[styles.amountContainer, { backgroundColor: cardBackground }]}>
-          <Text style={[styles.currencySymbol, { color: textSecondary }]}>?</Text>
+          <Text style={[styles.currencySymbol, { color: textSecondary }]}>Rs.</Text>
           <InputField
             label=""
             placeholder="0"
@@ -760,7 +760,7 @@ export default function TransactionScreen() {
 
           {/* Amount Input */}
           <View style={[styles.amountContainer, { backgroundColor: cardBackground }]}>
-            <Text style={[styles.currencySymbol, { color: textSecondary }]}>?</Text>
+            <Text style={[styles.currencySymbol, { color: textSecondary }]}>Rs.</Text>
             <InputField
               label=""
               placeholder="0"

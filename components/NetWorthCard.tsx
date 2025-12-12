@@ -1,8 +1,9 @@
 
 
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { TrendingUp, Wallet } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { TrendingUp, Wallet, Eye, EyeOff } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { formatCurrency } from '@/lib/mockData';
 
@@ -12,6 +13,20 @@ interface NetWorthCardProps {
 }
 
 export function NetWorthCard({ totalBalance, changePercent = null }: NetWorthCardProps) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  const toggleVisibility = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setIsVisible(!isVisible);
+  };
+
+  const getHiddenBalance = () => {
+    // Show "Rs. ••••••" when hidden
+    return 'Rs. ••••••';
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.gradientContainer}>
@@ -22,9 +37,22 @@ export function NetWorthCard({ totalBalance, changePercent = null }: NetWorthCar
                 <Wallet size={24} color="#ffffff" />
               </View>
               <Text style={styles.label}>Total Net Worth</Text>
+              <TouchableOpacity
+                onPress={toggleVisibility}
+                style={styles.eyeButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                {isVisible ? (
+                  <Eye size={20} color="rgba(255, 255, 255, 0.9)" />
+                ) : (
+                  <EyeOff size={20} color="rgba(255, 255, 255, 0.9)" />
+                )}
+              </TouchableOpacity>
             </View>
-            <Text style={styles.balance}>{formatCurrency(totalBalance)}</Text>
-            {typeof changePercent === 'number' && (
+            <Text style={styles.balance}>
+              {isVisible ? formatCurrency(totalBalance) : getHiddenBalance()}
+            </Text>
+            {typeof changePercent === 'number' && isVisible && (
               <View style={styles.changeContainer}>
                 <TrendingUp size={16} color={colors.primary[200]} />
                 <Text style={styles.changeText}>
@@ -65,6 +93,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing.lg,
   },
   iconContainer: {
@@ -80,22 +109,32 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.md,
     fontWeight: typography.fontWeights.medium,
     color: 'rgba(255, 255, 255, 0.9)',
+    marginLeft: spacing.xs,
+    flex: 1,
+  },
+  eyeButton: {
+    padding: spacing.xs,
+    borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   balance: {
     fontSize: typography.fontSizes['4xl'],
     fontWeight: typography.fontWeights.bold,
     color: '#ffffff',
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
   },
   changeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    marginTop: spacing.xs,
   },
   changeText: {
     fontSize: typography.fontSizes.sm,
     color: colors.primary[200],
     fontWeight: typography.fontWeights.medium,
+    marginLeft: spacing.xs,
   },
   decorativeCircle1: {
     position: 'absolute',

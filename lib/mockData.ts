@@ -73,38 +73,17 @@ export const accountTypes = [
   { id: 'custom', label: 'Custom Account', icon: 'Folder' },
 ];
 
-const currencySymbols: Record<string, string> = {
-  INR: '₹',
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-};
-
-// Helper function to format currency with consistent symbol rendering
-export const formatCurrency = (amount: number, currency: string = 'INR'): string => {
+// Helper function to format currency as Rupees (Rs.)
+export const formatCurrency = (amount: number): string => {
   const formatterOptions: Intl.NumberFormatOptions = {
     maximumFractionDigits: 0,
   };
 
-  try {
-    const formatter = new Intl.NumberFormat('en-IN', {
-      ...formatterOptions,
-      style: 'currency',
-      currency,
-    });
-    const formatted = formatter.format(amount);
-
-    // Some Android fonts render currency glyphs as '?'.
-    if (formatted.includes('?')) {
-      const numeric = new Intl.NumberFormat('en-IN', formatterOptions).format(amount);
-      return `${currencySymbols[currency] ?? ''}${numeric}`;
-    }
-
-    return formatted;
-  } catch {
-    const numeric = new Intl.NumberFormat('en-IN', formatterOptions).format(amount);
-    return `${currencySymbols[currency] ?? ''}${numeric}`;
-  }
+  // Format number with Indian number system (lakhs, crores)
+  const numeric = new Intl.NumberFormat('en-IN', formatterOptions).format(amount);
+  
+  // Always use "Rs." prefix
+  return `Rs. ${numeric}`;
 };
 
 // Helper function to calculate total balance

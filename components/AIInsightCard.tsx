@@ -202,6 +202,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.md,
     fontWeight: typography.fontWeights.semibold,
     flex: 1,
+    marginBottom: spacing.xs,
   },
   priorityBadge: {
     paddingHorizontal: spacing.sm,
@@ -215,6 +216,7 @@ const styles = StyleSheet.create({
   description: {
     fontSize: typography.fontSizes.sm,
     lineHeight: 20,
+    marginTop: spacing.xs,
   },
   actionContainer: {
     marginTop: spacing.lg,

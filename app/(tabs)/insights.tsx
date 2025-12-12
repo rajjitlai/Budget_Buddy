@@ -35,6 +35,8 @@ import { transactionDocumentToTransaction } from '@/lib/utils/converters';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { AIInsightCard } from '@/components/AIInsightCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { AdvancedCharts } from '@/components/AdvancedCharts';
+import * as SecureStore from 'expo-secure-store';
 
 interface MetricCard {
   id: string;
@@ -61,10 +63,21 @@ export default function AIRecommendationScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
+  const [showAdvancedCharts, setShowAdvancedCharts] = useState(false);
 
   useEffect(() => {
     loadData();
+    loadAdvancedChartsSetting();
   }, []);
+
+  const loadAdvancedChartsSetting = async () => {
+    try {
+      const value = await SecureStore.getItemAsync('advancedCharts');
+      setShowAdvancedCharts(value === 'true');
+    } catch (error) {
+      console.error('Error loading advanced charts setting:', error);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -136,6 +149,7 @@ export default function AIRecommendationScreen() {
     }
     setRefreshing(true);
     await loadData();
+    await loadAdvancedChartsSetting();
     setRefreshing(false);
   };
 
@@ -373,9 +387,20 @@ export default function AIRecommendationScreen() {
           </Animated.View>
         )}
 
+        {/* Advanced Charts */}
+        {showAdvancedCharts && (
+          <Animated.View entering={FadeInDown.delay(500).duration(500)}>
+            <AdvancedCharts
+              accounts={accounts}
+              transactions={transactions}
+              monthlyPlan={monthlyPlan}
+            />
+          </Animated.View>
+        )}
+
         {/* Expandable Explanations */}
         {explanations.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(500).duration(500)}>
+          <Animated.View entering={FadeInDown.delay(600).duration(500)}>
             <SectionHeader
               title="Understanding Your Insights"
               subtitle="Learn more about our recommendations"
@@ -493,10 +518,13 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes['2xl'],
     fontWeight: typography.fontWeights.bold,
     marginBottom: spacing.xs,
+    marginHorizontal: spacing.md,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: typography.fontSizes.md,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.xs,
     textAlign: 'center',
   },
   metricsGrid: {
@@ -533,10 +561,12 @@ const styles = StyleSheet.create({
   metricTitle: {
     fontSize: typography.fontSizes.sm,
     fontWeight: typography.fontWeights.medium,
-    marginBottom: 2,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
   },
   metricSubtitle: {
     fontSize: typography.fontSizes.xs,
+    marginTop: spacing.xs,
   },
   actionsContainer: {
     paddingHorizontal: spacing.lg,
@@ -550,12 +580,15 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.lg,
     fontWeight: typography.fontWeights.semibold,
     marginBottom: spacing.sm,
+    marginHorizontal: spacing.md,
     textAlign: 'center',
   },
   emptyText: {
     fontSize: typography.fontSizes.md,
     textAlign: 'center',
     lineHeight: 22,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.xs,
   },
   explanationsContainer: {
     paddingHorizontal: spacing.lg,
@@ -577,11 +610,13 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.semibold,
     flex: 1,
     marginRight: spacing.md,
+    marginBottom: spacing.xs,
   },
   explanationContent: {
     fontSize: typography.fontSizes.sm,
     lineHeight: 22,
     marginTop: spacing.md,
+    marginHorizontal: spacing.xs,
   },
   disclaimerCard: {
     flexDirection: 'row',
@@ -598,5 +633,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.fontSizes.sm,
     lineHeight: 20,
+    marginLeft: spacing.xs,
   },
 });
