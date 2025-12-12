@@ -40,6 +40,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f4c7a24e-dd4d-425e-b02e-148554dca09b"
+      }
+    },
+    "owner": "rajjitlaishram"
   }
 }
