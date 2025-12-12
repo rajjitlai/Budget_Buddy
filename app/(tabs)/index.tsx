@@ -73,6 +73,8 @@ export default function DashboardScreen() {
         icon: doc.icon,
         color: doc.color,
       }));
+      // Sort accounts by balance (lowest first)
+      accountList.sort((a, b) => a.balance - b.balance);
       setAccounts(accountList);
     } catch (error) {
       console.error('Error loading accounts:', error);
