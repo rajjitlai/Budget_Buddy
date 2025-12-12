@@ -122,12 +122,12 @@ Budget_Buddy/
    EXPO_PUBLIC_APPWRITE_COLLECTION_TRANSACTIONS=transactions
    EXPO_PUBLIC_APPWRITE_COLLECTION_MONTHLY_PLANS=monthlyPlans
 
-   # AI (OpenRouter Gemma 3 4B IT)
+   # AI (OpenRouter - Optional, uses rule-based fallback if not set)
    EXPO_PUBLIC_OPENROUTER_API_KEY=sk-or-v1-your-key
    EXPO_PUBLIC_APP_URL=https://your-app-url.com
    ```
-
-   > 🔐 Never commit `.env` files. The OpenRouter key is used directly from the device to call `google/gemma-3-4b-it:free`.
+   
+   > 🔐 Never commit `.env` files. The OpenRouter key is optional - the app works without it using rule-based insights. See `OPENROUTER_SETUP.md` for detailed setup instructions.
 
 4. **Start Expo development server**
    ```bash

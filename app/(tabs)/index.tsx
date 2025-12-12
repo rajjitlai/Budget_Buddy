@@ -24,7 +24,6 @@ import {
   accountTypes,
 } from '@/lib/mockData';
 import { getAccounts, createAccount, updateAccount, deleteAccount, AccountDocument } from '@/lib/services/accounts';
-import { getTransactions } from '@/lib/services/transactions';
 import { getTransactions, TransactionDocument } from '@/lib/services/transactions';
 import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
 import { generateAIInsights } from '@/lib/services/ai';
