@@ -25,6 +25,7 @@ import {
   Filter,
   X,
 } from 'lucide-react-native';
+import { RefreshButton } from '@/components/RefreshButton';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
@@ -80,6 +81,7 @@ export default function TransactionScreen() {
   const [filterType, setFilterType] = useState<TransactionType | 'all'>('all');
   const [filterAccount, setFilterAccount] = useState<string | 'all'>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadAccounts();
@@ -90,6 +92,18 @@ export default function TransactionScreen() {
       loadTransactions();
     }
   }, [activeTab]);
+
+  const refreshData = async () => {
+    setRefreshing(true);
+    try {
+      await loadAccounts();
+      if (activeTab === 'history') {
+        await loadTransactions();
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const loadAccounts = async () => {
     try {
@@ -345,12 +359,17 @@ export default function TransactionScreen() {
         entering={FadeInDown.delay(100).duration(500)}
         style={styles.header}
       >
-        <Text style={[styles.title, { color: textPrimary }]}>
-          Add Transaction
-        </Text>
-        <Text style={[styles.subtitle, { color: textSecondary }]}>
-          Record your income, expenses, or transfers
-        </Text>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={[styles.title, { color: textPrimary }]}>
+              Add Transaction
+            </Text>
+            <Text style={[styles.subtitle, { color: textSecondary }]}>
+              Record your income, expenses, or transfers
+            </Text>
+          </View>
+          <RefreshButton onPress={refreshData} refreshing={refreshing} />
+        </View>
       </Animated.View>
 
       {/* Transaction Type Selector */}
@@ -503,6 +522,19 @@ export default function TransactionScreen() {
 
     return (
       <View style={styles.historyContainer}>
+        {/* Header with Refresh */}
+        <Animated.View
+          entering={FadeInDown.delay(100).duration(500)}
+          style={styles.historyHeader}
+        >
+          <View style={styles.historyHeaderContent}>
+            <Text style={[styles.title, { color: textPrimary }]}>
+              Transaction History
+            </Text>
+            <RefreshButton onPress={refreshData} refreshing={refreshing} />
+          </View>
+        </Animated.View>
+        
         {/* Search and Filter Bar */}
         <Animated.View
           entering={FadeInDown.delay(100).duration(500)}
@@ -889,6 +921,16 @@ const styles = StyleSheet.create({
   historyContainer: {
     flex: 1,
   },
+  historyHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  historyHeaderContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   searchFilterContainer: {
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
@@ -991,6 +1033,11 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: {
     fontSize: typography.fontSizes['2xl'],

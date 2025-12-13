@@ -36,6 +36,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { AIInsightCard } from '@/components/AIInsightCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { AdvancedCharts } from '@/components/AdvancedCharts';
+import { RefreshButton } from '@/components/RefreshButton';
 import * as SecureStore from 'expo-secure-store';
 
 interface MetricCard {
@@ -69,6 +70,15 @@ export default function AIRecommendationScreen() {
     loadData();
     loadAdvancedChartsSetting();
   }, []);
+
+  const refreshData = async () => {
+    setRefreshing(true);
+    try {
+      await loadData();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const loadAdvancedChartsSetting = async () => {
     try {
@@ -290,27 +300,21 @@ export default function AIRecommendationScreen() {
           style={styles.header}
         >
           <View style={styles.headerTop}>
-            <View style={styles.headerIcon}>
-              <Sparkles size={28} color={colors.primary[500]} />
+            <View style={styles.headerLeft}>
+              <View style={styles.headerIcon}>
+                <Sparkles size={28} color={colors.primary[500]} />
+              </View>
+              <View>
+                <Text style={[styles.title, { color: textPrimary }]}>
+                  Budget Buddy Insights
+                </Text>
+                <Text style={[styles.subtitle, { color: textSecondary }]}>
+                  AI-powered recommendations for your finances
+                </Text>
+              </View>
             </View>
-            <TouchableOpacity
-              onPress={handleRefresh}
-              disabled={refreshing}
-              style={[styles.refreshButton, { backgroundColor: cardBackground }]}
-            >
-              <RefreshCw
-                size={18}
-                color={colors.primary[500]}
-                style={{ opacity: refreshing ? 1 : 0.7 }}
-              />
-            </TouchableOpacity>
+            <RefreshButton onPress={refreshData} refreshing={refreshing} />
           </View>
-          <Text style={[styles.title, { color: textPrimary }]}>
-            Budget Buddy Insights
-          </Text>
-          <Text style={[styles.subtitle, { color: textSecondary }]}>
-            AI-powered recommendations for your finances
-          </Text>
         </Animated.View>
 
         {/* Metrics Grid */}
@@ -490,11 +494,15 @@ const styles = StyleSheet.create({
   },
   headerTop: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
     width: '100%',
     marginBottom: spacing.lg,
-    position: 'relative',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
   headerIcon: {
     width: 60,

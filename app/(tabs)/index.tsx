@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Plus } from 'lucide-react-native';
+import { RefreshButton } from '@/components/RefreshButton';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
@@ -53,6 +54,7 @@ export default function DashboardScreen() {
   const [newAccountName, setNewAccountName] = useState('');
   const [newAccountType, setNewAccountType] = useState<string | null>(null);
   const [newAccountBalance, setNewAccountBalance] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   const netWorth = calculateNetWorth(accounts);
 
@@ -60,6 +62,15 @@ export default function DashboardScreen() {
     loadAccounts();
     loadRecentTransactions();
   }, []);
+
+  const refreshData = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([loadAccounts(), loadRecentTransactions()]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const loadAccounts = async () => {
     try {
@@ -226,13 +237,16 @@ export default function DashboardScreen() {
           entering={FadeInDown.delay(100).duration(500)}
           style={styles.header}
         >
-          <View>
-            <Text style={[styles.greeting, { color: textSecondary }]}>
-              Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
-            </Text>
-            <Text style={[styles.title, { color: textPrimary }]}>
-              Budget Buddy
-            </Text>
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={[styles.greeting, { color: textSecondary }]}>
+                Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
+              </Text>
+              <Text style={[styles.title, { color: textPrimary }]}>
+                Budget Buddy
+              </Text>
+            </View>
+            <RefreshButton onPress={refreshData} refreshing={refreshing} />
           </View>
         </Animated.View>
 
@@ -472,11 +486,13 @@ const styles = StyleSheet.create({
     paddingBottom: spacing['5xl'],
   },
   header: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
   },
   greeting: {
     fontSize: typography.fontSizes.sm,

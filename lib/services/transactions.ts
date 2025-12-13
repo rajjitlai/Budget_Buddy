@@ -120,16 +120,28 @@ export async function createTransaction(
 ): Promise<TransactionDocument> {
   const userId = await requireAuth();
 
+  // Prepare document data - only include destinationAccountId if it exists
+  const documentData: any = {
+    amount: transactionData.amount,
+    category: transactionData.category,
+    sourceAccountId: transactionData.sourceAccountId,
+    notes: transactionData.notes,
+    date: new Date(transactionData.date).toISOString(),
+    type: transactionData.type,
+    userId,
+  };
+
+  // Only include destinationAccountId if it's provided (for transfers)
+  if (transactionData.destinationAccountId) {
+    documentData.destinationAccountId = transactionData.destinationAccountId;
+  }
+
   // Create the transaction
   const transaction = await databases.createDocument(
     getDatabaseId(),
     COLLECTIONS.TRANSACTIONS,
     ID.unique(),
-    {
-      ...transactionData,
-      userId,
-      date: new Date(transactionData.date).toISOString(),
-    }
+    documentData
   );
 
   // Update account balances based on transaction type
@@ -197,10 +209,21 @@ export async function updateTransaction(
     await updateAccountBalance(change.accountId, reversedBalance);
   }
 
-  // Prepare update data
+  // Prepare update data - only include destinationAccountId if it's provided
   const updateData: any = { ...updates };
   if (updates.date) {
     updateData.date = new Date(updates.date).toISOString();
+  }
+  
+  // Handle destinationAccountId - only include if it has a value
+  // Remove it from the object if it's undefined (for income/expense transactions)
+  if (updates.destinationAccountId !== undefined) {
+    if (updates.destinationAccountId) {
+      updateData.destinationAccountId = updates.destinationAccountId;
+    } else {
+      // For non-transfer transactions, set to null to remove the field
+      updateData.destinationAccountId = null;
+    }
   }
 
   // Update the transaction

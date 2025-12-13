@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { BarChart3 } from 'lucide-react-native';
+import { RefreshButton } from '@/components/RefreshButton';
 import * as Haptics from 'expo-haptics';
 import { colors, typography, spacing } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
@@ -34,6 +35,15 @@ export default function ChartsScreen() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const refreshData = async () => {
+    setRefreshing(true);
+    try {
+      await loadData();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -88,9 +98,7 @@ export default function ChartsScreen() {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
+    await refreshData();
   };
 
   if (loading) {
@@ -122,15 +130,18 @@ export default function ChartsScreen() {
         {/* Header */}
         <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.header}>
           <View style={styles.headerContent}>
-            <View style={styles.headerIcon}>
-              <BarChart3 size={28} color={colors.primary[500]} />
+            <View style={styles.headerLeft}>
+              <View style={styles.headerIcon}>
+                <BarChart3 size={28} color={colors.primary[500]} />
+              </View>
+              <View>
+                <Text style={[styles.title, { color: textPrimary }]}>Financial Charts</Text>
+                <Text style={[styles.subtitle, { color: textSecondary }]}>
+                  Visualize your financial data
+                </Text>
+              </View>
             </View>
-            <View>
-              <Text style={[styles.title, { color: textPrimary }]}>Financial Charts</Text>
-              <Text style={[styles.subtitle, { color: textSecondary }]}>
-                Visualize your financial data
-              </Text>
-            </View>
+            <RefreshButton onPress={refreshData} refreshing={refreshing} />
           </View>
         </Animated.View>
 
@@ -169,6 +180,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,

@@ -344,7 +344,7 @@ export default function SettingsScreen() {
               </Text>
               <View style={styles.aboutInfo}>
                 <Text style={[styles.aboutInfoText, { color: textSecondary }]}>
-                  Version 1.0.0
+                  Version 1.0.1
                 </Text>
                 <Text style={[styles.aboutInfoText, { color: textSecondary }]}>
                   © 2025 Budget Buddy
