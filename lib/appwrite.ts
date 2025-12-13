@@ -7,6 +7,17 @@ const endpoint = process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.app
 const projectId = process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID || '';
 const databaseId = process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID || '';
 
+// Validate required environment variables
+if (!projectId) {
+  const errorMessage = 
+    'Missing EXPO_PUBLIC_APPWRITE_PROJECT_ID environment variable. ' +
+    'Please set it in your EAS secrets or .env file. ' +
+    'Run: eas secret:create --scope project --name EXPO_PUBLIC_APPWRITE_PROJECT_ID --value your-project-id';
+  console.error(errorMessage);
+  // Log a warning but don't throw to prevent immediate crash
+  // The app will still fail when trying to use Appwrite, but this gives better error visibility
+}
+
 // Initialize Appwrite client
 export const appwriteClient = new Client()
   .setEndpoint(endpoint)
