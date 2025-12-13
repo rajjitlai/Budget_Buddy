@@ -344,7 +344,7 @@ export default function SettingsScreen() {
               </Text>
               <View style={styles.aboutInfo}>
                 <Text style={[styles.aboutInfoText, { color: textSecondary }]}>
-                  Version 1.0.1
+                  Version 1.0.2
                 </Text>
                 <Text style={[styles.aboutInfoText, { color: textSecondary }]}>
                   © 2025 Budget Buddy
@@ -446,7 +446,7 @@ export default function SettingsScreen() {
         >
           <Text style={[styles.appName, { color: textPrimary }]}>Budget Buddy</Text>
           <Text style={[styles.appVersion, { color: textSecondary }]}>
-            Version 1.0.0
+            Version 1.0.2
           </Text>
           <Text style={[styles.appTagline, { color: textSecondary }]}>
             Your personal finance companion
