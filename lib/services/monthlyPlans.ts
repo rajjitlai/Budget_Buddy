@@ -1,5 +1,5 @@
 
-import { databases, COLLECTIONS, requireAuth, ID } from '@/lib/appwrite';
+import { databases, COLLECTIONS, requireAuth, ID, getDatabaseId } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 import { MonthlyPlan } from '@/lib/mockData';
 
@@ -23,7 +23,7 @@ export async function getMonthlyPlan(
 
   try {
     const response = await databases.listDocuments(
-      process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+      getDatabaseId(),
       COLLECTIONS.MONTHLY_PLANS,
       [
         Query.equal('userId', userId),
@@ -89,7 +89,7 @@ export async function upsertMonthlyPlan(
   if (existing) {
     // Update existing plan
     const updated = await databases.updateDocument(
-      process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+      getDatabaseId(),
       COLLECTIONS.MONTHLY_PLANS,
       existing.$id,
       documentData
@@ -104,7 +104,7 @@ export async function upsertMonthlyPlan(
   } else {
     // Create new plan
     const created = await databases.createDocument(
-      process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+      getDatabaseId(),
       COLLECTIONS.MONTHLY_PLANS,
       ID.unique(),
       {
@@ -129,7 +129,7 @@ export async function getAllMonthlyPlans(): Promise<MonthlyPlanDocument[]> {
   const userId = await requireAuth();
 
   const response = await databases.listDocuments(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+    getDatabaseId(),
     COLLECTIONS.MONTHLY_PLANS,
     [
       Query.equal('userId', userId),
@@ -157,7 +157,7 @@ export async function deleteMonthlyPlan(planId: string): Promise<void> {
   await requireAuth();
 
   await databases.deleteDocument(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+    getDatabaseId(),
     COLLECTIONS.MONTHLY_PLANS,
     planId
   );

@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Models } from 'appwrite';
 import { getCurrentUser, restoreSession, isAuthenticated } from '@/lib/services/auth';
+import { isAppwriteConfigured } from '@/lib/appwrite';
 
 interface AppwriteContextType {
   user: Models.User<Models.Preferences> | null;
@@ -37,6 +38,14 @@ export function AppwriteProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        // Skip auth initialization if Appwrite is not configured
+        if (!isAppwriteConfigured()) {
+          console.warn('Appwrite not configured, skipping auth initialization');
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
         // Try to restore session
         await restoreSession();
         // Get current user

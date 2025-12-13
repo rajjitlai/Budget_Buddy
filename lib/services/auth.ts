@@ -1,6 +1,7 @@
 
 import { account, ID } from '@/lib/appwrite';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 const SESSION_KEY = 'appwrite_session';
 
@@ -28,8 +29,18 @@ export async function signIn(email: string, password: string) {
   try {
     const session = await account.createEmailPasswordSession(email, password);
     
-    // Store session in secure storage
-    await SecureStore.setItemAsync(SESSION_KEY, session.$id);
+    // Store session in secure storage (if available)
+    try {
+      const isAvailable = await SecureStore.isAvailableAsync();
+      if (isAvailable) {
+        await SecureStore.setItemAsync(SESSION_KEY, session.$id);
+      } else {
+        console.warn('SecureStore not available, session not persisted');
+      }
+    } catch (storeError) {
+      console.warn('Failed to store session:', storeError);
+      // Continue anyway - Appwrite SDK handles session via cookies/localStorage
+    }
     
     return session;
   } catch (error) {
@@ -44,7 +55,15 @@ export async function signIn(email: string, password: string) {
 export async function signOut() {
   try {
     await account.deleteSession('current');
-    await SecureStore.deleteItemAsync(SESSION_KEY);
+    try {
+      const isAvailable = await SecureStore.isAvailableAsync();
+      if (isAvailable) {
+        await SecureStore.deleteItemAsync(SESSION_KEY);
+      }
+    } catch (storeError) {
+      console.warn('Failed to delete session from SecureStore:', storeError);
+      // Continue anyway
+    }
   } catch (error) {
     console.error('Sign out error:', error);
     throw error;
@@ -87,12 +106,38 @@ export async function isAuthenticated(): Promise<boolean> {
  */
 export async function restoreSession() {
   try {
-    const sessionId = await SecureStore.getItemAsync(SESSION_KEY);
+    // Check if SecureStore is available
+    let sessionId: string | null = null;
+    try {
+      const isAvailable = await SecureStore.isAvailableAsync();
+      if (isAvailable) {
+        sessionId = await SecureStore.getItemAsync(SESSION_KEY);
+      }
+    } catch (storeError) {
+      console.warn('SecureStore not available for session restore:', storeError);
+      // Continue - Appwrite SDK may handle session via other means
+    }
+
     if (sessionId) {
       // Appwrite SDK handles session automatically via cookies/localStorage
       // For React Native, we need to ensure the session is set
-      const user = await account.get();
-      return user;
+      try {
+        const user = await account.get();
+        return user;
+      } catch (error: any) {
+        // If session is invalid, clear it
+        if (error?.code === 401 || error?.message?.includes('missing scopes')) {
+          try {
+            const isAvailable = await SecureStore.isAvailableAsync();
+            if (isAvailable) {
+              await SecureStore.deleteItemAsync(SESSION_KEY);
+            }
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
+        return null;
+      }
     }
     return null;
   } catch (error: any) {

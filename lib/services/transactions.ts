@@ -1,5 +1,5 @@
 
-import { databases, COLLECTIONS, requireAuth, ID } from '@/lib/appwrite';
+import { databases, COLLECTIONS, requireAuth, ID, getDatabaseId } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 import { Transaction } from '@/lib/mockData';
 import { getAccount, updateAccountBalance } from './accounts';
@@ -22,36 +22,45 @@ export async function getTransactions(
     offset?: number;
   }
 ): Promise<TransactionDocument[]> {
-  const userId = await requireAuth();
+  try {
+    const userId = await requireAuth();
 
-  const queries = [
-    Query.equal('userId', userId),
-    Query.orderDesc('date'),
-  ];
+    const queries = [
+      Query.equal('userId', userId),
+      Query.orderDesc('date'),
+    ];
 
-  if (options?.accountId) {
-    queries.push(Query.equal('sourceAccountId', options.accountId));
+    if (options?.accountId) {
+      queries.push(Query.equal('sourceAccountId', options.accountId));
+    }
+
+    if (options?.type) {
+      queries.push(Query.equal('type', options.type));
+    }
+
+    if (options?.limit) {
+      queries.push(Query.limit(options.limit));
+    }
+
+    if (options?.offset) {
+      queries.push(Query.offset(options.offset));
+    }
+
+    const response = await databases.listDocuments(
+      getDatabaseId(),
+      COLLECTIONS.TRANSACTIONS,
+      queries
+    );
+
+    return response.documents as unknown as TransactionDocument[];
+  } catch (error: any) {
+    // If Appwrite is not configured, return empty array instead of crashing
+    if (error?.message?.includes('not configured') || error?.message?.includes('not authenticated')) {
+      console.warn('Appwrite not configured or user not authenticated, returning empty transactions');
+      return [];
+    }
+    throw error;
   }
-
-  if (options?.type) {
-    queries.push(Query.equal('type', options.type));
-  }
-
-  if (options?.limit) {
-    queries.push(Query.limit(options.limit));
-  }
-
-  if (options?.offset) {
-    queries.push(Query.offset(options.offset));
-  }
-
-  const response = await databases.listDocuments(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
-    COLLECTIONS.TRANSACTIONS,
-    queries
-  );
-
-  return response.documents as unknown as TransactionDocument[];
 }
 
 /**
@@ -63,7 +72,7 @@ export async function getTransaction(
   await requireAuth();
 
   const transaction = await databases.getDocument(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+    getDatabaseId(),
     COLLECTIONS.TRANSACTIONS,
     transactionId
   );
@@ -113,7 +122,7 @@ export async function createTransaction(
 
   // Create the transaction
   const transaction = await databases.createDocument(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+    getDatabaseId(),
     COLLECTIONS.TRANSACTIONS,
     ID.unique(),
     {
@@ -148,7 +157,7 @@ export async function createTransaction(
     // If balance update fails, delete the transaction to maintain consistency
     try {
       await databases.deleteDocument(
-        process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+        getDatabaseId(),
         COLLECTIONS.TRANSACTIONS,
         transaction.$id
       );
@@ -196,7 +205,7 @@ export async function updateTransaction(
 
   // Update the transaction
   const transaction = await databases.updateDocument(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+    getDatabaseId(),
     COLLECTIONS.TRANSACTIONS,
     transactionId,
     updateData
@@ -264,7 +273,7 @@ export async function deleteTransaction(
 
   // Delete the transaction
   await databases.deleteDocument(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+    getDatabaseId(),
     COLLECTIONS.TRANSACTIONS,
     transactionId
   );
@@ -280,7 +289,7 @@ export async function getTransactionsByDateRange(
   const userId = await requireAuth();
 
   const response = await databases.listDocuments(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+    getDatabaseId(),
     COLLECTIONS.TRANSACTIONS,
     [
       Query.equal('userId', userId),

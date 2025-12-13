@@ -11,16 +11,27 @@ async function getStoredTheme(): Promise<'light' | 'dark' | null> {
   try {
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined' && window?.localStorage) {
-        const value = window.localStorage.getItem(THEME_STORAGE_KEY);
-        return value === 'dark' || value === 'light' ? value : null;
+        try {
+          const value = window.localStorage.getItem(THEME_STORAGE_KEY);
+          return value === 'dark' || value === 'light' ? value : null;
+        } catch (error) {
+          console.warn('Failed to access localStorage:', error);
+          return null;
+        }
       }
       return null;
     }
 
-    const isAvailable = await SecureStore.isAvailableAsync();
-    if (!isAvailable) return null;
-    const stored = await SecureStore.getItemAsync(THEME_STORAGE_KEY);
-    return stored === 'dark' || stored === 'light' ? stored : null;
+    try {
+      const isAvailable = await SecureStore.isAvailableAsync();
+      if (!isAvailable) return null;
+      const stored = await SecureStore.getItemAsync(THEME_STORAGE_KEY);
+      return stored === 'dark' || stored === 'light' ? stored : null;
+    } catch (error) {
+      // SecureStore might not be available on all devices
+      console.warn('SecureStore not available, using system theme:', error);
+      return null;
+    }
   } catch (error) {
     console.warn('Failed to load theme preference:', error);
     return null;
@@ -31,14 +42,26 @@ async function setStoredTheme(value: 'light' | 'dark') {
   try {
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined' && window?.localStorage) {
-        window.localStorage.setItem(THEME_STORAGE_KEY, value);
+        try {
+          window.localStorage.setItem(THEME_STORAGE_KEY, value);
+        } catch (error) {
+          console.warn('Failed to save to localStorage:', error);
+        }
       }
       return;
     }
 
-    const isAvailable = await SecureStore.isAvailableAsync();
-    if (!isAvailable) return;
-    await SecureStore.setItemAsync(THEME_STORAGE_KEY, value);
+    try {
+      const isAvailable = await SecureStore.isAvailableAsync();
+      if (!isAvailable) {
+        console.warn('SecureStore not available, theme preference not saved');
+        return;
+      }
+      await SecureStore.setItemAsync(THEME_STORAGE_KEY, value);
+    } catch (error) {
+      // SecureStore might not be available on all devices
+      console.warn('Failed to save theme preference to SecureStore:', error);
+    }
   } catch (error) {
     console.warn('Failed to save theme preference:', error);
   }

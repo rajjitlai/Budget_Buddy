@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ViewStyle } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { useTheme } from '@/lib/ThemeContext';
 import { colors, spacing, typography, borderRadius } from '@/lib/theme';
 
@@ -32,6 +33,11 @@ export function InputField({
 }: InputFieldProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  
+  // Show password toggle only for secure text entry fields
+  const showPasswordToggle = secureTextEntry;
+  const actualSecureTextEntry = secureTextEntry && !isPasswordVisible;
 
   const borderColorStyle = error
     ? colors.error
@@ -59,19 +65,33 @@ export function InputField({
             styles.input,
             { color: textPrimary },
             multiline && styles.inputMultiline,
+            showPasswordToggle && styles.inputWithToggle,
           ]}
           placeholder={placeholder}
           placeholderTextColor={textSecondary}
           value={value}
           onChangeText={onChangeText}
           keyboardType={keyboardType}
-          secureTextEntry={secureTextEntry}
+          secureTextEntry={actualSecureTextEntry}
           multiline={multiline}
           numberOfLines={numberOfLines}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
         />
+        {showPasswordToggle && (
+          <TouchableOpacity
+            onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+            style={styles.eyeIconContainer}
+            activeOpacity={0.7}
+          >
+            {isPasswordVisible ? (
+              <EyeOff size={20} color={textSecondary} />
+            ) : (
+              <Eye size={20} color={textSecondary} />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
       {error && (
         <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
@@ -105,6 +125,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.fontSizes.md,
     padding: 0,
+  },
+  inputWithToggle: {
+    paddingRight: spacing.xs,
+  },
+  eyeIconContainer: {
+    padding: spacing.xs,
+    marginLeft: spacing.xs,
   },
   inputMultiline: {
     minHeight: 80,

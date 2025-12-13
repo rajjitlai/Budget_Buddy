@@ -1,5 +1,5 @@
 
-import { databases, COLLECTIONS, requireAuth, ID } from '@/lib/appwrite';
+import { databases, COLLECTIONS, requireAuth, ID, getDatabaseId } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 import { Account as AccountType } from '@/lib/mockData';
 
@@ -14,33 +14,49 @@ export interface AccountDocument extends Omit<AccountType, 'id'> {
  * Get all accounts for the current user
  */
 export async function getAccounts(): Promise<AccountDocument[]> {
-  const userId = await requireAuth();
-  
-  const response = await databases.listDocuments(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
-    COLLECTIONS.ACCOUNTS,
-    [
-      Query.equal('userId', userId),
-      Query.orderDesc('$createdAt'),
-    ]
-  );
+  try {
+    const userId = await requireAuth();
+    
+    const response = await databases.listDocuments(
+      getDatabaseId(),
+      COLLECTIONS.ACCOUNTS,
+      [
+        Query.equal('userId', userId),
+        Query.orderDesc('$createdAt'),
+      ]
+    );
 
-  return response.documents as unknown as AccountDocument[];
+    return response.documents as unknown as AccountDocument[];
+  } catch (error: any) {
+    // If Appwrite is not configured, return empty array instead of crashing
+    if (error?.message?.includes('not configured') || error?.message?.includes('not authenticated')) {
+      console.warn('Appwrite not configured or user not authenticated, returning empty accounts');
+      return [];
+    }
+    throw error;
+  }
 }
 
 /**
  * Get a single account by ID
  */
 export async function getAccount(accountId: string): Promise<AccountDocument> {
-  await requireAuth();
-  
-  const account = await databases.getDocument(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
-    COLLECTIONS.ACCOUNTS,
-    accountId
-  );
+  try {
+    await requireAuth();
+    
+    const account = await databases.getDocument(
+      getDatabaseId(),
+      COLLECTIONS.ACCOUNTS,
+      accountId
+    );
 
-  return account as unknown as AccountDocument;
+    return account as unknown as AccountDocument;
+  } catch (error: any) {
+    if (error?.message?.includes('not configured') || error?.message?.includes('not authenticated')) {
+      throw new Error('Appwrite is not configured. Please set your environment variables.');
+    }
+    throw error;
+  }
 }
 
 /**
@@ -52,7 +68,7 @@ export async function createAccount(
   const userId = await requireAuth();
 
   const account = await databases.createDocument(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+    getDatabaseId(),
     COLLECTIONS.ACCOUNTS,
     ID.unique(),
     {
@@ -74,7 +90,7 @@ export async function updateAccount(
   await requireAuth();
 
   const account = await databases.updateDocument(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+    getDatabaseId(),
     COLLECTIONS.ACCOUNTS,
     accountId,
     updates
@@ -100,7 +116,7 @@ export async function deleteAccount(accountId: string): Promise<void> {
   await requireAuth();
 
   await databases.deleteDocument(
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+    getDatabaseId(),
     COLLECTIONS.ACCOUNTS,
     accountId
   );

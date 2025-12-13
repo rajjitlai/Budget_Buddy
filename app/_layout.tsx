@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet, View, ActivityIndicator } from "react-native";
 import { useEffect } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 function ThemedStatusBar() {
     const { isDarkMode } = useTheme();
@@ -52,14 +53,16 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
     return (
-        <GestureHandlerRootView style={styles.container}>
-            <AppwriteProvider>
-                <ThemeProvider>
-                    <ThemedStatusBar />
-                    <RootLayoutNav />
-                </ThemeProvider>
-            </AppwriteProvider>
-        </GestureHandlerRootView>
+        <ErrorBoundary>
+            <GestureHandlerRootView style={styles.container}>
+                <AppwriteProvider>
+                    <ThemeProvider>
+                        <ThemedStatusBar />
+                        <RootLayoutNav />
+                    </ThemeProvider>
+                </AppwriteProvider>
+            </GestureHandlerRootView>
+        </ErrorBoundary>
     );
 }
 
