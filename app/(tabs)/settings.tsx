@@ -39,8 +39,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { useAppwrite } from '@/lib/AppwriteContext';
-import { signOut } from '@/lib/services/auth';
+import { useUser } from '@/lib/UserContext';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -98,12 +97,12 @@ const faqs: FAQItem[] = [
   {
     id: '7',
     question: 'Is my financial data secure?',
-    answer: 'Yes! Your data is stored securely using Appwrite with encrypted transmission, secure authentication, and user-isolated data access. We never share your financial information with third parties. See our Privacy Policy for more details.',
+    answer: 'Yes! Your data is stored locally on your device in a secure SQLite database. We do not store your data on our servers, ensuring total privacy. You can also enable biometric locking for an extra layer of security.',
   },
   {
     id: '8',
     question: 'Can I use the app without an internet connection?',
-    answer: 'You can view previously loaded data offline, but you\'ll need an internet connection to sync new transactions, accounts, or budget plans with the server. The app will use rule-based insights when offline.',
+    answer: 'Absolutely! Budget Buddy is a local-first app, meaning all your data is stored on your device. You only need an internet connection for optional features like AI-powered insights or cloud backups.',
   },
 ];
 
@@ -111,7 +110,7 @@ const currencies = ['INR (?)', 'USD ($)', 'EUR (?)', 'GBP (�)', 'JPY (�)'];
 
 export default function SettingsScreen() {
   const { isDarkMode, toggleDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
-  const { user, refreshUser } = useAppwrite();
+  const { user, logout } = useUser();
   const router = useRouter();
   
   const [settings, setSettings] = useState({
@@ -143,8 +142,7 @@ export default function SettingsScreen() {
 
   const handleLogout = async () => {
     try {
-      await signOut();
-      await refreshUser();
+      await logout();
       router.replace('/login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -511,35 +509,32 @@ export default function SettingsScreen() {
             3. Data Storage and Security
           </Text>
           <Text style={[styles.modalContent, { color: textSecondary }]}>
-            Your financial data is stored securely using Appwrite, a secure backend-as-a-service platform. We implement industry-standard security measures including:
+            Your financial data is stored locally on your device using a secure SQLite database. We implement the following security measures:
           </Text>
           <Text style={[styles.modalBulletPoint, { color: textSecondary }]}>
-            • Encrypted data transmission (HTTPS)
+            • Local-only data storage (we never see your financial data)
           </Text>
           <Text style={[styles.modalBulletPoint, { color: textSecondary }]}>
-            • Secure authentication and authorization
+            • Optional biometric locking (FaceID/Fingerprint)
           </Text>
           <Text style={[styles.modalBulletPoint, { color: textSecondary }]}>
-            • User-isolated data access (you can only access your own data)
+            • Secure credential storage for settings using Expo SecureStore
           </Text>
           <Text style={[styles.modalBulletPoint, { color: textSecondary }]}>
-            • Secure credential storage using Expo SecureStore
+            • No tracking or third-party analytics
           </Text>
 
           <Text style={[styles.modalSectionTitle, { color: textPrimary }]}>
             4. Third-Party Services
           </Text>
           <Text style={[styles.modalContent, { color: textSecondary }]}>
-            Budget Buddy uses the following third-party services:
-          </Text>
-          <Text style={[styles.modalBulletPoint, { color: textSecondary }]}>
-            • Appwrite: For data storage and authentication
+            Budget Buddy uses the following third-party services only when explicitly requested:
           </Text>
           <Text style={[styles.modalBulletPoint, { color: textSecondary }]}>
             • OpenRouter (optional): For AI-powered insights generation
           </Text>
           <Text style={[styles.modalContent, { color: textSecondary }]}>
-            These services have their own privacy policies. We recommend reviewing them to understand how they handle your data.
+            We do not share your raw financial data with any third-party services unless you use the AI insights feature, in which case only anonymized spending summaries are sent.
           </Text>
 
           <Text style={[styles.modalSectionTitle, { color: textPrimary }]}>

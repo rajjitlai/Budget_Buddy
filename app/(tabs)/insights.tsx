@@ -28,10 +28,9 @@ import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme'
 import { useTheme } from '@/lib/ThemeContext';
 import { formatCurrency, Account, Transaction, MonthlyPlan } from '@/lib/mockData';
 import { getAccounts } from '@/lib/services/accounts';
-import { getTransactions, TransactionDocument } from '@/lib/services/transactions';
+import { getTransactions } from '@/lib/services/transactions';
 import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
 import { generateAIInsights } from '@/lib/services/ai';
-import { transactionDocumentToTransaction } from '@/lib/utils/converters';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { AIInsightCard } from '@/components/AIInsightCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -105,7 +104,7 @@ export default function AIRecommendationScreen() {
     try {
       const accountDocs = await getAccounts();
       const accountList: Account[] = accountDocs.map((doc) => ({
-        id: doc.$id,
+        id: doc.id,
         name: doc.name,
         type: doc.type,
         balance: doc.balance,
@@ -121,9 +120,7 @@ export default function AIRecommendationScreen() {
   const loadTransactions = async () => {
     try {
       const transactionDocs = await getTransactions({ limit: 200 });
-      const transactionList: Transaction[] = transactionDocs.map((doc) =>
-        transactionDocumentToTransaction(doc)
-      );
+      const transactionList: Transaction[] = transactionDocs;
       setTransactions(transactionList);
     } catch (error) {
       console.error('Error loading transactions:', error);

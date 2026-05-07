@@ -1,18 +1,11 @@
 
-import { databases, COLLECTIONS, requireAuth, ID, getDatabaseId } from '@/lib/appwrite';
-import { Query } from 'appwrite';
+import { getDatabase, runInTransaction } from '@/lib/database/sqlite';
 import { Transaction } from '@/lib/mockData';
 import { getAccount, updateAccountBalance } from './accounts';
-
-export interface TransactionDocument extends Omit<Transaction, 'id'> {
-  $id: string;
-  userId: string;
-  $createdAt: string;
-  $updatedAt: string;
-}
+import * as Crypto from 'expo-crypto';
 
 /**
- * Get all transactions for the current user
+ * Get all transactions
  */
 export async function getTransactions(
   options?: {
@@ -21,63 +14,73 @@ export async function getTransactions(
     limit?: number;
     offset?: number;
   }
-): Promise<TransactionDocument[]> {
-  try {
-    const userId = await requireAuth();
+): Promise<Transaction[]> {
+  const db = await getDatabase();
+  let query = 'SELECT * FROM transactions';
+  const params: any[] = [];
+  const conditions: string[] = [];
 
-    const queries = [
-      Query.equal('userId', userId),
-      Query.orderDesc('date'),
-    ];
-
-    if (options?.accountId) {
-      queries.push(Query.equal('sourceAccountId', options.accountId));
-    }
-
-    if (options?.type) {
-      queries.push(Query.equal('type', options.type));
-    }
-
-    if (options?.limit) {
-      queries.push(Query.limit(options.limit));
-    }
-
-    if (options?.offset) {
-      queries.push(Query.offset(options.offset));
-    }
-
-    const response = await databases.listDocuments(
-      getDatabaseId(),
-      COLLECTIONS.TRANSACTIONS,
-      queries
-    );
-
-    return response.documents as unknown as TransactionDocument[];
-  } catch (error: any) {
-    // If Appwrite is not configured, return empty array instead of crashing
-    if (error?.message?.includes('not configured') || error?.message?.includes('not authenticated')) {
-      console.warn('Appwrite not configured or user not authenticated, returning empty transactions');
-      return [];
-    }
-    throw error;
+  if (options?.accountId) {
+    conditions.push('source_account_id = ? OR destination_account_id = ?');
+    params.push(options.accountId, options.accountId);
   }
+
+  if (options?.type) {
+    conditions.push('type = ?');
+    params.push(options.type);
+  }
+
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+
+  query += ' ORDER BY date DESC';
+
+  if (options?.limit) {
+    query += ' LIMIT ?';
+    params.push(options.limit);
+  }
+
+  if (options?.offset) {
+    query += ' OFFSET ?';
+    params.push(options.offset);
+  }
+
+  const results = await db.getAllAsync<any>(query, params);
+  
+  return results.map(row => ({
+    id: row.id,
+    amount: row.amount,
+    category: row.category,
+    sourceAccountId: row.source_account_id,
+    destinationAccountId: row.destination_account_id,
+    notes: row.notes,
+    date: row.date,
+    type: row.type,
+  }));
 }
 
 /**
  * Get a single transaction by ID
  */
-export async function getTransaction(
-  transactionId: string
-): Promise<TransactionDocument> {
-  await requireAuth();
+export async function getTransaction(transactionId: string): Promise<Transaction> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<any>('SELECT * FROM transactions WHERE id = ?', [transactionId]);
+  
+  if (!row) {
+    throw new Error('Transaction not found');
+  }
 
-  const transaction = await databases.getDocument(
-    getDatabaseId(),
-    COLLECTIONS.TRANSACTIONS,
-    transactionId
-  );
-
-  return transaction as unknown as TransactionDocument;
+  return {
+    id: row.id,
+    amount: row.amount,
+    category: row.category,
+    sourceAccountId: row.source_account_id,
+    destinationAccountId: row.destination_account_id,
+    notes: row.notes,
+    date: row.date,
+    type: row.type,
+  };
 }
 
 /**
@@ -93,15 +96,12 @@ function calculateBalanceChanges(
 
   switch (type) {
     case 'expense':
-      // Expense decreases source account balance
       changes.push({ accountId: sourceAccountId, balanceChange: -amount });
       break;
     case 'income':
-      // Income increases source account balance
       changes.push({ accountId: sourceAccountId, balanceChange: amount });
       break;
     case 'transfer':
-      // Transfer decreases source and increases destination
       if (destinationAccountId) {
         changes.push({ accountId: sourceAccountId, balanceChange: -amount });
         changes.push({ accountId: destinationAccountId, balanceChange: amount });
@@ -117,35 +117,26 @@ function calculateBalanceChanges(
  */
 export async function createTransaction(
   transactionData: Omit<Transaction, 'id'>
-): Promise<TransactionDocument> {
-  const userId = await requireAuth();
+): Promise<Transaction> {
+  const id = Crypto.randomUUID();
 
-  // Prepare document data - only include destinationAccountId if it exists
-  const documentData: any = {
-    amount: transactionData.amount,
-    category: transactionData.category,
-    sourceAccountId: transactionData.sourceAccountId,
-    notes: transactionData.notes,
-    date: new Date(transactionData.date).toISOString(),
-    type: transactionData.type,
-    userId,
-  };
+  return await runInTransaction(async (db) => {
+    // 1. Insert transaction
+    await db.runAsync(
+      'INSERT INTO transactions (id, amount, category, source_account_id, destination_account_id, notes, date, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        transactionData.amount,
+        transactionData.category,
+        transactionData.sourceAccountId,
+        transactionData.destinationAccountId || null,
+        transactionData.notes,
+        transactionData.date,
+        transactionData.type,
+      ]
+    );
 
-  // Only include destinationAccountId if it's provided (for transfers)
-  if (transactionData.destinationAccountId) {
-    documentData.destinationAccountId = transactionData.destinationAccountId;
-  }
-
-  // Create the transaction
-  const transaction = await databases.createDocument(
-    getDatabaseId(),
-    COLLECTIONS.TRANSACTIONS,
-    ID.unique(),
-    documentData
-  );
-
-  // Update account balances based on transaction type
-  try {
+    // 2. Calculate and apply balance changes
     const balanceChanges = calculateBalanceChanges(
       transactionData.type,
       transactionData.amount,
@@ -153,175 +144,110 @@ export async function createTransaction(
       transactionData.destinationAccountId
     );
 
-    // Apply balance changes to each affected account
     for (const change of balanceChanges) {
       const account = await getAccount(change.accountId);
       const newBalance = account.balance + change.balanceChange;
       
-      // Ensure balance doesn't go negative (for expenses and transfers)
       if (newBalance < 0 && (transactionData.type === 'expense' || transactionData.type === 'transfer')) {
-        throw new Error(`Insufficient balance in ${account.name}. Available: ${account.balance}`);
+        throw new Error(`Insufficient balance in ${account.name}`);
       }
 
       await updateAccountBalance(change.accountId, newBalance);
     }
-  } catch (error) {
-    // If balance update fails, delete the transaction to maintain consistency
-    try {
-      await databases.deleteDocument(
-        getDatabaseId(),
-        COLLECTIONS.TRANSACTIONS,
-        transaction.$id
-      );
-    } catch (deleteError) {
-      console.error('Failed to rollback transaction:', deleteError);
-    }
-    throw error;
-  }
 
-  return transaction as unknown as TransactionDocument;
+    return {
+      id,
+      ...transactionData,
+    };
+  });
 }
 
 /**
- * Update an existing transaction and adjust account balances
+ * Update an existing transaction
  */
 export async function updateTransaction(
   transactionId: string,
   updates: Partial<Omit<Transaction, 'id'>>
-): Promise<TransactionDocument> {
-  await requireAuth();
-
-  // Get the existing transaction to reverse its balance changes
-  const existingTransaction = await getTransaction(transactionId);
-
-  // Reverse the old transaction's balance changes
-  const oldBalanceChanges = calculateBalanceChanges(
-    existingTransaction.type,
-    existingTransaction.amount,
-    existingTransaction.sourceAccountId,
-    existingTransaction.destinationAccountId
-  );
-
-  // Reverse each balance change
-  for (const change of oldBalanceChanges) {
-    const account = await getAccount(change.accountId);
-    const reversedBalance = account.balance - change.balanceChange;
-    await updateAccountBalance(change.accountId, reversedBalance);
-  }
-
-  // Prepare update data - only include destinationAccountId if it's provided
-  const updateData: any = { ...updates };
-  if (updates.date) {
-    updateData.date = new Date(updates.date).toISOString();
-  }
-  
-  // Handle destinationAccountId - only include if it has a value
-  // Remove it from the object if it's undefined (for income/expense transactions)
-  if (updates.destinationAccountId !== undefined) {
-    if (updates.destinationAccountId) {
-      updateData.destinationAccountId = updates.destinationAccountId;
-    } else {
-      // For non-transfer transactions, set to null to remove the field
-      updateData.destinationAccountId = null;
-    }
-  }
-
-  // Update the transaction
-  const transaction = await databases.updateDocument(
-    getDatabaseId(),
-    COLLECTIONS.TRANSACTIONS,
-    transactionId,
-    updateData
-  );
-
-  // Apply new balance changes based on updated transaction data
-  const finalType = updates.type ?? existingTransaction.type;
-  const finalAmount = updates.amount ?? existingTransaction.amount;
-  const finalSourceAccountId = updates.sourceAccountId ?? existingTransaction.sourceAccountId;
-  const finalDestinationAccountId = updates.destinationAccountId ?? existingTransaction.destinationAccountId;
-
-  const newBalanceChanges = calculateBalanceChanges(
-    finalType,
-    finalAmount,
-    finalSourceAccountId,
-    finalDestinationAccountId
-  );
-
-  // Apply new balance changes
-  for (const change of newBalanceChanges) {
-    const account = await getAccount(change.accountId);
-    const newBalance = account.balance + change.balanceChange;
+): Promise<void> {
+  return await runInTransaction(async (db) => {
+    const existing = await getTransaction(transactionId);
     
-    // Ensure balance doesn't go negative
-    if (newBalance < 0 && (finalType === 'expense' || finalType === 'transfer')) {
-      // Rollback: re-apply old balance changes
-      for (const oldChange of oldBalanceChanges) {
-        const oldAccount = await getAccount(oldChange.accountId);
-        await updateAccountBalance(oldChange.accountId, oldAccount.balance + oldChange.balanceChange);
-      }
-      throw new Error(`Insufficient balance in account. Available: ${account.balance}`);
+    // 1. Reverse old balance changes
+    const oldChanges = calculateBalanceChanges(
+      existing.type,
+      existing.amount,
+      existing.sourceAccountId,
+      existing.destinationAccountId
+    );
+
+    for (const change of oldChanges) {
+      const account = await getAccount(change.accountId);
+      await updateAccountBalance(change.accountId, account.balance - change.balanceChange);
     }
 
-    await updateAccountBalance(change.accountId, newBalance);
-  }
+    // 2. Update transaction record
+    const finalType = updates.type ?? existing.type;
+    const finalAmount = updates.amount ?? existing.amount;
+    const finalSourceAccountId = updates.sourceAccountId ?? existing.sourceAccountId;
+    const finalDestinationAccountId = updates.destinationAccountId ?? existing.destinationAccountId;
+    const finalNotes = updates.notes ?? existing.notes;
+    const finalDate = updates.date ?? existing.date;
+    const finalCategory = updates.category ?? existing.category;
 
-  return transaction as unknown as TransactionDocument;
+    await db.runAsync(
+      'UPDATE transactions SET amount = ?, category = ?, source_account_id = ?, destination_account_id = ?, notes = ?, date = ?, type = ? WHERE id = ?',
+      [
+        finalAmount,
+        finalCategory,
+        finalSourceAccountId,
+        finalDestinationAccountId || null,
+        finalNotes,
+        finalDate,
+        finalType,
+        transactionId
+      ]
+    );
+
+    // 3. Apply new balance changes
+    const newChanges = calculateBalanceChanges(
+      finalType,
+      finalAmount,
+      finalSourceAccountId,
+      finalDestinationAccountId
+    );
+
+    for (const change of newChanges) {
+      const account = await getAccount(change.accountId);
+      const newBalance = account.balance + change.balanceChange;
+      
+      if (newBalance < 0 && (finalType === 'expense' || finalType === 'transfer')) {
+        throw new Error(`Insufficient balance in ${account.name}`);
+      }
+
+      await updateAccountBalance(change.accountId, newBalance);
+    }
+  });
 }
 
 /**
  * Delete a transaction and reverse its balance changes
  */
-export async function deleteTransaction(
-  transactionId: string
-): Promise<void> {
-  await requireAuth();
+export async function deleteTransaction(transactionId: string): Promise<void> {
+  return await runInTransaction(async (db) => {
+    const transaction = await getTransaction(transactionId);
 
-  // Get the transaction to reverse its balance changes
-  const transaction = await getTransaction(transactionId);
+    const balanceChanges = calculateBalanceChanges(
+      transaction.type,
+      transaction.amount,
+      transaction.sourceAccountId,
+      transaction.destinationAccountId
+    );
 
-  // Calculate and reverse balance changes
-  const balanceChanges = calculateBalanceChanges(
-    transaction.type,
-    transaction.amount,
-    transaction.sourceAccountId,
-    transaction.destinationAccountId
-  );
+    for (const change of balanceChanges) {
+      const account = await getAccount(change.accountId);
+      await updateAccountBalance(change.accountId, account.balance - change.balanceChange);
+    }
 
-  // Reverse each balance change (opposite of what was applied)
-  for (const change of balanceChanges) {
-    const account = await getAccount(change.accountId);
-    const reversedBalance = account.balance - change.balanceChange;
-    await updateAccountBalance(change.accountId, reversedBalance);
-  }
-
-  // Delete the transaction
-  await databases.deleteDocument(
-    getDatabaseId(),
-    COLLECTIONS.TRANSACTIONS,
-    transactionId
-  );
+    await db.runAsync('DELETE FROM transactions WHERE id = ?', [transactionId]);
+  });
 }
-
-/**
- * Get transactions for a date range
- */
-export async function getTransactionsByDateRange(
-  startDate: string,
-  endDate: string
-): Promise<TransactionDocument[]> {
-  const userId = await requireAuth();
-
-  const response = await databases.listDocuments(
-    getDatabaseId(),
-    COLLECTIONS.TRANSACTIONS,
-    [
-      Query.equal('userId', userId),
-      Query.greaterThanEqual('date', startDate),
-      Query.lessThanEqual('date', endDate),
-      Query.orderDesc('date'),
-    ]
-  );
-
-  return response.documents as unknown as TransactionDocument[];
-}
-

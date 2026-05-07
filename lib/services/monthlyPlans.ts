@@ -1,165 +1,63 @@
 
-import { databases, COLLECTIONS, requireAuth, ID, getDatabaseId } from '@/lib/appwrite';
-import { Query } from 'appwrite';
+import { getDatabase } from '@/lib/database/sqlite';
 import { MonthlyPlan } from '@/lib/mockData';
-
-export interface MonthlyPlanDocument extends MonthlyPlan {
-  $id: string;
-  userId: string;
-  month: string; // YYYY-MM format
-  year: number;
-  $createdAt: string;
-  $updatedAt: string;
-}
+import * as Crypto from 'expo-crypto';
 
 /**
- * Get monthly plan for a specific month
+ * Get current monthly plan
  */
-export async function getMonthlyPlan(
-  month: string,
-  year: number
-): Promise<MonthlyPlanDocument | null> {
-  const userId = await requireAuth();
-
-  try {
-    const response = await databases.listDocuments(
-      getDatabaseId(),
-      COLLECTIONS.MONTHLY_PLANS,
-      [
-        Query.equal('userId', userId),
-        Query.equal('month', month),
-        Query.equal('year', year),
-        Query.limit(1),
-      ]
-    );
-
-    if (response.documents.length === 0) {
-      return null;
-    }
-
-    const doc = response.documents[0];
-    
-    // Parse JSON strings back to objects
-    return {
-      ...doc,
-      essentials: typeof doc.essentials === 'string' 
-        ? JSON.parse(doc.essentials) 
-        : doc.essentials,
-      allocations: typeof doc.allocations === 'string'
-        ? JSON.parse(doc.allocations)
-        : doc.allocations,
-    } as unknown as MonthlyPlanDocument;
-  } catch (error) {
-    console.error('Error getting monthly plan:', error);
-    return null;
-  }
-}
-
-/**
- * Get current month's plan
- */
-export async function getCurrentMonthlyPlan(): Promise<MonthlyPlanDocument | null> {
+export async function getCurrentMonthlyPlan(): Promise<MonthlyPlan | null> {
   const now = new Date();
-  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  return getMonthlyPlan(month, now.getFullYear());
+  const month = now.toLocaleString('default', { month: 'long' });
+  const year = now.getFullYear();
+
+  return getMonthlyPlan(month, year);
 }
 
 /**
- * Create or update monthly plan
+ * Get monthly plan for a specific month and year
  */
-export async function upsertMonthlyPlan(
+export async function getMonthlyPlan(month: string, year: number): Promise<MonthlyPlan | null> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<any>(
+    'SELECT * FROM monthly_plans WHERE month = ? AND year = ?',
+    [month, year]
+  );
+
+  if (!row) return null;
+
+  return {
+    salary: row.salary,
+    essentials: JSON.parse(row.essentials),
+    allocations: JSON.parse(row.allocations),
+  };
+}
+
+/**
+ * Create or update a monthly plan
+ */
+export async function saveMonthlyPlan(
   month: string,
   year: number,
   planData: MonthlyPlan
-): Promise<MonthlyPlanDocument> {
-  const userId = await requireAuth();
+): Promise<void> {
+  const db = await getDatabase();
+  const id = Crypto.randomUUID();
 
-  // Check if plan exists
-  const existing = await getMonthlyPlan(month, year);
-
-  // Convert objects to JSON strings for Appwrite storage
-  const documentData = {
-    salary: planData.salary,
-    essentials: JSON.stringify(planData.essentials),
-    allocations: JSON.stringify(planData.allocations),
-    month,
-    year,
-  };
-
-  if (existing) {
-    // Update existing plan
-    const updated = await databases.updateDocument(
-      getDatabaseId(),
-      COLLECTIONS.MONTHLY_PLANS,
-      existing.$id,
-      documentData
-    );
-
-    // Parse JSON strings back to objects
-    return {
-      ...updated,
-      essentials: JSON.parse(updated.essentials as string),
-      allocations: JSON.parse(updated.allocations as string),
-    } as unknown as MonthlyPlanDocument;
-  } else {
-    // Create new plan
-    const created = await databases.createDocument(
-      getDatabaseId(),
-      COLLECTIONS.MONTHLY_PLANS,
-      ID.unique(),
-      {
-        ...documentData,
-        userId,
-      }
-    );
-
-    // Parse JSON strings back to objects
-    return {
-      ...created,
-      essentials: JSON.parse(created.essentials as string),
-      allocations: JSON.parse(created.allocations as string),
-    } as unknown as MonthlyPlanDocument;
-  }
-}
-
-/**
- * Get all monthly plans for the current user
- */
-export async function getAllMonthlyPlans(): Promise<MonthlyPlanDocument[]> {
-  const userId = await requireAuth();
-
-  const response = await databases.listDocuments(
-    getDatabaseId(),
-    COLLECTIONS.MONTHLY_PLANS,
+  await db.runAsync(
+    `INSERT INTO monthly_plans (id, salary, essentials, allocations, month, year)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(month, year) DO UPDATE SET
+     salary = excluded.salary,
+     essentials = excluded.essentials,
+     allocations = excluded.allocations`,
     [
-      Query.equal('userId', userId),
-      Query.orderDesc('year'),
-      Query.orderDesc('month'),
+      id,
+      planData.salary,
+      JSON.stringify(planData.essentials),
+      JSON.stringify(planData.allocations),
+      month,
+      year,
     ]
   );
-
-  // Parse JSON strings back to objects for all documents
-  return response.documents.map((doc) => ({
-    ...doc,
-    essentials: typeof doc.essentials === 'string'
-      ? JSON.parse(doc.essentials)
-      : doc.essentials,
-    allocations: typeof doc.allocations === 'string'
-      ? JSON.parse(doc.allocations)
-      : doc.allocations,
-  })) as unknown as MonthlyPlanDocument[];
 }
-
-/**
- * Delete a monthly plan
- */
-export async function deleteMonthlyPlan(planId: string): Promise<void> {
-  await requireAuth();
-
-  await databases.deleteDocument(
-    getDatabaseId(),
-    COLLECTIONS.MONTHLY_PLANS,
-    planId
-  );
-}
-

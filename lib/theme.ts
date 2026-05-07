@@ -125,11 +125,9 @@ export const typography = {
 };
 
 const createShadow = (radius: number) => ({
-  shadowColor: 'rgba(15, 23, 42, 0.08)',
-  shadowOffset: { width: 0, height: 6 },
-  shadowOpacity: 1,
-  shadowRadius: radius,
-  elevation: 0, // Prevent gray outlines on Android
+  // Use boxShadow for modern React Native versions (Web/Native)
+  // Format: 'offsetX offsetY blurRadius spreadRadius color' or 'offsetX offsetY blurRadius color'
+  boxShadow: `0px 6px ${radius}px 0px rgba(15, 23, 42, 0.08)`,
 });
 
 export const shadows = {

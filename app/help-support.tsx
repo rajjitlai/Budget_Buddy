@@ -49,12 +49,12 @@ const faqs: FAQItem[] = [
   {
     id: '7',
     question: 'Is my financial data secure?',
-    answer: 'Yes! Your data is stored securely using Appwrite with encrypted transmission, secure authentication, and user-isolated data access. We never share your financial information with third parties. See our Privacy Policy for more details.',
+    answer: 'Yes! Your data is stored locally on your device in a secure SQLite database. We do not store your data on our servers, ensuring total privacy. You can also enable biometric locking for an extra layer of security.',
   },
   {
     id: '8',
     question: 'Can I use the app without an internet connection?',
-    answer: 'You can view previously loaded data offline, but you\'ll need an internet connection to sync new transactions, accounts, or budget plans with the server. The app will use rule-based insights when offline.',
+    answer: 'Absolutely! Budget Buddy is a local-first app, meaning all your data is stored on your device. You only need an internet connection for optional features like AI-powered insights or cloud backups.',
   },
 ];
 

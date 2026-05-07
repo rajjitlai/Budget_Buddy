@@ -85,35 +85,32 @@ export default function PrivacyPolicyScreen() {
               3. Data Storage and Security
             </Text>
             <Text style={[styles.content, { color: textSecondary }]}>
-              Your financial data is stored securely using Appwrite, a secure backend-as-a-service platform. We implement industry-standard security measures including:
+              Your financial data is stored locally on your device using a secure SQLite database. We implement the following security measures:
             </Text>
             <Text style={[styles.bulletPoint, { color: textSecondary }]}>
-              • Encrypted data transmission (HTTPS)
+              • Local-only data storage (we never see your financial data)
             </Text>
             <Text style={[styles.bulletPoint, { color: textSecondary }]}>
-              • Secure authentication and authorization
+              • Optional biometric locking (FaceID/Fingerprint)
             </Text>
             <Text style={[styles.bulletPoint, { color: textSecondary }]}>
-              • User-isolated data access (you can only access your own data)
+              • Secure credential storage for settings using Expo SecureStore
             </Text>
             <Text style={[styles.bulletPoint, { color: textSecondary }]}>
-              • Secure credential storage using Expo SecureStore
+              • No tracking or third-party analytics
             </Text>
 
             <Text style={[styles.sectionTitle, { color: textPrimary }]}>
               4. Third-Party Services
             </Text>
             <Text style={[styles.content, { color: textSecondary }]}>
-              Budget Buddy uses the following third-party services:
-            </Text>
-            <Text style={[styles.bulletPoint, { color: textSecondary }]}>
-              • Appwrite: For data storage and authentication
+              Budget Buddy uses the following third-party services only when explicitly requested:
             </Text>
             <Text style={[styles.bulletPoint, { color: textSecondary }]}>
               • OpenRouter (optional): For AI-powered insights generation
             </Text>
             <Text style={[styles.content, { color: textSecondary }]}>
-              These services have their own privacy policies. We recommend reviewing them to understand how they handle your data.
+              We do not share your raw financial data with any third-party services unless you use the AI insights feature, in which case only anonymized spending summaries are sent.
             </Text>
 
             <Text style={[styles.sectionTitle, { color: textPrimary }]}>

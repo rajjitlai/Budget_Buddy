@@ -6,6 +6,8 @@ const { getDefaultConfig } = require("@expo/metro-config");
 const defaultConfig = getDefaultConfig(__dirname);
 
 defaultConfig.resolver.unstable_enablePackageExports = true;
+defaultConfig.resolver.sourceExts.push('wasm');
+defaultConfig.resolver.assetExts.push('wasm');
 
 module.exports = {
     ...defaultConfig,

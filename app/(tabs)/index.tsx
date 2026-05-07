@@ -17,7 +17,7 @@ import { RefreshButton } from '@/components/RefreshButton';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { useAppwrite } from '@/lib/AppwriteContext';
+import { useUser } from '@/lib/UserContext';
 import { useRouter } from 'expo-router';
 import {
   Account,
@@ -25,9 +25,9 @@ import {
   formatCurrency,
   accountTypes,
 } from '@/lib/mockData';
-import { getAccounts, createAccount, updateAccount, deleteAccount, AccountDocument } from '@/lib/services/accounts';
-import { getTransactions, TransactionDocument } from '@/lib/services/transactions';
-import { transactionDocumentToTransaction } from '@/lib/utils/converters';
+import { getAccounts, createAccount, updateAccount, deleteAccount } from '@/lib/services/accounts';
+import { getTransactions } from '@/lib/services/transactions';
+import { Transaction } from '@/lib/mockData';
 import { NetWorthCard } from '@/components/NetWorthCard';
 import { BalanceCard } from '@/components/BalanceCard';
 import { AccountList } from '@/components/AccountList';
@@ -40,10 +40,10 @@ import { SelectField } from '@/components/ui/SelectField';
 
 export default function DashboardScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground } = useTheme();
-  const { user } = useAppwrite();
+  const { user } = useUser();
   const router = useRouter();
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [transactions, setTransactions] = useState<TransactionDocument[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [showAllAccounts, setShowAllAccounts] = useState(false);
@@ -323,7 +323,7 @@ export default function DashboardScreen() {
                   : undefined;
                 return (
                   <TransactionItem
-                    key={transaction.$id}
+                    key={transaction.id}
                     transaction={transaction}
                     sourceAccount={sourceAccount}
                     destinationAccount={destinationAccount}

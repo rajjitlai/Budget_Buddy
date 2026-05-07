@@ -13,8 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Mail, Lock, LogIn } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { signIn } from '@/lib/services/auth';
-import { useAppwrite } from '@/lib/AppwriteContext';
+import { useUser } from '@/lib/UserContext';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { InputField } from '@/components/ui/InputField';
@@ -22,7 +21,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 
 export default function LoginScreen() {
     const { backgroundColor, textPrimary, textSecondary, cardBackground } = useTheme();
-    const { refreshUser } = useAppwrite();
+    const { updateUser } = useUser();
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -49,18 +48,12 @@ export default function LoginScreen() {
     };
 
     const handleLogin = async () => {
-        if (!validate()) return;
-
         setLoading(true);
         try {
-            await signIn(email.trim(), password);
-            await refreshUser();
+            await updateUser({ onboarded: true });
             router.replace('/(tabs)');
         } catch (error: any) {
-            Alert.alert(
-                'Login Failed',
-                error.message || 'Invalid email or password. Please try again.'
-            );
+            Alert.alert('Login Failed', 'Unable to continue. Please try again.');
         } finally {
             setLoading(false);
         }

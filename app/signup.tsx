@@ -13,8 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Mail, Lock, User, UserPlus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { signUp } from '@/lib/services/auth';
-import { useAppwrite } from '@/lib/AppwriteContext';
+import { useUser } from '@/lib/UserContext';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { InputField } from '@/components/ui/InputField';
@@ -22,7 +21,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 
 export default function SignupScreen() {
   const { backgroundColor, textPrimary, textSecondary, cardBackground } = useTheme();
-  const { refreshUser } = useAppwrite();
+  const { updateUser } = useUser();
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -66,18 +65,12 @@ export default function SignupScreen() {
   };
 
   const handleSignup = async () => {
-    if (!validate()) return;
-    
     setLoading(true);
     try {
-      await signUp(email.trim(), password, name.trim());
-      await refreshUser();
+      await updateUser({ name: name.trim() || 'Guest', onboarded: true });
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert(
-        'Sign Up Failed',
-        error.message || 'Unable to create account. Please try again.'
-      );
+      Alert.alert('Sign Up Failed', 'Unable to continue. Please try again.');
     } finally {
       setLoading(false);
     }

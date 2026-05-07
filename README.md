@@ -44,8 +44,9 @@ A modern, feature-rich personal finance management mobile application built with
 - **Lucide React Native** - Beautiful icon library
 
 ### Backend & Services
-- **Appwrite** - Backend-as-a-Service for authentication and database
-- **Expo Secure Store** - Secure credential storage
+- **SQLite** (`expo-sqlite`) - Local-first database storage
+- **Expo Secure Store** - Secure local settings storage
+- **Expo File System** - Data export and management
 
 ### UI/UX
 - **Custom Theme System** - Comprehensive design tokens
@@ -62,18 +63,23 @@ Budget_Buddy/
 │   │   ├── index.tsx            # Dashboard/Home screen
 │   │   ├── transactions.tsx     # Transaction management
 │   │   ├── insights.tsx         # Analytics and insights
-│   │   ├── planner.tsx          # Budget planning
 │   │   └── settings.tsx         # App settings
 │   └── _layout.tsx              # Root layout with providers
 ├── components/                   # Reusable components
 │   ├── AccountList.tsx          # Account list display
-│   ├── AllInsightCard.tsx       # AI insight cards (typo: should be AIInsightCard)
+│   ├── AIInsightCard.tsx        # AI insight cards
 │   ├── BalanceCard.tsx          # Account balance cards
-│   ├── CircularProgress.tsx     # Circular progress indicator
 │   ├── NetWorthCard.tsx         # Net worth display card
-│   └── StackedBarChart.tsx      # Chart component
 ├── lib/                         # Utilities and configuration
-││   ├── mockData.ts              # Mock data and type definitions
+│   ├── database/                # SQLite database setup
+│   │   └── sqlite.ts            # Database initialization
+│   ├── services/                # Business logic services
+│   │   ├── accounts.ts          # Account management
+│   │   ├── transactions.ts      # Transaction logic
+│   │   └── monthlyPlans.ts      # Budget planning
+│   ├── utils/                   # Helper functions
+│   │   └── export.ts            # Data export utility
+│   ├── mockData.ts              # Type definitions and constants
 │   ├── theme.ts                 # Theme configuration
 │   └── ThemeContext.tsx         # Theme context provider
 ├── assets/                      # Static assets
@@ -93,7 +99,6 @@ Budget_Buddy/
 - **npm** or **bun** package manager
 - **Expo CLI** (installed globally or via npx)
 - **iOS Simulator** (for Mac) or **Android Emulator** (for development)
-- **Appwrite Account** (for backend services)
 
 ### Installation
 

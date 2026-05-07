@@ -1,0 +1,94 @@
+
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import * as SecureStore from 'expo-secure-store';
+import { initDatabase } from '@/lib/database/sqlite';
+
+interface UserProfile {
+  name: string;
+  onboarded: boolean;
+  biometricEnabled: boolean;
+}
+
+interface UserContextType {
+  user: UserProfile | null;
+  loading: boolean;
+  updateUser: (updates: Partial<UserProfile>) => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+const UserContext = createContext<UserContextType | undefined>(undefined);
+
+const USER_STORAGE_KEY = 'budget_buddy_user_profile';
+
+export function UserProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        // Initialize database
+        await initDatabase();
+
+        // Load user profile from SecureStore
+        const storedUser = await SecureStore.getItemAsync(USER_STORAGE_KEY);
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        } else {
+          // Default guest user
+          const defaultUser: UserProfile = {
+            name: 'Guest',
+            onboarded: false,
+            biometricEnabled: false,
+          };
+          setUser(defaultUser);
+        }
+      } catch (error) {
+        console.error('Initialization error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initialize();
+  }, []);
+
+  const updateUser = async (updates: Partial<UserProfile>) => {
+    if (!user) return;
+    const updatedUser = { ...user, ...updates };
+    setUser(updatedUser);
+    await SecureStore.setItemAsync(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+  };
+
+  const logout = async () => {
+    // In local-only mode, logout might just mean resetting the session or clearing the profile
+    const defaultUser: UserProfile = {
+      name: 'Guest',
+      onboarded: false,
+      biometricEnabled: false,
+    };
+    setUser(defaultUser);
+    await SecureStore.deleteItemAsync(USER_STORAGE_KEY);
+  };
+
+  const value: UserContextType = {
+    user,
+    loading,
+    updateUser,
+    logout,
+  };
+
+  return (
+    <UserContext.Provider value={value}>
+      {children}
+    </UserContext.Provider>
+  );
+}
+
+export function useUser() {
+  const context = useContext(UserContext);
+  if (context === undefined) {
+    throw new Error('useUser must be used within a UserProvider');
+  }
+  return context;
+}

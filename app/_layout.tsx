@@ -3,7 +3,7 @@
 import React from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { ThemeProvider, useTheme } from "@/lib/ThemeContext";
-import { AppwriteProvider, useAppwrite } from "@/lib/AppwriteContext";
+import { UserProvider, useUser } from "@/lib/UserContext";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet, View, ActivityIndicator } from "react-native";
@@ -16,23 +16,8 @@ function ThemedStatusBar() {
 }
 
 function RootLayoutNav() {
-    const { isAuthenticated, loading } = useAppwrite();
-    const segments = useSegments();
+    const { user, loading } = useUser();
     const router = useRouter();
-
-    useEffect(() => {
-        if (loading) return;
-
-        const inAuthGroup = segments[0] === "(tabs)";
-
-        if (!isAuthenticated && inAuthGroup) {
-            // Redirect to login if not authenticated
-            router.replace("/login");
-        } else if (isAuthenticated && !inAuthGroup) {
-            // Redirect to tabs if authenticated
-            router.replace("/(tabs)");
-        }
-    }, [isAuthenticated, loading, segments]);
 
     if (loading) {
         return (
@@ -44,9 +29,9 @@ function RootLayoutNav() {
 
     return (
         <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="signup" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
     );
 }
@@ -55,12 +40,12 @@ export default function RootLayout() {
     return (
         <ErrorBoundary>
             <GestureHandlerRootView style={styles.container}>
-                <AppwriteProvider>
+                <UserProvider>
                     <ThemeProvider>
                         <ThemedStatusBar />
                         <RootLayoutNav />
                     </ThemeProvider>
-                </AppwriteProvider>
+                </UserProvider>
             </GestureHandlerRootView>
         </ErrorBoundary>
     );

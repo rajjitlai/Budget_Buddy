@@ -38,10 +38,9 @@ import {
   createTransaction, 
   getTransactions, 
   updateTransaction,
-  deleteTransaction,
-  TransactionDocument 
+  deleteTransaction
 } from '@/lib/services/transactions';
-import { useAppwrite } from '@/lib/AppwriteContext';
+import { useUser } from '@/lib/UserContext';
 import { Account } from '@/lib/mockData';
 import { InputField } from '@/components/ui/InputField';
 import { SelectField } from '@/components/ui/SelectField';
@@ -55,10 +54,10 @@ type TabType = 'add' | 'history';
 
 export default function TransactionScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
-  const { user } = useAppwrite();
+  const { user } = useUser();
   const [activeTab, setActiveTab] = useState<TabType>('add');
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [transactions, setTransactions] = useState<TransactionDocument[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [transactionsLoading, setTransactionsLoading] = useState(true);
   
@@ -73,7 +72,7 @@ export default function TransactionScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   // Edit transaction state
-  const [editingTransaction, setEditingTransaction] = useState<TransactionDocument | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
   // Filter and search state
@@ -110,7 +109,7 @@ export default function TransactionScreen() {
       setLoading(true);
       const accountDocs = await getAccounts();
       const accountList: Account[] = accountDocs.map((doc) => ({
-        id: doc.$id,
+        id: doc.id,
         name: doc.name,
         type: doc.type,
         balance: doc.balance,
@@ -250,7 +249,7 @@ export default function TransactionScreen() {
     }
   };
 
-  const handleEdit = (transaction: TransactionDocument) => {
+  const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
     setAmount(transaction.amount.toString());
     setCategory(transaction.category);
@@ -269,7 +268,7 @@ export default function TransactionScreen() {
 
     try {
       setSubmitting(true);
-      await updateTransaction(editingTransaction.$id, {
+      await updateTransaction(editingTransaction.id, {
         amount: parseFloat(amount),
         category: category || 'other',
         sourceAccountId: sourceAccount,
@@ -295,7 +294,7 @@ export default function TransactionScreen() {
     }
   };
 
-  const handleDelete = (transaction: TransactionDocument) => {
+  const handleDelete = (transaction: Transaction) => {
     Alert.alert(
       'Delete Transaction',
       'Are you sure you want to delete this transaction? This action cannot be undone.',
@@ -306,7 +305,7 @@ export default function TransactionScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteTransaction(transaction.$id);
+              await deleteTransaction(transaction.id);
               if (Platform.OS !== 'web') {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }
@@ -684,7 +683,7 @@ export default function TransactionScreen() {
         ) : (
           <FlatList
             data={filteredTransactions}
-            keyExtractor={(item) => item.$id}
+            keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <TransactionItem
                 transaction={item}

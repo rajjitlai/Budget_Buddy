@@ -1,124 +1,108 @@
 
-import { databases, COLLECTIONS, requireAuth, ID, getDatabaseId } from '@/lib/appwrite';
-import { Query } from 'appwrite';
-import { Account as AccountType } from '@/lib/mockData';
-
-export interface AccountDocument extends Omit<AccountType, 'id'> {
-  $id: string;
-  userId: string;
-  $createdAt: string;
-  $updatedAt: string;
-}
+import { getDatabase } from '@/lib/database/sqlite';
+import { Account } from '@/lib/mockData';
+import * as Crypto from 'expo-crypto';
 
 /**
- * Get all accounts for the current user
+ * Get all accounts
  */
-export async function getAccounts(): Promise<AccountDocument[]> {
-  try {
-    const userId = await requireAuth();
-    
-    const response = await databases.listDocuments(
-      getDatabaseId(),
-      COLLECTIONS.ACCOUNTS,
-      [
-        Query.equal('userId', userId),
-        Query.orderDesc('$createdAt'),
-      ]
-    );
-
-    return response.documents as unknown as AccountDocument[];
-  } catch (error: any) {
-    // If Appwrite is not configured, return empty array instead of crashing
-    if (error?.message?.includes('not configured') || error?.message?.includes('not authenticated')) {
-      console.warn('Appwrite not configured or user not authenticated, returning empty accounts');
-      return [];
-    }
-    throw error;
-  }
+export async function getAccounts(): Promise<Account[]> {
+  const db = await getDatabase();
+  const results = await db.getAllAsync<any>('SELECT * FROM accounts ORDER BY name ASC');
+  
+  return results.map(row => ({
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    balance: row.balance,
+    icon: row.icon,
+    color: row.color,
+  }));
 }
 
 /**
  * Get a single account by ID
  */
-export async function getAccount(accountId: string): Promise<AccountDocument> {
-  try {
-    await requireAuth();
-    
-    const account = await databases.getDocument(
-      getDatabaseId(),
-      COLLECTIONS.ACCOUNTS,
-      accountId
-    );
-
-    return account as unknown as AccountDocument;
-  } catch (error: any) {
-    if (error?.message?.includes('not configured') || error?.message?.includes('not authenticated')) {
-      throw new Error('Appwrite is not configured. Please set your environment variables.');
-    }
-    throw error;
+export async function getAccount(accountId: string): Promise<Account> {
+  const db = await getDatabase();
+  const result = await db.getFirstAsync<any>('SELECT * FROM accounts WHERE id = ?', [accountId]);
+  
+  if (!result) {
+    throw new Error('Account not found');
   }
+
+  return {
+    id: result.id,
+    name: result.name,
+    type: result.type,
+    balance: result.balance,
+    icon: result.icon,
+    color: result.color,
+  };
 }
 
 /**
  * Create a new account
  */
-export async function createAccount(
-  accountData: Omit<AccountType, 'id'>
-): Promise<AccountDocument> {
-  const userId = await requireAuth();
+export async function createAccount(accountData: Omit<Account, 'id'>): Promise<Account> {
+  const db = await getDatabase();
+  const id = Crypto.randomUUID();
+  const lastUpdated = new Date().toISOString();
 
-  const account = await databases.createDocument(
-    getDatabaseId(),
-    COLLECTIONS.ACCOUNTS,
-    ID.unique(),
-    {
-      ...accountData,
-      userId,
-    }
+  await db.runAsync(
+    'INSERT INTO accounts (id, name, type, balance, icon, color, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [id, accountData.name, accountData.type, accountData.balance, accountData.icon, accountData.color, lastUpdated]
   );
 
-  return account as unknown as AccountDocument;
+  return {
+    id,
+    ...accountData,
+  };
 }
 
 /**
- * Update an existing account
+ * Update an account
  */
 export async function updateAccount(
   accountId: string,
-  updates: Partial<Omit<AccountType, 'id'>>
-): Promise<AccountDocument> {
-  await requireAuth();
+  updates: Partial<Omit<Account, 'id'>>
+): Promise<void> {
+  const db = await getDatabase();
+  const lastUpdated = new Date().toISOString();
 
-  const account = await databases.updateDocument(
-    getDatabaseId(),
-    COLLECTIONS.ACCOUNTS,
-    accountId,
-    updates
+  // Build dynamic update query
+  const fields = Object.keys(updates);
+  if (fields.length === 0) return;
+
+  const setClause = fields.map(field => `${field} = ?`).join(', ');
+  const values = [...Object.values(updates), lastUpdated, accountId];
+
+  await db.runAsync(
+    `UPDATE accounts SET ${setClause}, last_updated = ? WHERE id = ?`,
+    values
   );
-
-  return account as unknown as AccountDocument;
 }
 
 /**
- * Update account balance
+ * Update account balance directly
  */
 export async function updateAccountBalance(
   accountId: string,
   newBalance: number
-): Promise<AccountDocument> {
-  return updateAccount(accountId, { balance: newBalance });
+): Promise<void> {
+  const db = await getDatabase();
+  const lastUpdated = new Date().toISOString();
+
+  await db.runAsync(
+    'UPDATE accounts SET balance = ?, last_updated = ? WHERE id = ?',
+    [newBalance, lastUpdated, accountId]
+  );
 }
 
 /**
  * Delete an account
  */
 export async function deleteAccount(accountId: string): Promise<void> {
-  await requireAuth();
-
-  await databases.deleteDocument(
-    getDatabaseId(),
-    COLLECTIONS.ACCOUNTS,
-    accountId
-  );
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM accounts WHERE id = ?', [accountId]);
 }
-

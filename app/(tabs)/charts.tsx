@@ -20,7 +20,6 @@ import { Account, Transaction, MonthlyPlan } from '@/lib/mockData';
 import { getAccounts } from '@/lib/services/accounts';
 import { getTransactions } from '@/lib/services/transactions';
 import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
-import { transactionDocumentToTransaction } from '@/lib/utils/converters';
 import { AdvancedCharts } from '@/components/AdvancedCharts';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 
@@ -60,7 +59,7 @@ export default function ChartsScreen() {
     try {
       const accountDocs = await getAccounts();
       const accountList: Account[] = accountDocs.map((doc) => ({
-        id: doc.$id,
+        id: doc.id,
         name: doc.name,
         type: doc.type,
         balance: doc.balance,
@@ -76,10 +75,7 @@ export default function ChartsScreen() {
   const loadTransactions = async () => {
     try {
       const transactionDocs = await getTransactions({ limit: 200 });
-      const transactionList: Transaction[] = transactionDocs.map((doc) =>
-        transactionDocumentToTransaction(doc)
-      );
-      setTransactions(transactionList);
+      setTransactions(transactionDocs);
     } catch (error) {
       console.error('Error loading transactions:', error);
     }
