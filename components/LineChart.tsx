@@ -1,9 +1,9 @@
-
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Polyline, Circle, Line, G, Text as SvgText, Polygon } from 'react-native-svg';
 import { colors, borderRadius, typography, spacing } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { useUser } from '@/lib/UserContext';
 import { formatCurrency } from '@/lib/types';
 
 interface DataPoint {
@@ -29,6 +29,9 @@ export function LineChart({
   title,
 }: LineChartProps) {
   const { textPrimary, textSecondary } = useTheme();
+  const { user } = useUser();
+  
+  const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
 
   if (data.length === 0) {
     return (
@@ -191,14 +194,14 @@ export function LineChart({
           <View style={[styles.valueDot, { backgroundColor: color }]} />
           <Text style={[styles.valueLabel, { color: textSecondary }]}>Start</Text>
           <Text style={[styles.valueText, { color: textPrimary }]}>
-            {formatCurrency(firstValue)}
+            {displayCurrency(firstValue)}
           </Text>
         </View>
         <View style={styles.valueItem}>
           <View style={[styles.valueDot, { backgroundColor: color }]} />
           <Text style={[styles.valueLabel, { color: textSecondary }]}>Current</Text>
           <Text style={[styles.valueText, { color: textPrimary }]}>
-            {formatCurrency(lastValue)}
+            {displayCurrency(lastValue)}
           </Text>
         </View>
       </View>

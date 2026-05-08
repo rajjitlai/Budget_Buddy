@@ -4,11 +4,12 @@ A modern, feature-rich personal finance management mobile application built with
 
 ## ✨ Features
 
-### 📊 Dashboard
-- **Net Worth Overview**: Real-time visualization of your total financial worth
-- **Multiple Account Types**: Support for salary, spending, pocket money, savings, and fixed deposits
-- **Quick Account Management**: Add and manage multiple financial accounts
-- **AI-Powered Insights**: Get personalized financial recommendations and warnings
+### 🎬 Dashboard (V3 Cinematic)
+- **Cinematic Experience**: Dynamic, collapsible animated headers and staggered entry animations.
+- **Account Carousel**: Interactive horizontal scrolling for accounts with premium scale feedback.
+- **Floating Action Button (FAB)**: Unified entry point for rapid transaction and account management.
+- **Net Worth Overview**: Real-time glassmorphic visualization of your total financial worth.
+- **AI-Powered Insights**: Get personalized financial recommendations and warnings directly on your home feed.
 
 ### 💸 Transaction Management
 - **Multi-Type Transactions**: Track expenses, income, and transfers between accounts
@@ -22,16 +23,16 @@ A modern, feature-rich personal finance management mobile application built with
 - **Trend Analysis**: Track your financial trends over time
 - **Smart Recommendations**: AI-driven suggestions for better financial health
 
-### 📅 Budget Planner
-- **Monthly Planning**: Plan your monthly budget allocation
-- **Essential Expenses**: Track recurring bills and utilities
-- **Savings Goals**: Set and monitor savings targets
-- **Allocation Management**: Distribute income across different categories
+### 📅 Dynamic Budget Planner
+- **Custom Planning Strategy**: No longer limited to presets—add your own custom fields for any category.
+- **Flexible Step Wizard**: A cinematic, multi-step flow to design your monthly strategy.
+- **Savings & Goal Tracking**: Prioritize future goals with dynamic savings targets.
+- **Allocation Real-time Summary**: Instantly see how your strategy affects your leftover funds.
 
-### ⚙️ Settings
-- **Theme Toggle**: Switch between light and dark modes
-- **Profile Management**: Manage your account settings
-- **Customization**: Personalize your Budget Buddy experience
+### ⚙️ Premium Experience
+- **Floating Glass Tab Bar**: Icon-only, blurred navigation for a modern, minimalist feel.
+- **Haptic Interaction System**: Squishy, spring-based feedback on every press with native haptics.
+- **Theme Toggle**: Full light and dark mode support with system-aware transitions.
 
 ## 🛠️ Tech Stack
 
@@ -228,4 +229,4 @@ For issues, questions, or suggestions:
 
 ---
 
-**Built with ❤️ using React Native and Expo — © 2026**
+**Built with ❤️ using React Native and Expo — v2.1.0 — © {new Date().getFullYear()}**

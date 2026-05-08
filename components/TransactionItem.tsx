@@ -15,6 +15,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { useUser } from '@/lib/UserContext';
 import { formatCurrency } from '@/lib/types';
 import { TransactionDocument } from '@/lib/services/transactions';
 import { Account } from '@/lib/types';
@@ -39,6 +40,7 @@ export function TransactionItem({
   onDelete,
 }: TransactionItemProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
+  const { user } = useUser();
   const scale = useSharedValue(1);
 
   const getTypeIcon = () => {
@@ -154,7 +156,7 @@ export function TransactionItem({
             </Text>
             <Text style={[styles.amount, { color: typeColor }]}>
               {transaction.type === 'expense' ? '-' : transaction.type === 'income' ? '+' : ''}
-              {formatCurrency(transaction.amount)}
+              {formatCurrency(transaction.amount, user?.currency)}
             </Text>
           </View>
 

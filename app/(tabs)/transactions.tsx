@@ -24,11 +24,17 @@ import {
   Search,
   Filter,
   X,
+  Menu,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react-native';
 import { RefreshButton } from '@/components/RefreshButton';
+import { AnimatedScale } from '@/components/ui/AnimatedScale';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { useNavigation } from 'expo-router';
+import { DrawerActions } from '@react-navigation/native';
 import {
   SUGGESTED_CATEGORIES,
   formatCurrency,
@@ -55,6 +61,10 @@ type TabType = 'add' | 'history';
 export default function TransactionScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
+  const navigation = useNavigation();
+  
+  const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
+  const suggestionScrollRef = React.useRef<ScrollView>(null);
   const [activeTab, setActiveTab] = useState<TabType>('add');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -187,7 +197,7 @@ export default function TransactionScreen() {
 
   const accountOptions = accounts.map((acc) => ({
     id: acc.id,
-    label: `${acc.name} (${formatCurrency(acc.balance)})`,
+    label: `${acc.name} (${displayCurrency(acc.balance)})`,
   }));
 
   const handleTabChange = (tab: TabType) => {
@@ -357,24 +367,6 @@ export default function TransactionScreen() {
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Header */}
-      <Animated.View
-        entering={FadeInDown.delay(100).duration(500)}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <View>
-            <Text style={[styles.title, { color: textPrimary }]}>
-              Add Transaction
-            </Text>
-            <Text style={[styles.subtitle, { color: textSecondary }]}>
-              Record your income, expenses, or transfers
-            </Text>
-          </View>
-          <RefreshButton onPress={refreshData} refreshing={refreshing} />
-        </View>
-      </Animated.View>
-
       {/* Transaction Type Selector */}
       <Animated.View
         entering={FadeInDown.delay(200).duration(500)}
@@ -437,28 +429,45 @@ export default function TransactionScreen() {
               value={category || ''}
               onChangeText={setCategory}
             />
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              style={styles.suggestionScroll}
-              contentContainerStyle={styles.suggestionContent}
-            >
-              {SUGGESTED_CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  onPress={() => {
-                    setCategory(cat);
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                  style={[
-                    styles.suggestionChip,
-                    { backgroundColor: cardBackground, borderColor }
-                  ]}
-                >
-                  <Text style={{ color: textPrimary }}>{cat}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <View style={styles.scrollIndicatorContainer}>
+              <TouchableOpacity 
+                onPress={() => suggestionScrollRef.current?.scrollTo({ x: 0, animated: true })}
+                style={styles.scrollIndicator}
+              >
+                <ChevronLeft size={16} color={textSecondary} />
+              </TouchableOpacity>
+              
+              <ScrollView 
+                ref={suggestionScrollRef}
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                style={styles.suggestionScroll}
+                contentContainerStyle={styles.suggestionContent}
+              >
+                {SUGGESTED_CATEGORIES.map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    onPress={() => {
+                      setCategory(cat);
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    style={[
+                      styles.suggestionChip,
+                      { backgroundColor: cardBackground, borderColor }
+                    ]}
+                  >
+                    <Text style={{ color: textPrimary }}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity 
+                onPress={() => suggestionScrollRef.current?.scrollToEnd({ animated: true })}
+                style={styles.scrollIndicator}
+              >
+                <ChevronRight size={16} color={textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.column}>
             <InputField
@@ -546,19 +555,6 @@ export default function TransactionScreen() {
 
     return (
       <View style={styles.historyContainer}>
-        {/* Header with Refresh */}
-        <Animated.View
-          entering={FadeInDown.delay(100).duration(500)}
-          style={styles.historyHeader}
-        >
-          <View style={styles.historyHeaderContent}>
-            <Text style={[styles.title, { color: textPrimary }]}>
-              Transaction History
-            </Text>
-            <RefreshButton onPress={refreshData} refreshing={refreshing} />
-          </View>
-        </Animated.View>
-        
         {/* Search and Filter Bar */}
         <Animated.View
           entering={FadeInDown.delay(100).duration(500)}
@@ -728,6 +724,32 @@ export default function TransactionScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
+      {/* Dynamic Header */}
+      <Animated.View
+        entering={FadeInDown.delay(100).duration(500)}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <AnimatedScale 
+              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+              style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10`, marginRight: spacing.md }]}
+            >
+              <Menu size={22} color={textSecondary} />
+            </AnimatedScale>
+            <View>
+              <Text style={[styles.title, { color: textPrimary }]}>
+                {activeTab === 'add' ? 'Add Transaction' : 'History'}
+              </Text>
+              <Text style={[styles.subtitle, { color: textSecondary }]}>
+                {activeTab === 'add' ? 'Record your activity' : 'Your transaction log'}
+              </Text>
+            </View>
+          </View>
+          <RefreshButton onPress={refreshData} refreshing={refreshing} />
+        </View>
+      </Animated.View>
+
       {/* Tab Selector */}
       <View style={[styles.tabContainer, { backgroundColor: cardBackground }]}>
         <TouchableOpacity
@@ -1170,8 +1192,7 @@ const styles = StyleSheet.create({
     flex: 2,
   },
   suggestionScroll: {
-    marginTop: -spacing.sm,
-    marginBottom: spacing.md,
+    // Margins moved to container
   },
   suggestionContent: {
     gap: spacing.sm,
@@ -1182,5 +1203,39 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
     borderWidth: 1,
+  },
+  scrollIndicatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  scrollIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  historyHeader: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+  },
+  historyHeaderContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
 });

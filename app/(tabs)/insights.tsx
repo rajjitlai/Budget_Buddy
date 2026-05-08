@@ -22,10 +22,15 @@ import {
   AlertCircle,
   CheckCircle2,
   RefreshCw,
+  Menu,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { useUser } from '@/lib/UserContext';
+import { useRouter, useNavigation } from 'expo-router';
+import { DrawerActions } from '@react-navigation/native';
+import { AnimatedScale } from '@/components/ui/AnimatedScale';
 import { formatCurrency, Account, Transaction, MonthlyPlan } from '@/lib/types';
 import { getAccounts } from '@/lib/services/accounts';
 import { getTransactions } from '@/lib/services/transactions';
@@ -56,6 +61,10 @@ interface ExpandableSection {
 
 export default function AIRecommendationScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
+  const { user } = useUser();
+  const navigation = useNavigation();
+  
+  const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
@@ -192,7 +201,7 @@ export default function AIRecommendationScreen() {
       {
         id: 'essentials',
         title: 'Monthly Essentials',
-        value: formatCurrency(monthlyEssentials || monthlySpending),
+        value: displayCurrency(monthlyEssentials || monthlySpending),
         subtitle: monthlyPlan && monthlyPlan.salary > 0
           ? `${Math.round((monthlyEssentials / monthlyPlan.salary) * 100)}% of income`
           : 'Based on recent spending',
@@ -203,9 +212,9 @@ export default function AIRecommendationScreen() {
       {
         id: 'buffer',
         title: 'Salary Buffer',
-        value: formatCurrency(monthlyPlan?.allocations.salaryBuffer || 0),
+        value: displayCurrency(monthlyPlan?.allocations.salaryBuffer || 0),
         subtitle: monthlyPlan?.allocations.salaryBuffer
-          ? `Target: ${formatCurrency(monthlyPlan.allocations.salaryBuffer)}`
+          ? `Target: ${displayCurrency(monthlyPlan.allocations.salaryBuffer)}`
           : 'Not set',
         icon: Shield,
         color: colors.warning,
@@ -214,7 +223,7 @@ export default function AIRecommendationScreen() {
       {
         id: 'emergency',
         title: 'Emergency Fund',
-        value: formatCurrency(emergencyFund),
+        value: displayCurrency(emergencyFund),
         subtitle: monthsCovered > 0
           ? `${monthsCovered.toFixed(1)} months covered`
           : 'Not calculated',
@@ -298,15 +307,21 @@ export default function AIRecommendationScreen() {
         >
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
-              <View style={styles.headerIcon}>
+              <AnimatedScale 
+                onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+                style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10`, marginRight: spacing.md }]}
+              >
+                <Menu size={22} color={textSecondary} />
+              </AnimatedScale>
+              <View style={[styles.headerIcon, { backgroundColor: `${colors.primary[500]}15` }]}>
                 <Sparkles size={28} color={colors.primary[500]} />
               </View>
               <View>
                 <Text style={[styles.title, { color: textPrimary }]}>
-                  Budget Buddy Insights
+                  Insights
                 </Text>
                 <Text style={[styles.subtitle, { color: textSecondary }]}>
-                  AI-powered recommendations for your finances
+                  AI-powered recommendations
                 </Text>
               </View>
             </View>
@@ -639,5 +654,12 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.sm,
     lineHeight: 20,
     marginLeft: spacing.xs,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

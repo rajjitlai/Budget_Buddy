@@ -14,6 +14,7 @@ interface UserProfile {
   onboarded: boolean;
   biometricEnabled: boolean;
   aiConfig?: AIConfig;
+  currency?: string;
 }
 
 interface UserContextType {
@@ -52,6 +53,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
               provider: 'openrouter',
               model: 'google/gemma-3n-e2b-it:free',
             },
+            currency: 'Rs.',
           };
           setUser(defaultUser);
         }

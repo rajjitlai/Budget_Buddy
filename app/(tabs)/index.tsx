@@ -11,14 +11,25 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Plus } from 'lucide-react-native';
+import Animated, { 
+  FadeInDown, 
+  FadeInRight,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  interpolate,
+  Extrapolate
+} from 'react-native-reanimated';
+import { Plus, Bell, RefreshCw, Sparkles, Menu } from 'lucide-react-native';
+import { AnimatedScale } from '@/components/ui/AnimatedScale';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { RefreshButton } from '@/components/RefreshButton';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
+import { DrawerActions } from '@react-navigation/native';
 import {
   Account,
   calculateNetWorth,
@@ -45,10 +56,13 @@ export default function DashboardScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
   const router = useRouter();
+  const navigation = useNavigation();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
+  
+  const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
   const [showAllAccounts, setShowAllAccounts] = useState(false);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -247,76 +261,161 @@ export default function DashboardScreen() {
     }
   };
 
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
+  const headerStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [0, 60], [1, 0], Extrapolate.CLAMP);
+    const translateY = interpolate(scrollY.value, [0, 60], [0, -20], Extrapolate.CLAMP);
+    return {
+      opacity,
+      transform: [{ translateY }],
+    };
+  });
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
-      <ScrollView
+      <View style={styles.decorativeBackground} />
+      
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Decorative Background Shape */}
-        <View style={styles.decorativeBackground} />
-
-        {/* Header */}
-        <Animated.View
-          entering={FadeInDown.delay(200).duration(800).springify()}
-          style={styles.header}
-        >
-          <View style={styles.headerContent}>
+        {/* Cinematic Header */}
+        <Animated.View style={[styles.header, headerStyle]}>
+          <View style={styles.headerLeft}>
+            <AnimatedScale 
+              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+              style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10`, marginRight: spacing.md }]}
+            >
+              <Menu size={22} color={textSecondary} />
+            </AnimatedScale>
             <View>
               <Text style={[styles.greeting, { color: textSecondary }]}>
                 {getGreeting()},
               </Text>
               <Text style={[styles.title, { color: textPrimary }]}>
-                Budget Buddy
+                {user?.name || 'Buddy'} 👋
               </Text>
             </View>
-            <View style={styles.headerActions}>
-              <RefreshButton onPress={refreshData} refreshing={refreshing} />
-            </View>
+          </View>
+          <View style={styles.headerActions}>
+            <AnimatedScale 
+              onPress={refreshData}
+              style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10` }]}
+            >
+              <RefreshCw size={20} color={textSecondary} />
+            </AnimatedScale>
           </View>
         </Animated.View>
 
-        {/* Net Worth Card */}
-        <Animated.View entering={FadeInDown.delay(300).duration(800).springify()}>
-          <NetWorthCard totalBalance={netWorth} />
-        </Animated.View>
-
-        {/* Budget Health Card */}
-        {monthlyPlan && (
-          <Animated.View entering={FadeInDown.delay(400).duration(800).springify()}>
-            <BudgetHealthCard plan={monthlyPlan} transactions={transactions} />
+        {/* Bento Grid - Phase 1 */}
+        <View style={styles.bentoGrid}>
+          {/* Net Worth - Large Hero */}
+          <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.bentoHero}>
+            <NetWorthCard totalBalance={netWorth} />
           </Animated.View>
-        )}
+
+          <View style={styles.bentoRow}>
+            {/* Budget Health - Medium Card */}
+            {monthlyPlan && (
+              <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.bentoMain}>
+                <BudgetHealthCard plan={monthlyPlan} transactions={transactions} variant="compact" />
+              </Animated.View>
+            )}
+
+            {/* AI Insights - Small Card */}
+            <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.bentoSide}>
+              <AnimatedScale 
+                onPress={() => router.push('/(tabs)/insights')}
+                style={[styles.miniCard, { backgroundColor: cardBackground, borderColor }]}
+              >
+                <View style={[styles.miniIcon, { backgroundColor: `${colors.warning}15` }]}>
+                  <Sparkles size={20} color={colors.warning} />
+                </View>
+                <Text style={[styles.miniLabel, { color: textSecondary }]}>AI Advice</Text>
+                <Text style={[styles.miniValue, { color: textPrimary }]}>Check Now</Text>
+              </AnimatedScale>
+            </Animated.View>
+          </View>
+        </View>
 
         {/* Accounts Section */}
-        <Animated.View entering={FadeInDown.delay(500).duration(800).springify()}>
+        <View style={styles.section}>
           <SectionHeader
-            title="Your Accounts"
+            title="My Accounts"
             subtitle={`${accounts.length} Total`}
-            actionLabel={showAllAccounts ? "Show less" : "See all"}
-            onAction={() => {
-              if (accounts.length > 3) {
-                setShowAllAccounts(!showAllAccounts);
-              } else {
-                setIsViewAllModalVisible(true);
-              }
-            }}
+            actionLabel={showAllAccounts ? "Show Less" : "See All"}
+            onAction={() => setShowAllAccounts(!showAllAccounts)}
           />
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary[500]} />
-            </View>
-          ) : accounts.length > 0 ? (
-            <View style={styles.accountsContainer}>
-              {(showAllAccounts ? accounts : accounts.slice(0, 3)).map((account, index) => (
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.accountsScroll}
+          >
+            {loading ? (
+              <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                <Skeleton width={200} height={180} radius={borderRadius['3xl']} />
+                <Skeleton width={200} height={180} radius={borderRadius['3xl']} />
+                <Skeleton width={200} height={180} radius={borderRadius['3xl']} />
+              </View>
+            ) : (
+              accounts.slice(0, showAllAccounts ? accounts.length : 5).map((account, index) => (
                 <Animated.View 
                   key={account.id} 
-                  entering={FadeInDown.delay(600 + index * 100).duration(600).springify()}
+                  entering={FadeInRight.delay(300 + index * 100).springify()}
                 >
                   <BalanceCard
                     account={account}
-                    onEdit={() => handleEditAccount(account)}
-                    onDelete={() => handleDeleteAccount(account)}
+                    onPress={() => handleEditAccount(account)}
+                  />
+                </Animated.View>
+              ))
+            )}
+            {!loading && (
+              <AnimatedScale 
+                onPress={() => setIsAddModalVisible(true)}
+                style={[styles.addAccountCard, { backgroundColor: cardBackground, borderColor }]}
+              >
+                <View style={[styles.addIconContainer, { backgroundColor: `${colors.primary[500]}15` }]}>
+                  <Plus size={24} color={colors.primary[500]} />
+                </View>
+                <Text style={[styles.addAccountLabel, { color: textPrimary }]}>Add Account</Text>
+              </AnimatedScale>
+            )}
+          </ScrollView>
+        </View>
+
+        {/* Recent Transactions */}
+        <View style={styles.section}>
+          <SectionHeader
+            title="Recent Activity"
+            actionLabel="View All"
+            onAction={() => router.push('/(tabs)/transactions')}
+          />
+
+          {transactionsLoading ? (
+            <ActivityIndicator color={colors.primary[500]} style={{ marginTop: spacing.xl }} />
+          ) : transactions.length > 0 ? (
+            <View style={styles.transactionsContainer}>
+              {transactions.slice(0, 5).map((transaction, index) => (
+                <Animated.View 
+                  key={transaction.id} 
+                  entering={FadeInDown.delay(500 + index * 50).springify()}
+                >
+                  <TransactionItem
+                    transaction={transaction}
+                    sourceAccount={accounts.find((a) => a.id === transaction.sourceAccountId)}
+                    destinationAccount={accounts.find((a) => a.id === transaction.destinationAccountId)}
+                    onPress={() => router.push('/(tabs)/transactions')}
                   />
                 </Animated.View>
               ))}
@@ -324,59 +423,24 @@ export default function DashboardScreen() {
           ) : (
             <View style={[styles.emptyContainer, { backgroundColor: cardBackground }]}>
               <Text style={[styles.emptyText, { color: textSecondary }]}>
-                No accounts yet. Add your first account to get started!
+                No recent transactions
               </Text>
             </View>
           )}
-          <View style={styles.addButtonContainer}>
-            <PrimaryButton
-              title="Add Account"
-              onPress={() => setIsAddModalVisible(true)}
-              icon={<Plus size={18} color="#ffffff" />}
-              fullWidth
-              size="lg"
-            />
-          </View>
-        </Animated.View>
+        </View>
+        
+        {/* Bottom Spacing for FAB and Floating Tab Bar */}
+        <View style={{ height: 140 }} />
+      </Animated.ScrollView>
 
-        {/* Recent Transactions Section */}
-        <Animated.View entering={FadeInDown.delay(400).duration(500)} style={styles.recentTransactionsContainer}>
-          <SectionHeader
-            title="Recent Transactions"
-            subtitle="Your latest activity"
-            actionLabel="See all"
-            onAction={() => router.push('/(tabs)/transactions')}
-          />
-          {transactionsLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={colors.primary[500]} />
-            </View>
-          ) : transactions.length > 0 ? (
-            <View style={styles.transactionsContainer}>
-              {transactions.map((transaction) => {
-                const sourceAccount = accounts.find((acc) => acc.id === transaction.sourceAccountId);
-                const destinationAccount = transaction.destinationAccountId
-                  ? accounts.find((acc) => acc.id === transaction.destinationAccountId)
-                  : undefined;
-                return (
-                  <TransactionItem
-                    key={transaction.id}
-                    transaction={transaction}
-                    sourceAccount={sourceAccount}
-                    destinationAccount={destinationAccount}
-                  />
-                );
-              })}
-            </View>
-          ) : (
-            <View style={[styles.emptyContainer, { backgroundColor: cardBackground }]}>
-              <Text style={[styles.emptyText, { color: textSecondary }]}>
-                No transactions yet. Add your first transaction to get started!
-              </Text>
-            </View>
-          )}
-        </Animated.View>
-      </ScrollView>
+      {/* Floating Action Button */}
+      <AnimatedScale
+        onPress={() => setIsAddModalVisible(true)}
+        style={[styles.fab, { backgroundColor: colors.primary[500] }]}
+        haptic="heavy"
+      >
+        <Plus size={28} color="#ffffff" />
+      </AnimatedScale>
 
       {/* Add Account Modal */}
       <ModalSheet
@@ -526,39 +590,6 @@ export default function DashboardScreen() {
         </View>
       </ModalSheet>
 
-      {/* View All Accounts Modal */}
-      <ModalSheet
-        visible={isViewAllModalVisible}
-        onClose={() => setIsViewAllModalVisible(false)}
-        title="All Accounts"
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={styles.viewAllModalScroll}
-          contentContainerStyle={styles.viewAllModalContent}
-        >
-          {loading ? (
-            <View style={styles.viewAllLoadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary[500]} />
-            </View>
-          ) : accounts.length > 0 ? (
-            <AccountList 
-              accounts={accounts}
-              onAccountEdit={(account) => {
-                setIsViewAllModalVisible(false);
-                handleEditAccount(account);
-              }}
-              onAccountDelete={handleDeleteAccount}
-            />
-          ) : (
-            <View style={[styles.viewAllEmptyContainer, { backgroundColor: cardBackground }]}>
-              <Text style={[styles.viewAllEmptyText, { color: textSecondary }]}>
-                No accounts yet. Add your first account to get started!
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-      </ModalSheet>
     </SafeAreaView>
   );
 }
@@ -568,7 +599,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: spacing['5xl'],
+    paddingBottom: spacing.xl,
   },
   decorativeBackground: {
     position: 'absolute',
@@ -581,66 +612,161 @@ const styles = StyleSheet.create({
     zIndex: -1,
   },
   header: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xl,
-    marginTop: spacing.md,
-  },
-  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  headerLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
   greeting: {
     fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.medium,
     marginBottom: spacing.xs,
-    marginLeft: spacing.xs,
   },
   title: {
     fontSize: typography.fontSizes['2xl'],
     fontWeight: typography.fontWeights.bold,
-    marginLeft: spacing.xs,
   },
-  notificationButton: {
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  iconButton: {
     width: 44,
     height: 44,
+    borderRadius: borderRadius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bentoGrid: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+  },
+  bentoHero: {
+    marginHorizontal: -spacing.xl, // Neutralize container padding for full width hero
+  },
+  bentoRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: -spacing.md, // Tighten up the grid
+  },
+  bentoMain: {
+    flex: 1.8,
+  },
+  bentoSide: {
+    flex: 1,
+  },
+  miniCard: {
+    padding: spacing.lg,
+    borderRadius: borderRadius['2xl'],
+    borderWidth: 1,
+    height: '100%',
+    ...shadows.md,
+    justifyContent: 'space-between',
+  },
+  miniIcon: {
+    width: 36,
+    height: 36,
     borderRadius: borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.sm,
+    marginBottom: spacing.sm,
   },
-  addButtonContainer: {
-    paddingHorizontal: spacing.xl,
-    marginTop: spacing.sm,
+  miniLabel: {
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.medium,
   },
-  accountsContainer: {
-    paddingHorizontal: spacing.xl,
+  miniValue: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.bold,
   },
-  recentTransactionsContainer: {
+  section: {
     marginTop: spacing.xl,
   },
-  transactionsContainer: {
-    paddingBottom: spacing.md,
-    paddingHorizontal: spacing.xl,
+  accountsScroll: {
+    paddingLeft: spacing.xl,
+    paddingRight: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  loadingContainer: {
-    paddingVertical: spacing['3xl'],
+  addAccountCard: {
+    width: 160,
+    height: 180,
+    borderRadius: borderRadius['3xl'],
+    borderWidth: 1,
+    borderStyle: 'dashed',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.md,
+    marginRight: spacing.xl,
+  },
+  addIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: borderRadius['2xl'],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  addAccountLabel: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.semibold,
+  },
+  transactionsContainer: {
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.md,
   },
   emptyContainer: {
-    marginHorizontal: spacing.xl,
-    padding: spacing.xl,
-    borderRadius: borderRadius.xl,
     alignItems: 'center',
-    ...shadows.sm,
+    justifyContent: 'center',
+    padding: spacing['3xl'],
   },
   emptyText: {
     fontSize: typography.fontSizes.md,
     textAlign: 'center',
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: spacing['3xl'],
+    right: spacing['2xl'],
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.xl,
   },
   modalContent: {
     paddingBottom: spacing['3xl'],
+  },
+  twoColumn: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  flex1: {
+    flex: 1,
+  },
+  flex2: {
+    flex: 2,
+  },
+  suggestionScroll: {
+    marginTop: -spacing.sm,
+    marginBottom: spacing.md,
+  },
+  suggestionContent: {
+    paddingHorizontal: spacing.xs,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  suggestionChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
   },
   modalActions: {
     flexDirection: 'row',
@@ -652,50 +778,5 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
-  },
-  viewAllModalScroll: {
-    maxHeight: 600,
-  },
-  viewAllModalContent: {
-    paddingBottom: spacing.xl,
-  },
-  viewAllLoadingContainer: {
-    paddingVertical: spacing['3xl'],
-    alignItems: 'center',
-  },
-  viewAllEmptyContainer: {
-    marginHorizontal: spacing.lg,
-    padding: spacing.xl,
-    borderRadius: borderRadius.xl,
-    alignItems: 'center',
-    ...shadows.sm,
-  },
-  viewAllEmptyText: {
-    fontSize: typography.fontSizes.md,
-    textAlign: 'center',
-  },
-  flex1: {
-    flex: 1,
-  },
-  flex2: {
-    flex: 2,
-  },
-  twoColumn: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  suggestionScroll: {
-    marginTop: -spacing.sm,
-    marginBottom: spacing.md,
-  },
-  suggestionContent: {
-    gap: spacing.sm,
-    paddingRight: spacing.xl,
-  },
-  suggestionChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
   },
 });

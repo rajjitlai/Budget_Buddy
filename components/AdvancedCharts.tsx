@@ -1,10 +1,10 @@
-
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { useUser } from '@/lib/UserContext';
 import { formatCurrency, Transaction, Account } from '@/lib/types';
 import { StackedBarChart } from './StackedBarChart';
 import { CircularProgress } from './CircularProgress';
@@ -23,6 +23,9 @@ interface AdvancedChartsProps {
 
 export function AdvancedCharts({ accounts, transactions, monthlyPlan }: AdvancedChartsProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
+  const { user } = useUser();
+  
+  const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
 
   // Calculate spending by category
   const spendingByCategory = useMemo(() => {
@@ -227,7 +230,7 @@ export function AdvancedCharts({ accounts, transactions, monthlyPlan }: Advanced
                 Target: 20%
               </Text>
               <Text style={[styles.savingsAmount, { color: textPrimary }]}>
-                {formatCurrency(monthlyPlan.allocations.savings + monthlyPlan.allocations.emergency)} saved
+                {displayCurrency(monthlyPlan.allocations.savings + monthlyPlan.allocations.emergency)} saved
               </Text>
             </View>
           </View>
@@ -259,7 +262,7 @@ export function AdvancedCharts({ accounts, transactions, monthlyPlan }: Advanced
                   </View>
                   <View style={styles.distributionRight}>
                     <Text style={[styles.distributionValue, { color: textPrimary }]}>
-                      {formatCurrency(acc.value)}
+                      {displayCurrency(acc.value)}
                     </Text>
                     <Text style={[styles.distributionPercentage, { color: textSecondary }]}>
                       {acc.percentage.toFixed(1)}%
@@ -293,7 +296,7 @@ export function AdvancedCharts({ accounts, transactions, monthlyPlan }: Advanced
                   </View>
                   <View style={styles.allocationRight}>
                     <Text style={[styles.allocationValue, { color: textPrimary }]}>
-                      {formatCurrency(item.value)}
+                      {displayCurrency(item.value)}
                     </Text>
                     <Text style={[styles.allocationPercentage, { color: textSecondary }]}>
                       {item.percentage.toFixed(1)}%
@@ -335,7 +338,7 @@ export function AdvancedCharts({ accounts, transactions, monthlyPlan }: Advanced
                     </View>
                     <View style={styles.categoryRight}>
                       <Text style={[styles.categoryValue, { color: textPrimary }]}>
-                        {formatCurrency(item.amount)}
+                        {displayCurrency(item.amount)}
                       </Text>
                       <Text style={[styles.categoryPercentage, { color: textSecondary }]}>
                         {percentage.toFixed(1)}%
@@ -380,7 +383,7 @@ export function AdvancedCharts({ accounts, transactions, monthlyPlan }: Advanced
                           ]}
                         />
                         <Text style={[styles.trendValue, { color: textSecondary }]}>
-                          {formatCurrency(trend.income)}
+                          {displayCurrency(trend.income)}
                         </Text>
                       </View>
                       <View style={styles.trendBarContainer}>
@@ -394,7 +397,7 @@ export function AdvancedCharts({ accounts, transactions, monthlyPlan }: Advanced
                           ]}
                         />
                         <Text style={[styles.trendValue, { color: textSecondary }]}>
-                          {formatCurrency(trend.expenses)}
+                          {displayCurrency(trend.expenses)}
                         </Text>
                       </View>
                     </View>
@@ -413,7 +416,7 @@ export function AdvancedCharts({ accounts, transactions, monthlyPlan }: Advanced
                           { color: net >= 0 ? colors.success : colors.error },
                         ]}
                       >
-                        {formatCurrency(Math.abs(net))}
+                        {displayCurrency(Math.abs(net))}
                       </Text>
                     </View>
                   </View>

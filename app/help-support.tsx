@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { ArrowLeft, HelpCircle, Mail, MessageCircle, Book, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react-native';
+import { ArrowLeft, HelpCircle, Mail, MessageCircle, Book, ChevronDown, ChevronUp, ExternalLink, Github } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
@@ -59,7 +59,7 @@ const faqs: FAQItem[] = [
 ];
 
 export default function HelpSupportScreen() {
-  const { backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
+  const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const router = useRouter();
   const [expandedFAQs, setExpandedFAQs] = useState<string[]>([]);
 
@@ -73,7 +73,7 @@ export default function HelpSupportScreen() {
   };
 
   const openEmail = () => {
-    const email = 'support@budgetbuddy.app';
+    const email = 'rajjitlai@mail.com';
     const subject = 'Budget Buddy Support Request';
     const body = 'Please describe your issue or question:';
     const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -83,11 +83,10 @@ export default function HelpSupportScreen() {
     });
   };
 
-  const openDocumentation = () => {
-    // You can link to your documentation website here
-    const url = 'https://budgetbuddy.app/docs';
+  const openGithub = () => {
+    const url = 'https://github.com/rajjitlai/Budget_Buddy';
     Linking.openURL(url).catch((err) => {
-      console.error('Error opening documentation:', err);
+      console.error('Error opening Github:', err);
     });
   };
 
@@ -133,15 +132,15 @@ export default function HelpSupportScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={openDocumentation}
+              onPress={openGithub}
               style={[styles.actionCard, { backgroundColor: cardBackground, borderColor }]}
             >
-              <View style={[styles.actionIcon, { backgroundColor: `${colors.info}15` }]}>
-                <Book size={24} color={colors.info} />
+              <View style={[styles.actionIcon, { backgroundColor: `${colors.slate[800]}15` }]}>
+                <Github size={24} color={isDarkMode ? '#ffffff' : colors.slate[800]} />
               </View>
-              <Text style={[styles.actionTitle, { color: textPrimary }]}>Documentation</Text>
+              <Text style={[styles.actionTitle, { color: textPrimary }]}>GitHub Repo</Text>
               <Text style={[styles.actionSubtitle, { color: textSecondary }]}>
-                User guides & tutorials
+                View source & issues
               </Text>
               <ExternalLink size={14} color={textSecondary} style={styles.externalIcon} />
             </TouchableOpacity>
@@ -242,7 +241,7 @@ export default function HelpSupportScreen() {
             >
               <Mail size={18} color={colors.primary[500]} />
               <Text style={[styles.contactButtonText, { color: colors.primary[500] }]}>
-                support@budgetbuddy.app
+                rajjitlai@mail.com
               </Text>
             </TouchableOpacity>
           </View>

@@ -1,22 +1,28 @@
-
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Target, AlertTriangle } from 'lucide-react-native';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { useUser } from '@/lib/UserContext';
 import { formatCurrency, MonthlyPlan, Transaction } from '@/lib/types';
 
 interface BudgetHealthCardProps {
   plan: MonthlyPlan | null;
   transactions: Transaction[];
+  variant?: 'default' | 'compact';
 }
 
-export function BudgetHealthCard({ plan, transactions }: BudgetHealthCardProps) {
+export function BudgetHealthCard({ plan, transactions, variant = 'default' }: BudgetHealthCardProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
+  const { user } = useUser();
+  
+  const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
 
   if (!plan) return null;
 
+  const isCompact = variant === 'compact';
+  
   // Calculate current month spending
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -46,43 +52,47 @@ export function BudgetHealthCard({ plan, transactions }: BudgetHealthCardProps) 
       { 
         backgroundColor: cardBackground,
         borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.04)',
+        padding: isCompact ? spacing.lg : spacing.xl,
+        marginHorizontal: isCompact ? 0 : spacing.xl,
       }
     ]}>
-      <View style={styles.header}>
-        <View style={[styles.iconContainer, { backgroundColor: `${getStatusColor()}15` }]}>
+      <View style={[styles.header, { marginBottom: isCompact ? spacing.md : spacing.xl }]}>
+        <View style={[styles.iconContainer, { backgroundColor: `${getStatusColor()}15`, width: isCompact ? 36 : 44, height: isCompact ? 36 : 44 }]}>
           {isOverBudget ? (
-            <AlertTriangle size={20} color={colors.error} />
+            <AlertTriangle size={isCompact ? 16 : 20} color={colors.error} />
           ) : (
-            <Target size={20} color={getStatusColor()} />
+            <Target size={isCompact ? 16 : 20} color={getStatusColor()} />
           )}
         </View>
         <View style={styles.headerText}>
-          <Text style={[styles.title, { color: textPrimary }]}>Budget Health</Text>
-          <Text style={[styles.subtitle, { color: textSecondary }]}>
-            {isOverBudget ? 'Over budget!' : isCloseToBudget ? 'Approaching limit' : 'On track'}
+          <Text style={[styles.title, { color: textPrimary, fontSize: isCompact ? typography.fontSizes.sm : typography.fontSizes.md }]}>Health</Text>
+          <Text style={[styles.subtitle, { color: textSecondary, fontSize: 10 }]}>
+            {isOverBudget ? 'Over!' : 'On track'}
           </Text>
         </View>
       </View>
 
-      <View style={styles.statsRow}>
-        <View style={styles.stat}>
-          <Text style={[styles.statLabel, { color: textSecondary }]}>Spent</Text>
-          <Text style={[styles.statValue, { color: textPrimary }]}>{formatCurrency(totalSpent)}</Text>
+      {!isCompact && (
+        <View style={styles.statsRow}>
+          <View style={styles.stat}>
+            <Text style={[styles.statLabel, { color: textSecondary }]}>Spent</Text>
+            <Text style={[styles.statValue, { color: textPrimary }]}>{displayCurrency(totalSpent)}</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text style={[styles.statLabel, { color: textSecondary }]}>Budget</Text>
+            <Text style={[styles.statValue, { color: textPrimary }]}>{displayCurrency(totalBudget)}</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text style={[styles.statLabel, { color: textSecondary }]}>Remaining</Text>
+            <Text style={[styles.statValue, { color: isOverBudget ? colors.error : colors.success }]}>
+              {displayCurrency(Math.max(totalBudget - totalSpent, 0))}
+            </Text>
+          </View>
         </View>
-        <View style={styles.stat}>
-          <Text style={[styles.statLabel, { color: textSecondary }]}>Budget</Text>
-          <Text style={[styles.statValue, { color: textPrimary }]}>{formatCurrency(totalBudget)}</Text>
-        </View>
-        <View style={styles.stat}>
-          <Text style={[styles.statLabel, { color: textSecondary }]}>Remaining</Text>
-          <Text style={[styles.statValue, { color: isOverBudget ? colors.error : colors.success }]}>
-            {formatCurrency(Math.max(totalBudget - totalSpent, 0))}
-          </Text>
-        </View>
-      </View>
+      )}
 
       <View style={styles.progressWrapper}>
-        <View style={[styles.progressBarBase, { backgroundColor: isDarkMode ? colors.slate[800] : colors.slate[100] }]}>
+        <View style={[styles.progressBarBase, { backgroundColor: isDarkMode ? colors.slate[800] : colors.slate[100], height: isCompact ? 6 : 8 }]}>
           <View 
             style={[
               styles.progressBarFill, 
@@ -93,15 +103,15 @@ export function BudgetHealthCard({ plan, transactions }: BudgetHealthCardProps) 
             ]} 
           />
         </View>
-        <Text style={[styles.progressPercent, { color: getStatusColor() }]}>
+        <Text style={[styles.progressPercent, { color: getStatusColor(), fontSize: 10 }]}>
           {Math.round(progress * 100)}%
         </Text>
       </View>
 
-      {isOverBudget && (
+      {isOverBudget && !isCompact && (
         <View style={[styles.warningBox, { backgroundColor: `${colors.error}10` }]}>
           <Text style={[styles.warningText, { color: colors.error }]}>
-            You've exceeded your planned budget by {formatCurrency(totalSpent - totalBudget)}. Consider pausing non-essential spending.
+            You've exceeded your planned budget by {displayCurrency(totalSpent - totalBudget)}. Consider pausing non-essential spending.
           </Text>
         </View>
       )}

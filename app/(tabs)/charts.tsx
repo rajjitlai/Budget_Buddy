@@ -11,11 +11,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { BarChart3 } from 'lucide-react-native';
+import { BarChart3, Menu } from 'lucide-react-native';
 import { RefreshButton } from '@/components/RefreshButton';
+import { AnimatedScale } from '@/components/ui/AnimatedScale';
 import * as Haptics from 'expo-haptics';
-import { colors, typography, spacing } from '@/lib/theme';
+import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { useNavigation } from 'expo-router';
+import { DrawerActions } from '@react-navigation/native';
 import { Account, Transaction, MonthlyPlan } from '@/lib/types';
 import { getAccounts } from '@/lib/services/accounts';
 import { getTransactions } from '@/lib/services/transactions';
@@ -25,6 +28,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 
 export default function ChartsScreen() {
   const { backgroundColor, textPrimary, textSecondary } = useTheme();
+  const navigation = useNavigation();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
@@ -127,13 +131,19 @@ export default function ChartsScreen() {
         <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.headerLeft}>
+              <AnimatedScale 
+                onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+                style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10`, marginRight: spacing.md }]}
+              >
+                <Menu size={22} color={textSecondary} />
+              </AnimatedScale>
               <View style={styles.headerIcon}>
                 <BarChart3 size={28} color={colors.primary[500]} />
               </View>
               <View>
                 <Text style={[styles.title, { color: textPrimary }]}>Financial Charts</Text>
                 <Text style={[styles.subtitle, { color: textSecondary }]}>
-                  Visualize your financial data
+                  Visualize your data
                 </Text>
               </View>
             </View>
@@ -203,6 +213,13 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.md,
     marginHorizontal: spacing.xs,
     marginTop: spacing.xs,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

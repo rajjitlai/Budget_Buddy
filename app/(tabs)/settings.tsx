@@ -35,12 +35,15 @@ import {
   Linkedin,
   Globe,
   FileText,
+  Menu,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
+import { DrawerActions } from '@react-navigation/native';
+import { AnimatedScale } from '@/components/ui/AnimatedScale';
 import * as SecureStore from 'expo-secure-store';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { ModalSheet } from '@/components/ui/ModalSheet';
@@ -119,6 +122,7 @@ export default function SettingsScreen() {
   const { isDarkMode, toggleDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
   const router = useRouter();
+  const navigation = useNavigation();
   
   const [settings, setSettings] = useState({
     smartPlanner: true,
@@ -135,6 +139,8 @@ export default function SettingsScreen() {
   const [aiProvider, setAiProvider] = useState<string | null>(user?.aiConfig?.provider || 'openrouter');
   const [aiModel, setAiModel] = useState(user?.aiConfig?.model || 'google/gemma-3n-e2b-it:free');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState(user?.currency || 'Rs.');
 
   useEffect(() => {
     loadSettings();
@@ -182,6 +188,19 @@ export default function SettingsScreen() {
       }
     } catch (error) {
       console.error('Error saving AI config:', error);
+    }
+  };
+
+  const handleSaveCurrency = async (currency: string) => {
+    try {
+      setSelectedCurrency(currency);
+      await updateUser({ currency });
+      setShowCurrencyModal(false);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error('Error saving currency:', error);
     }
   };
 
@@ -351,19 +370,37 @@ export default function SettingsScreen() {
           entering={FadeInDown.delay(100).duration(500)}
           style={styles.header}
         >
-
-          <Text style={[styles.title, { color: textPrimary }]}>
-            Settings
-          </Text>
-          <Text style={[styles.subtitle, { color: textSecondary }]}>
-            Customize your experience
-          </Text>
+          <View style={styles.headerLeft}>
+            <AnimatedScale 
+              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+              style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10`, marginRight: spacing.md }]}
+            >
+              <Menu size={22} color={textSecondary} />
+            </AnimatedScale>
+            <View>
+              <Text style={[styles.title, { color: textPrimary }]}>
+                Settings
+              </Text>
+              <Text style={[styles.subtitle, { color: textSecondary }]}>
+                App preferences
+              </Text>
+            </View>
+          </View>
         </Animated.View>
 
-        {/* Appearance Section */}
+        {/* General Section */}
         <Animated.View entering={FadeInDown.delay(200).duration(500)}>
-          <SectionHeader title="Appearance" />
+          <SectionHeader title="General" />
           <View style={[styles.settingsCard, { backgroundColor: cardBackground }]}>
+            {renderSettingItem(
+              Globe,
+              'Currency',
+              'Select your preferred currency symbol',
+              'select',
+              undefined,
+              () => setShowCurrencyModal(true),
+              selectedCurrency
+            )}
             {renderSettingItem(
               isDarkMode ? Moon : Sun,
               'Dark Mode',
@@ -852,6 +889,41 @@ export default function SettingsScreen() {
         </ScrollView>
       </ModalSheet>
 
+      {/* Currency Selection Modal */}
+      <ModalSheet
+        visible={showCurrencyModal}
+        onClose={() => setShowCurrencyModal(false)}
+        title="Select Currency"
+      >
+        <View style={styles.modalBody}>
+          <Text style={[styles.modalHint, { color: textSecondary }]}>
+            Choose the currency symbol to be used across the application.
+          </Text>
+          <View style={styles.currencyGrid}>
+            {['Rs.', '$', '€', '£', '¥', 'CHF', 'A$', 'C$'].map((curr) => (
+              <TouchableOpacity
+                key={curr}
+                onPress={() => handleSaveCurrency(curr)}
+                style={[
+                  styles.currencyOption,
+                  { 
+                    backgroundColor: selectedCurrency === curr ? `${colors.primary[500]}20` : cardBackground,
+                    borderColor: selectedCurrency === curr ? colors.primary[500] : borderColor
+                  }
+                ]}
+              >
+                <Text style={[
+                  styles.currencyText, 
+                  { color: selectedCurrency === curr ? colors.primary[500] : textPrimary }
+                ]}>
+                  {curr}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </ModalSheet>
+
       {/* AI Configuration Modal */}
       <ModalSheet
         visible={showAIModal}
@@ -1058,6 +1130,17 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: typography.fontSizes['2xl'],
@@ -1342,6 +1425,25 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.fontSizes.xs,
     lineHeight: 16,
+  },
+  currencyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  currencyOption: {
+    width: '22%',
+    aspectRatio: 1,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.sm,
+  },
+  currencyText: {
+    fontSize: typography.fontSizes.lg,
+    fontWeight: typography.fontWeights.bold,
   },
   updateBadge: {
     flexDirection: 'row',

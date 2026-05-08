@@ -1,12 +1,5 @@
-
-
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
 import {
   Wallet,
   CreditCard,
@@ -14,24 +7,20 @@ import {
   PiggyBank,
   Landmark,
   Folder,
-  Edit,
-  Trash2,
   Eye,
   EyeOff,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { useUser } from '@/lib/UserContext';
 import { Account, formatCurrency } from '@/lib/types';
+import { AnimatedScale } from './ui/AnimatedScale';
 
 interface BalanceCardProps {
   account: Account;
   onPress?: () => void;
-  onEdit?: () => void;
-  onDelete?: () => void;
 }
-
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 const iconMap: Record<string, React.ComponentType<{ size: number; color: string }>> = {
   Wallet,
@@ -42,14 +31,15 @@ const iconMap: Record<string, React.ComponentType<{ size: number; color: string 
   Folder,
 };
 
-export function BalanceCard({ account, onPress, onEdit, onDelete }: BalanceCardProps) {
+export function BalanceCard({ account, onPress }: BalanceCardProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
-  const scale = useSharedValue(1);
-  const [isVisible, setIsVisible] = useState(false);
+  const { user } = useUser();
+  const [isVisible, setIsVisible] = useState(true);
 
   const IconComponent = iconMap[account.icon] || Wallet;
 
-  const toggleVisibility = () => {
+  const toggleVisibility = (e: any) => {
+    e.stopPropagation();
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
@@ -60,82 +50,33 @@ export function BalanceCard({ account, onPress, onEdit, onDelete }: BalanceCardP
     return 'Rs. ••••••';
   };
 
-  const handlePressIn = () => {
-    scale.value = withSpring(0.97, { damping: 15, stiffness: 400 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 400 });
-  };
-
-  const handlePress = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    onPress?.();
-  };
-
-  const handleEdit = (e: any) => {
-    e.stopPropagation();
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    onEdit?.();
-  };
-
-  const handleDelete = (e: any) => {
-    e.stopPropagation();
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-    onDelete?.();
-  };
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
   return (
-    <AnimatedTouchable
-      onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      activeOpacity={0.9}
+    <AnimatedScale
+      onPress={onPress}
       style={[
         styles.container,
         { 
           backgroundColor: cardBackground,
-          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(15, 23, 42, 0.05)',
-          ...shadows.md 
+          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.04)',
         },
-        animatedStyle,
       ]}
     >
       <View style={styles.header}>
         <View
           style={[
             styles.iconContainer,
-            { backgroundColor: `${account.color}12`, borderColor: `${account.color}20` },
+            { backgroundColor: `${account.color}15`, borderColor: `${account.color}25` },
           ]}
         >
           {iconMap[account.icon] ? (
-            <IconComponent size={22} color={account.color} />
+            <IconComponent size={24} color={account.color} />
           ) : (
-            <Text style={{ fontSize: 20 }}>{account.icon || '🏦'}</Text>
+            <Text style={{ fontSize: 22 }}>{account.icon || '🏦'}</Text>
           )}
-        </View>
-        <View style={styles.headerText}>
-          <Text style={[styles.accountName, { color: textPrimary }]}>
-            {account.name}
-          </Text>
-          <Text style={[styles.accountType, { color: textSecondary }]}>
-            {account.type}
-          </Text>
         </View>
         <TouchableOpacity
           onPress={toggleVisibility}
           style={styles.eyeButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           {isVisible ? (
             <Eye size={18} color={textSecondary} />
@@ -144,72 +85,60 @@ export function BalanceCard({ account, onPress, onEdit, onDelete }: BalanceCardP
           )}
         </TouchableOpacity>
       </View>
-      <View style={styles.balanceRow}>
-        <Text style={[styles.balance, { color: textPrimary }]}>
-          {isVisible ? formatCurrency(account.balance) : getHiddenBalance()}
+      
+      <View style={styles.content}>
+        <Text style={[styles.accountName, { color: textPrimary }]} numberOfLines={1}>
+          {account.name}
         </Text>
-        {(onEdit || onDelete) && (
-          <View style={styles.actions}>
-            {onEdit && (
-              <TouchableOpacity
-                onPress={handleEdit}
-                style={[styles.actionButton, { backgroundColor: `${colors.primary[500]}15` }]}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Edit size={16} color={colors.primary[500]} />
-              </TouchableOpacity>
-            )}
-            {onDelete && (
-              <TouchableOpacity
-                onPress={handleDelete}
-                style={[styles.actionButton, { backgroundColor: `${colors.error}15` }]}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Trash2 size={16} color={colors.error} />
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+        <Text style={[styles.accountType, { color: textSecondary }]}>
+          {account.type}
+        </Text>
+        
+        <Text style={[styles.balance, { color: textPrimary }]} numberOfLines={1}>
+          {isVisible ? formatCurrency(account.balance, user?.currency) : getHiddenBalance()}
+        </Text>
       </View>
+      
       <View style={[styles.accentBar, { backgroundColor: account.color }]} />
-    </AnimatedTouchable>
+    </AnimatedScale>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    width: 200,
+    height: 180,
     borderRadius: borderRadius['3xl'],
-    padding: spacing.xl,
-    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    marginRight: spacing.md,
     borderWidth: 1,
-    borderColor: 'transparent',
     overflow: 'hidden',
+    ...shadows.lg,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   iconContainer: {
-    width: 46,
-    height: 46,
-    borderRadius: borderRadius.xl,
+    width: 52,
+    height: 52,
+    borderRadius: borderRadius['2xl'],
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
     borderWidth: 1,
-  },
-  headerText: {
-    flex: 1,
-    marginRight: spacing.sm,
   },
   eyeButton: {
     padding: spacing.xs,
     borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(128, 128, 128, 0.05)',
+  },
+  content: {
+    flex: 1,
   },
   accountName: {
-    fontSize: typography.fontSizes.lg,
+    fontSize: typography.fontSizes.md,
     fontWeight: typography.fontWeights.bold,
     marginBottom: 2,
   },
@@ -218,35 +147,20 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     fontWeight: typography.fontWeights.semibold,
-  },
-  balanceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    opacity: 0.6,
+    marginBottom: spacing.sm,
   },
   balance: {
-    fontSize: typography.fontSizes['2xl'],
+    fontSize: typography.fontSizes.xl,
     fontWeight: typography.fontWeights.bold,
-    flex: 1,
     letterSpacing: -0.5,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  actionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   accentBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 4,
+    height: 6,
+    opacity: 0.8,
   },
 });
-

@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 
 const GITHUB_OWNER = 'rajjitlai';
 const GITHUB_REPO = 'Budget_Buddy';
-const CURRENT_VERSION = '2.0.0';
+const CURRENT_VERSION = '2.1.0';
 
 export interface UpdateInfo {
   hasUpdate: boolean;

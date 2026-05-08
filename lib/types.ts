@@ -54,17 +54,17 @@ export const SUGGESTED_ACCOUNT_TYPES = [
 ];
 
 
-// Helper function to format currency as Rupees (Rs.)
-export const formatCurrency = (amount: number): string => {
+// Helper function to format currency dynamically
+export const formatCurrency = (amount: number, currency: string = 'Rs.'): string => {
   const formatterOptions: Intl.NumberFormatOptions = {
     maximumFractionDigits: 0,
   };
 
-  // Format number with Indian number system (lakhs, crores)
-  const numeric = new Intl.NumberFormat('en-IN', formatterOptions).format(amount);
+  // Format number with Indian number system (lakhs, crores) if Rs.
+  const locale = currency === 'Rs.' ? 'en-IN' : 'en-US';
+  const numeric = new Intl.NumberFormat(locale, formatterOptions).format(amount);
   
-  // Always use "Rs." prefix
-  return `Rs. ${numeric}`;
+  return `${currency} ${numeric}`;
 };
 
 // Helper function to calculate total balance

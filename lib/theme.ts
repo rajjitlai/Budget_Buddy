@@ -145,6 +145,22 @@ export const shadows = {
     boxShadow: '0px 12px 24px rgba(15, 23, 42, 0.12), 0px 24px 48px rgba(15, 23, 42, 0.08)',
     elevation: 12,
   },
+  // Inner shadow for inset buttons or form fields
+  inner: {
+    boxShadow: 'inset 0px 2px 4px rgba(0, 0, 0, 0.06)',
+    elevation: 0,
+  },
+};
+
+/**
+ * Premium Blur Configuration
+ */
+export const blur = {
+  intensity: 30,
+  tint: {
+    light: 'light' as const,
+    dark: 'dark' as const,
+  },
 };
 
 /**

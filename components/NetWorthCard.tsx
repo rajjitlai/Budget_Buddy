@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,6 +5,7 @@ import { TrendingUp, Wallet, Eye, EyeOff } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { formatCurrency } from '@/lib/types';
+import { useUser } from '@/lib/UserContext';
 
 interface NetWorthCardProps {
   totalBalance: number;
@@ -14,7 +13,8 @@ interface NetWorthCardProps {
 }
 
 export function NetWorthCard({ totalBalance, changePercent = null }: NetWorthCardProps) {
-  const [isVisible, setIsVisible] = useState(false);
+  const { user } = useUser();
+  const [isVisible, setIsVisible] = useState(true);
 
   const toggleVisibility = () => {
     if (Platform.OS !== 'web') {
@@ -57,7 +57,7 @@ export function NetWorthCard({ totalBalance, changePercent = null }: NetWorthCar
           </View>
           
           <Text style={styles.balance}>
-            {isVisible ? formatCurrency(totalBalance) : getHiddenBalance()}
+            {isVisible ? formatCurrency(totalBalance, user?.currency) : getHiddenBalance()}
           </Text>
           
           {typeof changePercent === 'number' && isVisible && (
