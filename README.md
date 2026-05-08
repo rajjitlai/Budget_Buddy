@@ -30,7 +30,7 @@ A modern, feature-rich personal finance management mobile application built with
 - **Allocation Real-time Summary**: Instantly see how your strategy affects your leftover funds.
 
 ### ⚙️ Premium Experience
-- **Floating Glass Tab Bar**: Icon-only, blurred navigation for a modern, minimalist feel.
+- **Sidebar (Drawer) Navigation**: Full-height navigation menu with deep glassmorphism and intuitive gesture support.
 - **Haptic Interaction System**: Squishy, spring-based feedback on every press with native haptics.
 - **Theme Toggle**: Full light and dark mode support with system-aware transitions.
 
@@ -39,9 +39,10 @@ A modern, feature-rich personal finance management mobile application built with
 ### Frontend
 - **React Native** (0.81.5) - Cross-platform mobile framework
 - **Expo** (SDK 54) - Development platform and tooling
+- **React 19** - Modern component-driven UI
 - **TypeScript** - Type-safe development
-- **React Navigation** - Navigation and routing
-- **React Native Reanimated** - Smooth animations
+- **React Navigation** - Drawer and stack navigation
+- **React Native Reanimated** - Smooth, spring-based animations
 - **Lucide React Native** - Beautiful icon library
 
 ### Backend & Services
@@ -61,35 +62,28 @@ A modern, feature-rich personal finance management mobile application built with
 ```
 Budget_Buddy/
 ├── app/                          # Application screens and navigation
-│   ├── (tabs)/                   # Tab-based navigation screens
+│   ├── (tabs)/                   # Sidebar (Drawer) navigation screens
 │   │   ├── index.tsx            # Dashboard/Home screen
 │   │   ├── transactions.tsx     # Transaction management
-│   │   ├── insights.tsx         # Analytics and insights
-│   │   └── settings.tsx         # App settings
-│   └── _layout.tsx              # Root layout with providers
+│   │   ├── charts.tsx           # Spending Analysis
+│   │   ├── planner.tsx          # Budget Strategy
+│   │   ├── insights.tsx         # AI Recommendations
+│   │   ├── settings.tsx         # App preferences
+│   │   └── _layout.tsx          # Drawer layout configuration
+│   ├── _layout.tsx              # Root layout with providers
+│   └── help-support.tsx         # Support and FAQ center
 ├── components/                   # Reusable components
-│   ├── AccountList.tsx          # Account list display
-│   ├── AIInsightCard.tsx        # AI insight cards
-│   ├── BalanceCard.tsx          # Account balance cards
-│   ├── NetWorthCard.tsx         # Net worth display card
 ├── lib/                         # Utilities and configuration
 │   ├── database/                # SQLite database setup
-│   │   └── sqlite.ts            # Database initialization
 │   ├── services/                # Business logic services
-│   │   ├── accounts.ts          # Account management
-│   │   ├── transactions.ts      # Transaction logic
-│   │   └── monthlyPlans.ts      # Budget planning
 │   ├── utils/                   # Helper functions
-│   │   └── updates.ts           # Version and update logic
 │   ├── types.ts                 # Type definitions and constants
 │   ├── theme.ts                 # Theme configuration
 │   └── ThemeContext.tsx         # Theme context provider
 ├── assets/                      # Static assets
-│   ├── fonts/                   # Custom fonts
-│   └── images/                  # Images and icons
 ├── app.json                     # Expo configuration
 ├── package.json                 # Dependencies
-├── tsconfig.json                # TypeScript configuration
+├── LICENSE                      # MIT License
 └── metro.config.js              # Metro bundler configuration
 ```
 
@@ -99,14 +93,13 @@ Budget_Buddy/
 
 - **Node.js** (v18 or higher)
 - **npm** or **bun** package manager
-- **Expo CLI** (installed globally or via npx)
-- **iOS Simulator** (for Mac) or **Android Emulator** (for development)
+- **Expo Go** app on your physical device or an emulator
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/rajjitlai/Budget_Buddy.git
    cd Budget_Buddy
    ```
 
@@ -123,7 +116,6 @@ Budget_Buddy/
    ```env
    # AI (OpenRouter - Optional, uses rule-based fallback if not set)
    EXPO_PUBLIC_OPENROUTER_API_KEY=sk-or-v1-your-key
-   EXPO_PUBLIC_APP_URL=https://your-app-url.com
    ```
    
    > 🔐 Never commit `.env` files. The OpenRouter key is optional - the app works without it using rule-based insights.
@@ -131,8 +123,6 @@ Budget_Buddy/
 4. **Start Expo development server**
    ```bash
    npm start
-   # or
-   expo start
    ```
 
 5. **Run on your device**
@@ -187,18 +177,19 @@ Budget Buddy uses a comprehensive theme system with:
 - ✅ **Android** (Phone & Tablet)
 - ✅ **Web** (via Expo Web)
 
-## 🔐 Authentication
+## 🔐 Authentication & Privacy
 
 Budget Buddy uses local-first authentication and security:
 - **Local SQLite**: All financial data stays on your device.
 - **Secure Store**: Credentials and API keys are encrypted locally.
 - **Privacy First**: No cloud syncing of your private transactions.
+- **Biometrics**: Support for FaceID/TouchID/Fingerprint locking.
 
-## 💾 Data Management
+## 💾 Data Portability
 
-- **SQLite**: Local-first database for all user data.
-- **Types & Constants**: Unified type system in `lib/types.ts`.
-- **Type Safety**: Full TypeScript type definitions
+- **JSON Export**: Export your entire financial history to a JSON file.
+- **JSON Import**: Restore your data from a previously exported backup.
+- **SQLite**: Direct access to local-first database for advanced users.
 
 ## 🤝 Contributing
 
@@ -206,13 +197,13 @@ Contributions are welcome! Please follow these steps:
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
@@ -220,13 +211,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **Lucide Icons** - For the beautiful icon library
 - **React Native Community** - For the ecosystem and support
 
-## 📞 Support
-
-For issues, questions, or suggestions:
-- Open an issue on GitHub
-- Contact the development team
-- Check the documentation
-
 ---
 
-**Built with ❤️ using React Native and Expo — v2.1.0 — © {new Date().getFullYear()}**
+**Built with ❤️ using React Native and Expo — v2.1.0 — © 2026**

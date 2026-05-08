@@ -6,6 +6,7 @@ import { getTransactions, createTransaction } from './transactions';
 import { getAllMonthlyPlans, saveMonthlyPlan } from './monthlyPlans';
 import { getDatabase } from '@/lib/database/sqlite';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 export interface ExportData {
   version: string;
@@ -25,7 +26,7 @@ export async function exportData(): Promise<void> {
     const monthlyPlans = await getAllMonthlyPlans();
 
     const data: ExportData = {
-      version: '2.0.0',
+      version: Constants.expoConfig?.version || '2.1.0',
       timestamp: new Date().toISOString(),
       accounts,
       transactions,

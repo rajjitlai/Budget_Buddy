@@ -1,9 +1,10 @@
 
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 const GITHUB_OWNER = 'rajjitlai';
 const GITHUB_REPO = 'Budget_Buddy';
-const CURRENT_VERSION = '2.1.0';
+const CURRENT_VERSION = Constants.expoConfig?.version || '2.1.0';
 
 export interface UpdateInfo {
   hasUpdate: boolean;

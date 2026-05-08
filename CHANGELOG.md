@@ -15,7 +15,7 @@ All notable changes to **Budget Buddy** will be documented in this file.
 - **ReferenceError Fixes**: Resolved multiple missing imports (RefreshCw, Sparkles) and legacy data mapping issues.
 - **Tab Bar Alignment**: Adjusted safe-area margins and vertical centering for better device compatibility.
 
-## [2.0.0] - 2026-05-08
+## [2.1.0] - 2026-05-08
 ### Added
 - **Cinematic UI System**: Implemented multi-layered shadows, glassmorphic blur tokens, and premium border radii.
 - **AnimatedScale Component**: Spring-based interaction system for consistent tactile feedback.

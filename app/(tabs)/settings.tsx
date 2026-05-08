@@ -42,6 +42,7 @@ import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme'
 import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
 import { useRouter, useNavigation } from 'expo-router';
+import Constants from 'expo-constants';
 import { DrawerActions } from '@react-navigation/native';
 import { AnimatedScale } from '@/components/ui/AnimatedScale';
 import * as SecureStore from 'expo-secure-store';
@@ -505,7 +506,7 @@ export default function SettingsScreen() {
               </Text>
               <View style={styles.aboutInfo}>
                 <Text style={[styles.aboutInfoText, { color: textSecondary }]}>
-                  Version 2.0.0
+                  Version {Constants.expoConfig?.version || '2.1.0'}
                 </Text>
                 <Text style={[styles.aboutInfoText, { color: textSecondary }]}>
                   © {new Date().getFullYear()} Budget Buddy
@@ -594,7 +595,7 @@ export default function SettingsScreen() {
         >
           <Text style={[styles.appName, { color: textPrimary }]}>Budget Buddy</Text>
           <Text style={[styles.appVersion, { color: textSecondary }]}>
-            Version 2.0.0
+            Version {Constants.expoConfig?.version || '2.1.0'}
           </Text>
           {updateInfo?.hasUpdate && (
             <TouchableOpacity 

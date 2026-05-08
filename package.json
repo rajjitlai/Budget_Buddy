@@ -1,7 +1,10 @@
 {
   "name": "budget-buddy",
+  "version": "2.1.0",
+  "description": "A modern, AI-powered personal finance management mobile application built with React Native and Expo.",
+  "author": "rajjitlai",
+  "license": "MIT",
   "main": "expo-router/entry",
-  "version": "2.0.0",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -13,7 +16,7 @@
     "@expo/vector-icons": "^15.0.3",
     "@react-native-community/slider": "5.0.1",
     "@react-navigation/bottom-tabs": "^7.3.10",
-    "@react-navigation/drawer": "^7.9.10",
+    "@react-navigation/drawer": "^7.5.0",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
     "expo": "^54.0.20",
@@ -55,6 +58,5 @@
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.2"
-  },
-  "private": true
+  }
 }

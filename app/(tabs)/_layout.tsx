@@ -18,6 +18,7 @@ import {
 import { colors, borderRadius, typography, spacing } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 
 export default function DrawerLayout() {
   const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
@@ -28,7 +29,7 @@ export default function DrawerLayout() {
       <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: 0 }}>
         <View style={styles.drawerHeader}>
           <Text style={[styles.drawerTitle, { color: textPrimary }]}>Budget Buddy</Text>
-          <Text style={[styles.drawerSubtitle, { color: textSecondary }]}>V2.1.0 Premium</Text>
+          <Text style={[styles.drawerSubtitle, { color: textSecondary }]}>v{Constants.expoConfig?.version || '2.1.0'} Premium</Text>
         </View>
         <DrawerItemList {...props} />
         <View style={styles.drawerDivider} />
