@@ -41,5 +41,4 @@ yarn-error.*
 # Lock files
 *.lockb
 *.lock
-package-lock.json
 
