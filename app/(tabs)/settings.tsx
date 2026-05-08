@@ -43,8 +43,15 @@ import { useUser } from '@/lib/UserContext';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { Avatar } from '@/components/Avatar';
 import { ModalSheet } from '@/components/ui/ModalSheet';
+import { InputField } from '@/components/ui/InputField';
+import { SelectField } from '@/components/ui/SelectField';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import { exportData, importData } from '@/lib/services/dataPortability';
+import { Download, Upload, Database, RefreshCw } from 'lucide-react-native';
+import { checkForUpdates, UpdateInfo } from '@/lib/utils/updates';
 
 interface SettingItem {
   id: string;
@@ -110,7 +117,7 @@ const currencies = ['INR (?)', 'USD ($)', 'EUR (?)', 'GBP (�)', 'JPY (�)'];
 
 export default function SettingsScreen() {
   const { isDarkMode, toggleDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
-  const { user, logout } = useUser();
+  const { user } = useUser();
   const router = useRouter();
   
   const [settings, setSettings] = useState({
@@ -120,11 +127,24 @@ export default function SettingsScreen() {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showAIModal, setShowAIModal] = useState(false);
   const [expandedFAQs, setExpandedFAQs] = useState<string[]>([]);
+  
+  // AI Config State
+  const [aiApiKey, setAiApiKey] = useState(user?.aiConfig?.apiKey || '');
+  const [aiProvider, setAiProvider] = useState<string | null>(user?.aiConfig?.provider || 'openrouter');
+  const [aiModel, setAiModel] = useState(user?.aiConfig?.model || 'google/gemma-3n-e2b-it:free');
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
 
   useEffect(() => {
     loadSettings();
+    checkAppUpdates();
   }, []);
+
+  const checkAppUpdates = async () => {
+    const info = await checkForUpdates();
+    setUpdateInfo(info);
+  };
 
   const loadSettings = async () => {
     try {
@@ -135,19 +155,89 @@ export default function SettingsScreen() {
           advancedCharts: advancedCharts === 'true',
         }));
       }
+
+      // Sync AI config from user context
+      if (user?.aiConfig) {
+        setAiApiKey(user.aiConfig.apiKey);
+        setAiProvider(user.aiConfig.provider);
+        setAiModel(user.aiConfig.model);
+      }
     } catch (error) {
       console.error('Error loading settings:', error);
     }
   };
 
-  const handleLogout = async () => {
+  const handleSaveAIConfig = async () => {
     try {
-      await logout();
-      router.replace('/login');
+      await updateUser({
+        aiConfig: {
+          apiKey: aiApiKey,
+          provider: (aiProvider as 'openrouter' | 'openai') || 'openrouter',
+          model: aiModel,
+        },
+      });
+      setShowAIModal(false);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Error saving AI config:', error);
     }
   };
+
+  const handleExportData = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+      await exportData();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to export data');
+    }
+  };
+
+  const handleImportData = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+      
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/json',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const fileUri = result.assets[0].uri;
+      const jsonString = await FileSystem.readAsStringAsync(fileUri);
+
+      Alert.alert(
+        'Confirm Import',
+        'This will OVERWRITE all your current data. Are you sure you want to proceed?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Import', 
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await importData(jsonString);
+                Alert.alert('Success', 'Data imported successfully. The app will now refresh.');
+                // In a real app, you might want to reload the entire app state
+              } catch (err: any) {
+                Alert.alert('Error', err.message);
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to read backup file');
+    }
+  };
+
+
 
   const handleToggle = async (key: string) => {
     if (Platform.OS !== 'web') {
@@ -261,17 +351,7 @@ export default function SettingsScreen() {
           entering={FadeInDown.delay(100).duration(500)}
           style={styles.header}
         >
-          <View style={styles.userSection}>
-            <Avatar name={user?.name || 'User'} size={64} />
-            <View style={styles.userInfo}>
-              <Text style={[styles.userName, { color: textPrimary }]}>
-                {user?.name || 'User'}
-              </Text>
-              <Text style={[styles.userEmail, { color: textSecondary }]}>
-                {user?.email || ''}
-              </Text>
-            </View>
-          </View>
+
           <Text style={[styles.title, { color: textPrimary }]}>
             Settings
           </Text>
@@ -296,6 +376,52 @@ export default function SettingsScreen() {
                 }
                 toggleDarkMode();
               }
+            )}
+          </View>
+        </Animated.View>
+
+        {/* AI Configuration Section */}
+        <Animated.View entering={FadeInDown.delay(250).duration(500)} style={{ marginTop: spacing.lg }}>
+          <SectionHeader title="AI Features" />
+          <View style={[styles.settingsCard, { backgroundColor: cardBackground }]}>
+            {renderSettingItem(
+              Sparkles,
+              'AI Configuration',
+              user?.aiConfig?.apiKey ? 'Personal AI key configured' : 'Using free/rule-based insights',
+              'link',
+              undefined,
+              () => setShowAIModal(true)
+            )}
+            {renderSettingItem(
+              BarChart3,
+              'Advanced Charts',
+              'Show detailed spending visualizations',
+              'toggle',
+              settings.advancedCharts,
+              () => handleToggle('advancedCharts')
+            )}
+          </View>
+        </Animated.View>
+
+        {/* Data Management Section */}
+        <Animated.View entering={FadeInDown.delay(280).duration(500)} style={{ marginTop: spacing.lg }}>
+          <SectionHeader title="Data Management" />
+          <View style={[styles.settingsCard, { backgroundColor: cardBackground }]}>
+            {renderSettingItem(
+              Download,
+              'Export Data',
+              'Backup your data to a JSON file',
+              'link',
+              undefined,
+              handleExportData
+            )}
+            {renderSettingItem(
+              Upload,
+              'Import Data',
+              'Restore from a Budget Buddy backup',
+              'link',
+              undefined,
+              handleImportData
             )}
           </View>
         </Animated.View>
@@ -342,10 +468,10 @@ export default function SettingsScreen() {
               </Text>
               <View style={styles.aboutInfo}>
                 <Text style={[styles.aboutInfoText, { color: textSecondary }]}>
-                  Version 1.0.2
+                  Version 2.0.0
                 </Text>
                 <Text style={[styles.aboutInfoText, { color: textSecondary }]}>
-                  © 2025 Budget Buddy
+                  © {new Date().getFullYear()} Budget Buddy
                 </Text>
               </View>
             </View>
@@ -422,20 +548,7 @@ export default function SettingsScreen() {
           </View>
         </Animated.View>
 
-        {/* Account Section */}
-        <Animated.View entering={FadeInDown.delay(600).duration(500)} style={{ marginTop: spacing.lg }}>
-          <SectionHeader title="Account" />
-          <View style={[styles.settingsCard, { backgroundColor: cardBackground }]}>
-            {renderSettingItem(
-              LogOut,
-              'Sign Out',
-              'Sign out of your account',
-              'link',
-              undefined,
-              handleLogout
-            )}
-          </View>
-        </Animated.View>
+
 
         {/* App Info */}
         <Animated.View
@@ -444,8 +557,17 @@ export default function SettingsScreen() {
         >
           <Text style={[styles.appName, { color: textPrimary }]}>Budget Buddy</Text>
           <Text style={[styles.appVersion, { color: textSecondary }]}>
-            Version 1.0.2
+            Version 2.0.0
           </Text>
+          {updateInfo?.hasUpdate && (
+            <TouchableOpacity 
+              style={styles.updateBadge}
+              onPress={() => updateInfo.downloadUrl && Linking.openURL(updateInfo.downloadUrl)}
+            >
+              <RefreshCw size={12} color="#fff" />
+              <Text style={styles.updateBadgeText}>Update Available (v{updateInfo.latestVersion})</Text>
+            </TouchableOpacity>
+          )}
           <Text style={[styles.appTagline, { color: textSecondary }]}>
             Your personal finance companion
           </Text>
@@ -464,7 +586,7 @@ export default function SettingsScreen() {
           contentContainerStyle={styles.modalContentContainer}
         >
           <Text style={[styles.modalLastUpdated, { color: textSecondary }]}>
-            Last Updated: December 2025
+            Last Updated: May 2026
           </Text>
 
           <Text style={[styles.modalSectionTitle, { color: textPrimary }]}>
@@ -598,7 +720,7 @@ export default function SettingsScreen() {
           contentContainerStyle={styles.modalContentContainer}
         >
           <Text style={[styles.modalLastUpdated, { color: textSecondary }]}>
-            Last Updated: December 2025
+            Last Updated: May 2026
           </Text>
 
           <Text style={[styles.modalSectionTitle, { color: textPrimary }]}>
@@ -728,6 +850,62 @@ export default function SettingsScreen() {
             For questions about these Terms of Service, please contact us through the Help & Support section in the app settings.
           </Text>
         </ScrollView>
+      </ModalSheet>
+
+      {/* AI Configuration Modal */}
+      <ModalSheet
+        visible={showAIModal}
+        onClose={() => setShowAIModal(false)}
+        title="AI Configuration"
+      >
+        <View style={styles.modalBody}>
+          <Text style={[styles.modalHint, { color: textSecondary }]}>
+            Personalize your AI insights by providing your own API key. Your key is stored securely on your device.
+          </Text>
+          
+          <SelectField
+            label="API Provider"
+            options={[
+              { id: 'openrouter', label: 'OpenRouter (Recommended)', icon: 'Globe' },
+              { id: 'openai', label: 'OpenAI', icon: 'Sparkles' },
+            ]}
+            value={aiProvider}
+            onChange={setAiProvider}
+          />
+
+          <InputField
+            label="API Key"
+            placeholder="sk-..."
+            value={aiApiKey}
+            onChangeText={setAiApiKey}
+            secureTextEntry
+          />
+
+          <InputField
+            label="Model Name"
+            placeholder={aiProvider === 'openrouter' ? 'google/gemma-3-4b-it:free' : 'gpt-4o-mini'}
+            value={aiModel}
+            onChangeText={setAiModel}
+          />
+
+          <View style={styles.modalHintContainer}>
+            <Info size={16} color={colors.primary[500]} />
+            <Text style={[styles.modalHintText, { color: textSecondary }]}>
+              {aiProvider === 'openrouter' 
+                ? 'OpenRouter allows using free models like Gemma or paid ones like Claude/GPT.'
+                : 'OpenAI requires a paid API key and balance.'}
+            </Text>
+          </View>
+
+          <View style={styles.modalActions}>
+            <PrimaryButton
+              title="Save Configuration"
+              onPress={handleSaveAIConfig}
+              fullWidth
+              size="lg"
+            />
+          </View>
+        </View>
       </ModalSheet>
 
       {/* Help & Support Modal */}
@@ -881,24 +1059,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
   },
-  userSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-    paddingBottom: spacing.lg,
-  },
-  userInfo: {
-    marginLeft: spacing.md,
-    flex: 1,
-  },
-  userName: {
-    fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.bold,
-    marginBottom: spacing.xs,
-  },
-  userEmail: {
-    fontSize: typography.fontSizes.sm,
-  },
   title: {
     fontSize: typography.fontSizes['2xl'],
     fontWeight: typography.fontWeights.bold,
@@ -908,7 +1068,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.md,
   },
   settingsCard: {
-    marginHorizontal: spacing.lg,
+    marginHorizontal: spacing.xl,
     borderRadius: borderRadius['2xl'],
     overflow: 'hidden',
     ...shadows.sm,
@@ -965,9 +1125,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   // Modal styles
-  modalScroll: {
-    maxHeight: 600,
-  },
   modalScroll: {
     maxHeight: 600,
   },
@@ -1163,6 +1320,43 @@ const styles = StyleSheet.create({
   },
   developerRole: {
     fontSize: typography.fontSizes.sm,
+  },
+  modalBody: {
+    paddingBottom: spacing.xl,
+  },
+  modalHint: {
+    fontSize: typography.fontSizes.sm,
+    marginBottom: spacing.lg,
+    lineHeight: 20,
+  },
+  modalHintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    backgroundColor: `${colors.primary[500]}10`,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+  },
+  modalHintText: {
+    flex: 1,
+    fontSize: typography.fontSizes.xs,
+    lineHeight: 16,
+  },
+  updateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primary[500],
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.full,
+    marginTop: spacing.sm,
+  },
+  updateBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });
 

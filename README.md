@@ -45,6 +45,7 @@ A modern, feature-rich personal finance management mobile application built with
 
 ### Backend & Services
 - **SQLite** (`expo-sqlite`) - Local-first database storage
+- **AI Insights** (OpenRouter) - Intelligent financial recommendations
 - **Expo Secure Store** - Secure local settings storage
 - **Expo File System** - Data export and management
 
@@ -78,8 +79,8 @@ Budget_Buddy/
 │   │   ├── transactions.ts      # Transaction logic
 │   │   └── monthlyPlans.ts      # Budget planning
 │   ├── utils/                   # Helper functions
-│   │   └── export.ts            # Data export utility
-│   ├── mockData.ts              # Type definitions and constants
+│   │   └── updates.ts           # Version and update logic
+│   ├── types.ts                 # Type definitions and constants
 │   ├── theme.ts                 # Theme configuration
 │   └── ThemeContext.tsx         # Theme context provider
 ├── assets/                      # Static assets
@@ -119,20 +120,12 @@ Budget_Buddy/
    
    Create a `.env` file in the root directory:
    ```env
-   # Appwrite
-   EXPO_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
-   EXPO_PUBLIC_APPWRITE_PROJECT_ID=your-project-id
-   EXPO_PUBLIC_APPWRITE_DATABASE_ID=your-database-id
-   EXPO_PUBLIC_APPWRITE_COLLECTION_ACCOUNTS=accounts
-   EXPO_PUBLIC_APPWRITE_COLLECTION_TRANSACTIONS=transactions
-   EXPO_PUBLIC_APPWRITE_COLLECTION_MONTHLY_PLANS=monthlyPlans
-
    # AI (OpenRouter - Optional, uses rule-based fallback if not set)
    EXPO_PUBLIC_OPENROUTER_API_KEY=sk-or-v1-your-key
    EXPO_PUBLIC_APP_URL=https://your-app-url.com
    ```
    
-   > 🔐 Never commit `.env` files. The OpenRouter key is optional - the app works without it using rule-based insights. See `OPENROUTER_SETUP.md` for detailed setup instructions.
+   > 🔐 Never commit `.env` files. The OpenRouter key is optional - the app works without it using rule-based insights.
 
 4. **Start Expo development server**
    ```bash
@@ -146,54 +139,12 @@ Budget_Buddy/
    - Press `a` for Android emulator
    - Scan QR code with Expo Go app for physical device
 
-### Appwrite Database Setup
-
-Create the following collections in your Appwrite project (IDs can be customized, just keep the values in `.env` in sync):
-
-| Collection | Required Attributes (type) |
-|------------|----------------------------|
-| `accounts` | `name` (string), `type` (enum), `balance` (float), `icon` (string), `color` (string), `userId` (string) |
-| `transactions` | `amount` (float), `category` (string), `sourceAccountId` (string), `destinationAccountId` (string, optional), `notes` (string), `date` (datetime), `type` (enum), `userId` (string) |
-| `monthlyPlans` | `salary` (float), `essentials` (object), `allocations` (object), `month` (string), `year` (integer), `userId` (string) |
-
-Make sure the API keys used by the app have read/write access to these collections.
-
 ## 🐛 Known Issues & Debugging
-
-### Missing UI Components
-
-The application currently has **missing UI component files** that are imported but not implemented:
-
-**Missing Components:**
-- `components/ui/SectionHeader.tsx`
-- `components/ui/PrimaryButton.tsx`
-- `components/ui/ModalSheet.tsx`
-- `components/ui/InputField.tsx`
-- `components/ui/SelectField.tsx`
-- `components/AIInsightCard.tsx` (imported as `AllInsightCard.tsx` - naming mismatch)
-
-**Impact:** The app will fail to build/run until these components are created.
-
-### Component Naming Issue
-
-- File: `components/AllInsightCard.tsx`
-- Should be: `components/AIInsightCard.tsx`
-- The import statements expect `AIInsightCard` but the file is named `AllInsightCard`
-
-### Appwrite Backend Setup
-
-The app requires an Appwrite backend to be set up and configured. Without proper Appwrite setup:
-- Authentication won't work
-- Data persistence will fail
-- All features will be unavailable
-
-See `APPWRITE_SCHEMA.md` for complete database schema setup instructions.
 
 ### Environment Configuration
 
 Missing or incorrect environment variables will cause:
-- Appwrite connection failures
-- Authentication errors
+- AI service failures
 - Runtime crashes
 
 ## 📦 Dependencies
@@ -204,7 +155,7 @@ Missing or incorrect environment variables will cause:
   "expo": "^54.0.20",
   "react": "19.1.0",
   "react-native": "0.81.5",
-  "appwrite": "^21.4.0"
+  "expo-sqlite": "~16.0.10"
 }
 ```
 
@@ -237,16 +188,15 @@ Budget Buddy uses a comprehensive theme system with:
 
 ## 🔐 Authentication
 
-Budget Buddy uses Appwrite for:
-- Secure user authentication
-- Session management
-- Protected routes
-- Secure credential storage
+Budget Buddy uses local-first authentication and security:
+- **Local SQLite**: All financial data stays on your device.
+- **Secure Store**: Credentials and API keys are encrypted locally.
+- **Privacy First**: No cloud syncing of your private transactions.
 
 ## 💾 Data Management
 
-- **Appwrite**: Backend-as-a-Service for authentication and database
-- **Mock Data**: Development data for testing
+- **SQLite**: Local-first database for all user data.
+- **Types & Constants**: Unified type system in `lib/types.ts`.
 - **Type Safety**: Full TypeScript type definitions
 
 ## 🤝 Contributing
@@ -266,7 +216,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🙏 Acknowledgments
 
 - **Expo Team** - For the amazing development platform
-- **Appwrite** - For the backend infrastructure and authentication
 - **Lucide Icons** - For the beautiful icon library
 - **React Native Community** - For the ecosystem and support
 
@@ -279,4 +228,4 @@ For issues, questions, or suggestions:
 
 ---
 
-**Built with ❤️ using React Native and Expo**
+**Built with ❤️ using React Native and Expo — © 2026**

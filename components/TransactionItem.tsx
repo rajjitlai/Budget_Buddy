@@ -15,9 +15,9 @@ import {
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { formatCurrency, categories } from '@/lib/mockData';
+import { formatCurrency, categories } from '@/lib/types';
 import { TransactionDocument } from '@/lib/services/transactions';
-import { Account } from '@/lib/mockData';
+import { Account } from '@/lib/types';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 

@@ -26,7 +26,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { formatCurrency, Account, Transaction, MonthlyPlan } from '@/lib/mockData';
+import { formatCurrency, Account, Transaction, MonthlyPlan } from '@/lib/types';
 import { getAccounts } from '@/lib/services/accounts';
 import { getTransactions } from '@/lib/services/transactions';
 import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';

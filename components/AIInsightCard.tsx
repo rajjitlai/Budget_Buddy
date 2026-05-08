@@ -20,7 +20,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { AIInsight } from '@/lib/mockData';
+import { AIInsight } from '@/lib/types';
 
 interface AIInsightCardProps {
   insight: AIInsight;

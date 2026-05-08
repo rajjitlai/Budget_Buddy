@@ -22,7 +22,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { Account, formatCurrency } from '@/lib/mockData';
+import { Account, formatCurrency } from '@/lib/types';
 
 interface BalanceCardProps {
   account: Account;

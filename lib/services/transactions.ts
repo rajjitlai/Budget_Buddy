@@ -1,7 +1,9 @@
 
 import { getDatabase, runInTransaction } from '@/lib/database/sqlite';
-import { Transaction } from '@/lib/mockData';
+import { Transaction } from '@/lib/types';
 import { getAccount, updateAccountBalance } from './accounts';
+import { getCurrentMonthlyPlan } from './monthlyPlans';
+import { formatCurrency } from '@/lib/types';
 import * as Crypto from 'expo-crypto';
 
 /**
@@ -155,10 +157,41 @@ export async function createTransaction(
       await updateAccountBalance(change.accountId, newBalance);
     }
 
-    return {
+    const result = {
       id,
       ...transactionData,
     };
+
+    // 3. Check for budget alerts (don't block the transaction)
+    if (transactionData.type === 'expense') {
+      try {
+        const plan = await getCurrentMonthlyPlan();
+        if (plan) {
+          const transactions = await getTransactions();
+          const now = new Date();
+          const currentMonthSpent = transactions
+            .filter(t => {
+              const d = new Date(t.date);
+              return d.getMonth() === now.getMonth() && 
+                     d.getFullYear() === now.getFullYear() && 
+                     t.type === 'expense';
+            })
+            .reduce((sum, t) => sum + t.amount, 0);
+
+          const totalBudget = plan.allocations.spending + Object.values(plan.essentials).reduce((a, b) => a + b, 0);
+          
+          if (currentMonthSpent > totalBudget) {
+            (result as any).warning = `Budget exceeded by ${formatCurrency(currentMonthSpent - totalBudget)}`;
+          } else if (currentMonthSpent > totalBudget * 0.9) {
+            (result as any).warning = `90% of monthly budget reached (${formatCurrency(totalBudget - currentMonthSpent)} remaining)`;
+          }
+        }
+      } catch (err) {
+        console.error('Error checking budget alert:', err);
+      }
+    }
+
+    return result;
   });
 }
 

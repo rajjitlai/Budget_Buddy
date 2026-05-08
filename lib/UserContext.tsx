@@ -3,10 +3,17 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import * as SecureStore from 'expo-secure-store';
 import { initDatabase } from '@/lib/database/sqlite';
 
+interface AIConfig {
+  apiKey: string;
+  provider: 'openrouter' | 'openai';
+  model: string;
+}
+
 interface UserProfile {
   name: string;
   onboarded: boolean;
   biometricEnabled: boolean;
+  aiConfig?: AIConfig;
 }
 
 interface UserContextType {
@@ -40,6 +47,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
             name: 'Guest',
             onboarded: false,
             biometricEnabled: false,
+            aiConfig: {
+              apiKey: '',
+              provider: 'openrouter',
+              model: 'google/gemma-3n-e2b-it:free',
+            },
           };
           setUser(defaultUser);
         }

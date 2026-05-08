@@ -1,6 +1,6 @@
-
-
-// Budget Buddy Mock Data
+/**
+ * Budget Buddy V2 Types and Constants
+ */
 
 export interface Account {
   id: string;
@@ -20,6 +20,7 @@ export interface Transaction {
   notes: string;
   date: string;
   type: 'expense' | 'income' | 'transfer';
+  warning?: string;
 }
 
 export interface AIInsight {
@@ -34,17 +35,10 @@ export interface AIInsight {
 export interface MonthlyPlan {
   salary: number;
   essentials: {
-    electricity: number;
-    internet: number;
-    mobile: number;
-    food: number;
-    utilities: number;
+    [key: string]: number;
   };
   allocations: {
-    spending: number;
-    salaryBuffer: number;
-    savings: number;
-    emergency: number;
+    [key: string]: number;
   };
 }
 
@@ -90,5 +84,3 @@ export const formatCurrency = (amount: number): string => {
 export const calculateNetWorth = (accounts: Account[]): number => {
   return accounts.reduce((total, account) => total + account.balance, 0);
 };
-
-

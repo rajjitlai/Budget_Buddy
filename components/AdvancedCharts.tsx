@@ -5,7 +5,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { formatCurrency, Transaction, Account } from '@/lib/mockData';
+import { formatCurrency, Transaction, Account } from '@/lib/types';
 import { StackedBarChart } from './StackedBarChart';
 import { CircularProgress } from './CircularProgress';
 import { LineChart } from './LineChart';

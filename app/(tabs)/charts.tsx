@@ -16,7 +16,7 @@ import { RefreshButton } from '@/components/RefreshButton';
 import * as Haptics from 'expo-haptics';
 import { colors, typography, spacing } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { Account, Transaction, MonthlyPlan } from '@/lib/mockData';
+import { Account, Transaction, MonthlyPlan } from '@/lib/types';
 import { getAccounts } from '@/lib/services/accounts';
 import { getTransactions } from '@/lib/services/transactions';
 import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';

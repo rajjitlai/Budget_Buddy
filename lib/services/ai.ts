@@ -1,13 +1,10 @@
-import { AIInsight, Account, Transaction, MonthlyPlan, formatCurrency } from '@/lib/mockData';
+import { AIInsight, Account, Transaction, MonthlyPlan, formatCurrency } from '@/lib/types';
+
+import * as SecureStore from 'expo-secure-store';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-// Model name - verify it exists on OpenRouter: https://openrouter.ai/models
-// If you get 400 errors, the model might not exist. Try these alternatives:
-// - google/gemma-2b-it:free
-// - google/gemma-7b-it:free
-// - google/gemma-3-4b-it:free
-// Check available models at: https://openrouter.ai/models (filter by "free")
-const OPENROUTER_MODEL = 'google/gemma-3n-e2b-it:free';
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+const DEFAULT_MODEL = 'google/gemma-3n-e2b-it:free';
 const REFERER = process.env.EXPO_PUBLIC_APP_URL || 'https://budget-buddy.app';
 const APP_TITLE = 'Budget Buddy';
 
@@ -192,25 +189,41 @@ function generateRuleBasedInsights(params: GenerateInsightsParams): AIInsight[] 
  * Generate AI insights using OpenRouter API or fallback to rule-based
  */
 export async function generateAIInsights(params: GenerateInsightsParams): Promise<AIInsight[]> {
-  const apiKey = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
+  let apiKey = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
+  let model = DEFAULT_MODEL;
+  let provider = 'openrouter';
+
+  try {
+    const storedUser = await SecureStore.getItemAsync('budget_buddy_user_profile');
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      if (user.aiConfig?.apiKey) {
+        apiKey = user.aiConfig.apiKey;
+        model = user.aiConfig.model || model;
+        provider = user.aiConfig.provider || provider;
+      }
+    }
+  } catch (err) {
+    console.warn('Error loading user AI config, using defaults:', err);
+  }
+
+  const apiUrl = provider === 'openai' ? OPENAI_API_URL : OPENROUTER_API_URL;
 
   // Debug: Check if API key is loaded
-  console.log('OpenRouter API Key check:', {
+  console.log(`${provider} API check:`, {
     exists: !!apiKey,
     length: apiKey?.length || 0,
-    startsWith: apiKey?.substring(0, 10) || 'N/A',
-    fullKey: apiKey ? `${apiKey.substring(0, 15)}...` : 'NOT SET',
+    model: model,
   });
 
   // If no API key, use rule-based insights
   if (!apiKey) {
-    console.log('No OpenRouter API key found. Using rule-based insights.');
-    console.log('Make sure EXPO_PUBLIC_OPENROUTER_API_KEY is set in your .env file and restart the Expo server.');
+    console.log(`No ${provider} API key found. Using rule-based insights.`);
     return generateRuleBasedInsights(params);
   }
 
-  // Validate API key format
-  if (!apiKey.startsWith('sk-or-v1-')) {
+  // Validate API key format for OpenRouter
+  if (provider === 'openrouter' && !apiKey.startsWith('sk-or-v1-')) {
     console.warn('OpenRouter API key format appears invalid. Should start with "sk-or-v1-"');
     console.warn('Falling back to rule-based insights.');
     return generateRuleBasedInsights(params);
@@ -236,7 +249,7 @@ Return ONLY valid JSON, no markdown code blocks.
 ${truncatedPrompt}`;
 
   const body: any = {
-    model: OPENROUTER_MODEL,
+    model: model,
     messages: [
       {
         role: 'user',
@@ -246,20 +259,13 @@ ${truncatedPrompt}`;
   };
 
   // Don't add temperature or response_format for free models - they often cause 400 errors
-  console.log('Sending request to OpenRouter:', {
-    model: OPENROUTER_MODEL,
+  console.log(`Sending request to ${provider}:`, {
+    model: model,
     promptLength: truncatedPrompt.length,
-    hasTemperature: false,
-    hasResponseFormat: false,
   });
 
   try {
-    // Log API key status (first 10 chars only for security)
-    const apiKeyPreview = apiKey ? `${apiKey.substring(0, 10)}...` : 'NOT SET';
-    console.log(`OpenRouter API Key: ${apiKeyPreview}`);
-    console.log(`Using model: ${OPENROUTER_MODEL}`);
-    
-    const response = await fetch(OPENROUTER_API_URL, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -294,31 +300,22 @@ ${truncatedPrompt}`;
       if (response.status === 400) {
         console.warn('400 Bad Request - Debug Info:');
         console.warn(`- API Key present: ${apiKey ? 'Yes' : 'No'}`);
-        console.warn(`- API Key format: ${apiKey?.startsWith('sk-or-v1-') ? 'Valid' : 'Invalid'}`);
-        console.warn(`- Model: ${OPENROUTER_MODEL}`);
+        console.warn(`- Model: ${model}`);
+        console.warn(`- Provider: ${provider}`);
         console.warn(`- Request body size: ${JSON.stringify(body).length} chars`);
         if (errorData) {
           console.warn(`- Provider error: ${JSON.stringify(errorData)}`);
         }
         console.error('Common causes:');
-        console.error('1. Invalid API key format (should start with sk-or-v1-)');
+        console.error('1. Invalid API key format');
         console.error('2. API key not activated or expired');
         console.error('3. Model name incorrect or unavailable');
         console.error('4. Request body too large');
-        console.error('5. Model does not support certain parameters');
-        console.error('6. .env file not loaded - RESTART EXPO SERVER after adding key');
-        console.error('7. API key does not have access to this model');
-        console.error('8. Model name might be incorrect or unavailable');
         console.error('');
         console.error('TROUBLESHOOTING STEPS:');
-        console.error('1. Verify API key in .env: EXPO_PUBLIC_OPENROUTER_API_KEY=sk-or-v1-...');
-        console.error('2. Stop Expo server (Ctrl+C)');
-        console.error('3. Restart Expo server (npm start)');
-        console.error('4. Check console for "OpenRouter API Key check" log');
-        console.error('5. Verify model name is correct and available on OpenRouter');
-        console.error('   Current model: ' + OPENROUTER_MODEL);
-        console.error('   Check available models at: https://openrouter.ai/models');
-        console.error('   Try alternative: google/gemma-2b-it:free or google/gemma-7b-it:free');
+        console.error('1. Verify API key in Settings');
+        console.error('2. Verify model name is correct and available');
+        console.error(`   Current model: ${model}`);
       }
       
       return generateRuleBasedInsights(params);

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Budget Buddy",
     "slug": "budget-buddy",
-    "version": "1.0.2",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -21,7 +21,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/icon.ico"
+      "favicon": "./assets/images/icon.png"
     },
     "plugins": [
       "expo-router",

@@ -5,7 +5,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native
 import { TrendingUp, Wallet, Eye, EyeOff } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
-import { formatCurrency } from '@/lib/mockData';
+import { formatCurrency } from '@/lib/types';
 
 interface NetWorthCardProps {
   totalBalance: number;

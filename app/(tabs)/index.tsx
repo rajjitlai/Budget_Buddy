@@ -24,11 +24,13 @@ import {
   calculateNetWorth,
   formatCurrency,
   accountTypes,
-} from '@/lib/mockData';
+} from '@/lib/types';
 import { getAccounts, createAccount, updateAccount, deleteAccount } from '@/lib/services/accounts';
 import { getTransactions } from '@/lib/services/transactions';
-import { Transaction } from '@/lib/mockData';
+import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
+import { Transaction, MonthlyPlan } from '@/lib/types';
 import { NetWorthCard } from '@/components/NetWorthCard';
+import { BudgetHealthCard } from '@/components/BudgetHealthCard';
 import { BalanceCard } from '@/components/BalanceCard';
 import { AccountList } from '@/components/AccountList';
 import { TransactionItem } from '@/components/TransactionItem';
@@ -55,20 +57,31 @@ export default function DashboardScreen() {
   const [newAccountType, setNewAccountType] = useState<string | null>(null);
   const [newAccountBalance, setNewAccountBalance] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
 
   const netWorth = calculateNetWorth(accounts);
 
   useEffect(() => {
     loadAccounts();
     loadRecentTransactions();
+    loadMonthlyPlan();
   }, []);
 
   const refreshData = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([loadAccounts(), loadRecentTransactions()]);
+      await Promise.all([loadAccounts(), loadRecentTransactions(), loadMonthlyPlan()]);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const loadMonthlyPlan = async () => {
+    try {
+      const plan = await getCurrentMonthlyPlan();
+      setMonthlyPlan(plan);
+    } catch (error) {
+      console.error('Error loading monthly plan:', error);
     }
   };
 
@@ -77,7 +90,7 @@ export default function DashboardScreen() {
       setLoading(true);
       const accountDocs = await getAccounts();
       const accountList: Account[] = accountDocs.map((doc) => ({
-        id: doc.$id,
+        id: doc.id,
         name: doc.name,
         type: doc.type,
         balance: doc.balance,
@@ -254,6 +267,13 @@ export default function DashboardScreen() {
         <Animated.View entering={FadeInDown.delay(200).duration(500)}>
           <NetWorthCard totalBalance={netWorth} />
         </Animated.View>
+
+        {/* Budget Health Card */}
+        {monthlyPlan && (
+          <Animated.View entering={FadeInDown.delay(250).duration(500)}>
+            <BudgetHealthCard plan={monthlyPlan} transactions={transactions} />
+          </Animated.View>
+        )}
 
         {/* Accounts Section */}
         <Animated.View entering={FadeInDown.delay(300).duration(500)}>
@@ -513,24 +533,25 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   addButtonContainer: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     marginTop: spacing.sm,
   },
   accountsContainer: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
   recentTransactionsContainer: {
     marginTop: spacing.xl,
   },
   transactionsContainer: {
     paddingBottom: spacing.md,
+    paddingHorizontal: spacing.xl,
   },
   loadingContainer: {
     paddingVertical: spacing['3xl'],
     alignItems: 'center',
   },
   emptyContainer: {
-    marginHorizontal: spacing.lg,
+    marginHorizontal: spacing.xl,
     padding: spacing.xl,
     borderRadius: borderRadius.xl,
     alignItems: 'center',

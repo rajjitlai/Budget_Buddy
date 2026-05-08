@@ -32,7 +32,7 @@ import { useTheme } from '@/lib/ThemeContext';
 import {
   categories,
   formatCurrency,
-} from '@/lib/mockData';
+} from '@/lib/types';
 import { getAccounts } from '@/lib/services/accounts';
 import { 
   createTransaction, 
@@ -41,7 +41,7 @@ import {
   deleteTransaction
 } from '@/lib/services/transactions';
 import { useUser } from '@/lib/UserContext';
-import { Account } from '@/lib/mockData';
+import { Account } from '@/lib/types';
 import { InputField } from '@/components/ui/InputField';
 import { SelectField } from '@/components/ui/SelectField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -222,7 +222,7 @@ export default function TransactionScreen() {
 
     try {
       setSubmitting(true);
-      await createTransaction({
+      const result = await createTransaction({
         amount: parseFloat(amount),
         category: category || 'other',
         sourceAccountId: sourceAccount,
@@ -231,6 +231,10 @@ export default function TransactionScreen() {
         date,
         type: transactionType,
       });
+
+      if (result.warning) {
+        Alert.alert('Budget Alert', result.warning);
+      }
 
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1013,7 +1017,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.medium,
   },
   resultsCount: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
   },
   resultsText: {
@@ -1048,7 +1052,7 @@ const styles = StyleSheet.create({
   },
   typeSelector: {
     flexDirection: 'row',
-    marginHorizontal: spacing.lg,
+    marginHorizontal: spacing.xl,
     padding: spacing.sm,
     borderRadius: borderRadius.xl,
     gap: spacing.sm,
@@ -1073,7 +1077,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.semibold,
   },
   form: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
   },
   amountContainer: {

@@ -24,10 +24,10 @@ import {
 } from 'lucide-react-native';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { formatCurrency } from '@/lib/mockData';
+import { formatCurrency } from '@/lib/types';
 import { getCurrentMonthlyPlan, upsertMonthlyPlan } from '@/lib/services/monthlyPlans';
 import { useEffect } from 'react';
-import { MonthlyPlan } from '@/lib/mockData';
+import { MonthlyPlan } from '@/lib/types';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Save } from 'lucide-react-native';

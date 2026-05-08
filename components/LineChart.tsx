@@ -4,7 +4,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Polyline, Circle, Line, G, Text as SvgText, Polygon } from 'react-native-svg';
 import { colors, borderRadius, typography, spacing } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { formatCurrency } from '@/lib/mockData';
+import { formatCurrency } from '@/lib/types';
 
 interface DataPoint {
   label: string;

@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { BalanceCard } from './BalanceCard';
-import { Account } from '@/lib/mockData';
+import { Account } from '@/lib/types';
 import { spacing } from '@/lib/theme';
 
 interface AccountListProps {

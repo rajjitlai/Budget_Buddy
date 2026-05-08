@@ -40,7 +40,7 @@ export default function TermsOfServiceScreen() {
         <Animated.View entering={FadeInDown.delay(200).duration(500)}>
           <View style={[styles.contentCard, { backgroundColor: cardBackground }]}>
             <Text style={[styles.lastUpdated, { color: textSecondary }]}>
-              Last Updated: December 2025
+              Last Updated: May 2026
             </Text>
 
             <Text style={[styles.sectionTitle, { color: textPrimary }]}>

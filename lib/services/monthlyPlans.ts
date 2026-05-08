@@ -1,6 +1,6 @@
 
 import { getDatabase } from '@/lib/database/sqlite';
-import { MonthlyPlan } from '@/lib/mockData';
+import { MonthlyPlan } from '@/lib/types';
 import * as Crypto from 'expo-crypto';
 
 /**
@@ -60,4 +60,17 @@ export async function saveMonthlyPlan(
       year,
     ]
   );
+}
+
+/**
+ * Get all monthly plans (for export)
+ */
+export async function getAllMonthlyPlans(): Promise<any[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<any>('SELECT * FROM monthly_plans');
+  return rows.map(row => ({
+    ...row,
+    essentials: JSON.parse(row.essentials),
+    allocations: JSON.parse(row.allocations),
+  }));
 }

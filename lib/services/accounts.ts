@@ -1,6 +1,6 @@
 
 import { getDatabase } from '@/lib/database/sqlite';
-import { Account } from '@/lib/mockData';
+import { Account } from '@/lib/types';
 import * as Crypto from 'expo-crypto';
 
 /**

@@ -8,6 +8,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   Sparkles,
+  Target,
   Settings,
 } from 'lucide-react-native';
 import { colors, borderRadius, shadows } from '@/lib/theme';
@@ -61,6 +62,15 @@ export default function TabLayout() {
           title: 'Charts',
           tabBarIcon: ({ color, size }) => (
             <BarChart3 size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="planner"
+        options={{
+          title: 'Planner',
+          tabBarIcon: ({ color, size }) => (
+            <Target size={22} color={color} />
           ),
         }}
       />
