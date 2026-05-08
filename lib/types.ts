@@ -5,16 +5,16 @@
 export interface Account {
   id: string;
   name: string;
-  type: 'salary' | 'spending' | 'pocket' | 'savings' | 'fd' | 'custom';
+  type: string; // Custom type string (e.g. "Personal", "Business")
   balance: number;
-  icon: string;
+  icon: string; // Emoji or Icon name
   color: string;
 }
 
 export interface Transaction {
   id: string;
   amount: number;
-  category: string;
+  category: string; // Custom category (e.g. "🍱 Lunch", "⛽ Fuel")
   sourceAccountId: string;
   destinationAccountId?: string;
   notes: string;
@@ -43,29 +43,16 @@ export interface MonthlyPlan {
 }
 
 
-// Transaction categories
-export const categories = [
-  { id: 'food', label: 'Food & Dining', icon: 'Utensils' },
-  { id: 'transport', label: 'Transportation', icon: 'Car' },
-  { id: 'shopping', label: 'Shopping', icon: 'ShoppingBag' },
-  { id: 'entertainment', label: 'Entertainment', icon: 'Film' },
-  { id: 'bills', label: 'Bills & Utilities', icon: 'Receipt' },
-  { id: 'healthcare', label: 'Healthcare', icon: 'Heart' },
-  { id: 'education', label: 'Education', icon: 'GraduationCap' },
-  { id: 'transfer', label: 'Transfer', icon: 'ArrowLeftRight' },
-  { id: 'salary', label: 'Salary', icon: 'Banknote' },
-  { id: 'other', label: 'Other', icon: 'MoreHorizontal' },
+// Suggested items for better UX (not mandatory)
+export const SUGGESTED_CATEGORIES = [
+  '🍱 Food', '🚗 Transport', '🛍️ Shopping', '🎬 Entertainment', 
+  '💡 Bills', '🏥 Health', '🎓 Education', '💰 Salary', '🔄 Transfer'
 ];
 
-// Account type options
-export const accountTypes = [
-  { id: 'salary', label: 'Salary Account', icon: 'Wallet' },
-  { id: 'spending', label: 'Spending Account', icon: 'CreditCard' },
-  { id: 'pocket', label: 'Pocket Money', icon: 'Coins' },
-  { id: 'savings', label: 'Savings Account', icon: 'PiggyBank' },
-  { id: 'fd', label: 'Fixed Deposit', icon: 'Landmark' },
-  { id: 'custom', label: 'Custom Account', icon: 'Folder' },
+export const SUGGESTED_ACCOUNT_TYPES = [
+  '💳 Spending', '🏦 Savings', '💵 Pocket Money', '📈 Investment', '💼 Salary'
 ];
+
 
 // Helper function to format currency as Rupees (Rs.)
 export const formatCurrency = (amount: number): string => {

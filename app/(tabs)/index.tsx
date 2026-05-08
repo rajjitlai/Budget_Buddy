@@ -23,12 +23,13 @@ import {
   Account,
   calculateNetWorth,
   formatCurrency,
-  accountTypes,
+  SUGGESTED_ACCOUNT_TYPES,
+  Transaction,
+  MonthlyPlan,
 } from '@/lib/types';
 import { getAccounts, createAccount, updateAccount, deleteAccount } from '@/lib/services/accounts';
 import { getTransactions } from '@/lib/services/transactions';
 import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
-import { Transaction, MonthlyPlan } from '@/lib/types';
 import { NetWorthCard } from '@/components/NetWorthCard';
 import { BudgetHealthCard } from '@/components/BudgetHealthCard';
 import { BalanceCard } from '@/components/BalanceCard';
@@ -41,7 +42,7 @@ import { InputField } from '@/components/ui/InputField';
 import { SelectField } from '@/components/ui/SelectField';
 
 export default function DashboardScreen() {
-  const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground } = useTheme();
+  const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
   const router = useRouter();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -54,10 +55,18 @@ export default function DashboardScreen() {
   const [isViewAllModalVisible, setIsViewAllModalVisible] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [newAccountName, setNewAccountName] = useState('');
-  const [newAccountType, setNewAccountType] = useState<string | null>(null);
+  const [newAccountType, setNewAccountType] = useState('');
   const [newAccountBalance, setNewAccountBalance] = useState('');
+  const [newAccountIcon, setNewAccountIcon] = useState('🏦');
   const [refreshing, setRefreshing] = useState(false);
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
 
   const netWorth = calculateNetWorth(accounts);
 
@@ -121,8 +130,9 @@ export default function DashboardScreen() {
 
   const resetForm = () => {
     setNewAccountName('');
-    setNewAccountType(null);
+    setNewAccountType('');
     setNewAccountBalance('');
+    setNewAccountIcon('🏦');
     setEditingAccount(null);
   };
 
@@ -130,7 +140,6 @@ export default function DashboardScreen() {
     if (!newAccountName || !newAccountType || !newAccountBalance) return;
 
     try {
-      const typeConfig = accountTypes.find((t) => t.id === newAccountType);
       const colorOptions = [
         colors.primary[500],
         colors.info,
@@ -142,9 +151,9 @@ export default function DashboardScreen() {
 
       const accountData = {
         name: newAccountName,
-        type: newAccountType as Account['type'],
+        type: newAccountType,
         balance: parseFloat(newAccountBalance) || 0,
-        icon: typeConfig?.icon || 'Wallet',
+        icon: newAccountIcon || '🏦',
         color: colorOptions[accounts.length % colorOptions.length],
       };
 
@@ -168,6 +177,7 @@ export default function DashboardScreen() {
     setNewAccountName(account.name);
     setNewAccountType(account.type);
     setNewAccountBalance(account.balance.toString());
+    setNewAccountIcon(account.icon);
     setIsEditModalVisible(true);
   };
 
@@ -175,13 +185,11 @@ export default function DashboardScreen() {
     if (!editingAccount || !newAccountName || !newAccountType) return;
 
     try {
-      const typeConfig = accountTypes.find((t) => t.id === newAccountType);
-      
       await updateAccount(editingAccount.id, {
         name: newAccountName,
-        type: newAccountType as Account['type'],
+        type: newAccountType,
         balance: parseFloat(newAccountBalance) || 0,
-        icon: typeConfig?.icon || editingAccount.icon,
+        icon: newAccountIcon || editingAccount.icon,
         color: editingAccount.color, // Keep existing color
       });
 
@@ -245,41 +253,46 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* Decorative Background Shape */}
+        <View style={styles.decorativeBackground} />
+
         {/* Header */}
         <Animated.View
-          entering={FadeInDown.delay(100).duration(500)}
+          entering={FadeInDown.delay(200).duration(800).springify()}
           style={styles.header}
         >
           <View style={styles.headerContent}>
             <View>
               <Text style={[styles.greeting, { color: textSecondary }]}>
-                Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
+                {getGreeting()},
               </Text>
               <Text style={[styles.title, { color: textPrimary }]}>
                 Budget Buddy
               </Text>
             </View>
-            <RefreshButton onPress={refreshData} refreshing={refreshing} />
+            <View style={styles.headerActions}>
+              <RefreshButton onPress={refreshData} refreshing={refreshing} />
+            </View>
           </View>
         </Animated.View>
 
         {/* Net Worth Card */}
-        <Animated.View entering={FadeInDown.delay(200).duration(500)}>
+        <Animated.View entering={FadeInDown.delay(300).duration(800).springify()}>
           <NetWorthCard totalBalance={netWorth} />
         </Animated.View>
 
         {/* Budget Health Card */}
         {monthlyPlan && (
-          <Animated.View entering={FadeInDown.delay(250).duration(500)}>
+          <Animated.View entering={FadeInDown.delay(400).duration(800).springify()}>
             <BudgetHealthCard plan={monthlyPlan} transactions={transactions} />
           </Animated.View>
         )}
 
         {/* Accounts Section */}
-        <Animated.View entering={FadeInDown.delay(300).duration(500)}>
+        <Animated.View entering={FadeInDown.delay(500).duration(800).springify()}>
           <SectionHeader
             title="Your Accounts"
-            subtitle={`${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'}`}
+            subtitle={`${accounts.length} Total`}
             actionLabel={showAllAccounts ? "Show less" : "See all"}
             onAction={() => {
               if (accounts.length > 3) {
@@ -295,13 +308,17 @@ export default function DashboardScreen() {
             </View>
           ) : accounts.length > 0 ? (
             <View style={styles.accountsContainer}>
-              {(showAllAccounts ? accounts : accounts.slice(0, 3)).map((account) => (
-                <BalanceCard
-                  key={account.id}
-                  account={account}
-                  onEdit={() => handleEditAccount(account)}
-                  onDelete={() => handleDeleteAccount(account)}
-                />
+              {(showAllAccounts ? accounts : accounts.slice(0, 3)).map((account, index) => (
+                <Animated.View 
+                  key={account.id} 
+                  entering={FadeInDown.delay(600 + index * 100).duration(600).springify()}
+                >
+                  <BalanceCard
+                    account={account}
+                    onEdit={() => handleEditAccount(account)}
+                    onDelete={() => handleDeleteAccount(account)}
+                  />
+                </Animated.View>
               ))}
             </View>
           ) : (
@@ -377,13 +394,49 @@ export default function DashboardScreen() {
             value={newAccountName}
             onChangeText={setNewAccountName}
           />
-          <SelectField
-            label="Account Type"
-            options={accountTypes}
-            value={newAccountType}
-            onChange={setNewAccountType}
-            placeholder="Select account type"
-          />
+          <View style={styles.twoColumn}>
+            <View style={styles.flex2}>
+              <InputField
+                label="Account Type"
+                placeholder="e.g., Savings"
+                value={newAccountType}
+                onChangeText={setNewAccountType}
+              />
+            </View>
+            <View style={styles.flex1}>
+              <InputField
+                label="Icon/Emoji"
+                placeholder="🏦"
+                value={newAccountIcon}
+                onChangeText={setNewAccountIcon}
+                maxLength={2}
+              />
+            </View>
+          </View>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            style={styles.suggestionScroll}
+            contentContainerStyle={styles.suggestionContent}
+          >
+            {SUGGESTED_ACCOUNT_TYPES.map((type) => (
+              <TouchableOpacity
+                key={type}
+                onPress={() => {
+                  const [emoji, ...nameParts] = type.split(' ');
+                  setNewAccountType(nameParts.join(' '));
+                  setNewAccountIcon(emoji);
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                style={[
+                  styles.suggestionChip,
+                  { backgroundColor: cardBackground, borderColor }
+                ]}
+              >
+                <Text style={{ color: textPrimary }}>{type}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
           <InputField
             label="Initial Balance"
             placeholder="0"
@@ -427,13 +480,25 @@ export default function DashboardScreen() {
             value={newAccountName}
             onChangeText={setNewAccountName}
           />
-          <SelectField
-            label="Account Type"
-            options={accountTypes}
-            value={newAccountType}
-            onChange={setNewAccountType}
-            placeholder="Select account type"
-          />
+          <View style={styles.twoColumn}>
+            <View style={styles.flex2}>
+              <InputField
+                label="Account Type"
+                placeholder="e.g., Savings"
+                value={newAccountType}
+                onChangeText={setNewAccountType}
+              />
+            </View>
+            <View style={styles.flex1}>
+              <InputField
+                label="Icon/Emoji"
+                placeholder="🏦"
+                value={newAccountIcon}
+                onChangeText={setNewAccountIcon}
+                maxLength={2}
+              />
+            </View>
+          </View>
           <InputField
             label="Balance"
             placeholder="0"
@@ -505,9 +570,20 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: spacing['5xl'],
   },
+  decorativeBackground: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: `${colors.primary[500]}08`,
+    zIndex: -1,
+  },
   header: {
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.xl,
+    marginTop: spacing.md,
   },
   headerContent: {
     flexDirection: 'row',
@@ -597,5 +673,29 @@ const styles = StyleSheet.create({
   viewAllEmptyText: {
     fontSize: typography.fontSizes.md,
     textAlign: 'center',
+  },
+  flex1: {
+    flex: 1,
+  },
+  flex2: {
+    flex: 2,
+  },
+  twoColumn: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  suggestionScroll: {
+    marginTop: -spacing.sm,
+    marginBottom: spacing.md,
+  },
+  suggestionContent: {
+    gap: spacing.sm,
+    paddingRight: spacing.xl,
+  },
+  suggestionChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
   },
 });

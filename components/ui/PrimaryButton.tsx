@@ -32,7 +32,7 @@ export function PrimaryButton({
   style,
   size = 'md',
 }: PrimaryButtonProps) {
-  const { isDarkMode, textPrimary, textSecondary } = useTheme();
+  const { textPrimary } = useTheme();
   const scale = useSharedValue(1);
 
   const handlePressIn = () => {
@@ -128,6 +128,7 @@ export function PrimaryButton({
       disabled={disabled}
       style={[
         styles.button,
+        size === 'lg' && styles.buttonLg,
         variant !== 'ghost' && styles.buttonShadow,
         getButtonStyle(),
         fullWidth && styles.fullWidth,
@@ -159,7 +160,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
+  },
+  buttonLg: {
+    borderRadius: borderRadius['2xl'],
   },
   buttonShadow: {
     ...shadows.sm,

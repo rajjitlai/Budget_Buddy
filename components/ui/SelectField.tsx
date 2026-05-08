@@ -38,7 +38,7 @@ export function SelectField({
   placeholder,
   error,
 }: SelectFieldProps) {
-  const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor, backgroundColor } =
+  const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor } =
     useTheme();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -189,10 +189,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    minHeight: 44,
+    paddingVertical: spacing.md,
+    minHeight: 48,
   },
   selectText: {
     flex: 1,

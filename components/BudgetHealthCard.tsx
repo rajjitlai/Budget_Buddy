@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Target, AlertTriangle, TrendingUp } from 'lucide-react-native';
+import { Target, AlertTriangle } from 'lucide-react-native';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { formatCurrency, MonthlyPlan, Transaction } from '@/lib/types';
@@ -13,7 +13,7 @@ interface BudgetHealthCardProps {
 }
 
 export function BudgetHealthCard({ plan, transactions }: BudgetHealthCardProps) {
-  const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
+  const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
 
   if (!plan) return null;
 
@@ -41,7 +41,13 @@ export function BudgetHealthCard({ plan, transactions }: BudgetHealthCardProps) 
   };
 
   return (
-    <Animated.View entering={FadeIn.duration(600)} style={[styles.container, { backgroundColor: cardBackground }]}>
+    <Animated.View entering={FadeIn.duration(600)} style={[
+      styles.container, 
+      { 
+        backgroundColor: cardBackground,
+        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.04)',
+      }
+    ]}>
       <View style={styles.header}>
         <View style={[styles.iconContainer, { backgroundColor: `${getStatusColor()}15` }]}>
           {isOverBudget ? (
@@ -107,9 +113,10 @@ const styles = StyleSheet.create({
   container: {
     marginHorizontal: spacing.xl,
     padding: spacing.xl,
-    borderRadius: borderRadius['2xl'],
+    borderRadius: borderRadius['3xl'],
     marginBottom: spacing.lg,
-    ...shadows.md,
+    borderWidth: 1,
+    ...shadows.lg,
   },
   header: {
     flexDirection: 'row',

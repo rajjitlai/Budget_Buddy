@@ -54,9 +54,9 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
   },
   leftSection: {
     flexDirection: 'row',
@@ -70,13 +70,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: typography.fontSizes.lg,
+    fontSize: typography.fontSizes.xl,
     fontWeight: typography.fontWeights.bold,
-    marginBottom: 2,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: typography.fontSizes.sm,
-    marginTop: 2,
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.medium,
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   actionButton: {
     flexDirection: 'row',

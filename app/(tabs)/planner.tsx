@@ -196,7 +196,13 @@ export default function PlannerScreen() {
 
         <View style={styles.cardContainer}>
           {currentStep === 'income' && (
-            <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={[styles.stepCard, { backgroundColor: cardBackground }]}>
+            <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={[
+              styles.stepCard, 
+              { 
+                backgroundColor: cardBackground,
+                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.04)',
+              }
+            ]}>
               <View style={styles.cardHeader}>
                 <Wallet size={24} color={colors.primary[500]} />
                 <Text style={[styles.cardTitle, { color: textPrimary }]}>Step 1: Monthly Income</Text>
@@ -217,7 +223,13 @@ export default function PlannerScreen() {
           )}
 
           {currentStep === 'fixed' && (
-            <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={[styles.stepCard, { backgroundColor: cardBackground }]}>
+            <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={[
+              styles.stepCard, 
+              { 
+                backgroundColor: cardBackground,
+                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.04)',
+              }
+            ]}>
               <View style={styles.cardHeader}>
                 <ShieldCheck size={24} color={colors.info} />
                 <Text style={[styles.cardTitle, { color: textPrimary }]}>Step 2: Fixed Expenses</Text>
@@ -234,7 +246,13 @@ export default function PlannerScreen() {
           )}
 
           {currentStep === 'savings' && (
-            <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={[styles.stepCard, { backgroundColor: cardBackground }]}>
+            <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={[
+              styles.stepCard, 
+              { 
+                backgroundColor: cardBackground,
+                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.04)',
+              }
+            ]}>
               <View style={styles.cardHeader}>
                 <TrendingUp size={24} color={colors.success} />
                 <Text style={[styles.cardTitle, { color: textPrimary }]}>Step 3: Savings Goals</Text>
@@ -252,7 +270,13 @@ export default function PlannerScreen() {
           )}
 
           {currentStep === 'variable' && (
-            <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={[styles.stepCard, { backgroundColor: cardBackground }]}>
+            <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={[
+              styles.stepCard, 
+              { 
+                backgroundColor: cardBackground,
+                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.04)',
+              }
+            ]}>
               <View style={styles.cardHeader}>
                 <Sparkles size={24} color={colors.warning} />
                 <Text style={[styles.cardTitle, { color: textPrimary }]}>Step 4: Allowances</Text>
@@ -268,7 +292,13 @@ export default function PlannerScreen() {
           )}
 
           {currentStep === 'summary' && (
-            <Animated.View entering={FadeInDown} style={[styles.stepCard, { backgroundColor: cardBackground }]}>
+            <Animated.View entering={FadeInDown} style={[
+              styles.stepCard, 
+              { 
+                backgroundColor: cardBackground,
+                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.04)',
+              }
+            ]}>
               <View style={styles.cardHeader}>
                 <PieIcon size={24} color={colors.primary[500]} />
                 <Text style={[styles.cardTitle, { color: textPrimary }]}>Monthly Summary</Text>
@@ -347,9 +377,11 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: borderRadius.xl,
-    backgroundColor: `${colors.primary[500]}15`,
+    backgroundColor: `${colors.primary[500]}12`,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: `${colors.primary[500]}20`,
   },
   title: {
     fontSize: typography.fontSizes['2xl'],
@@ -374,7 +406,9 @@ const styles = StyleSheet.create({
   },
   stepCard: {
     padding: spacing.xl,
-    borderRadius: borderRadius['2xl'],
+    borderRadius: borderRadius['3xl'],
+    borderWidth: 1,
+    borderColor: 'transparent',
     ...shadows.lg,
   },
   cardHeader: {

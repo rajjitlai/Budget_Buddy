@@ -103,7 +103,11 @@ export function BalanceCard({ account, onPress, onEdit, onDelete }: BalanceCardP
       activeOpacity={0.9}
       style={[
         styles.container,
-        { backgroundColor: cardBackground },
+        { 
+          backgroundColor: cardBackground,
+          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(15, 23, 42, 0.05)',
+          ...shadows.md 
+        },
         animatedStyle,
       ]}
     >
@@ -111,17 +115,21 @@ export function BalanceCard({ account, onPress, onEdit, onDelete }: BalanceCardP
         <View
           style={[
             styles.iconContainer,
-            { backgroundColor: `${account.color}15` },
+            { backgroundColor: `${account.color}12`, borderColor: `${account.color}20` },
           ]}
         >
-          <IconComponent size={20} color={account.color} />
+          {iconMap[account.icon] ? (
+            <IconComponent size={22} color={account.color} />
+          ) : (
+            <Text style={{ fontSize: 20 }}>{account.icon || '🏦'}</Text>
+          )}
         </View>
         <View style={styles.headerText}>
           <Text style={[styles.accountName, { color: textPrimary }]}>
             {account.name}
           </Text>
           <Text style={[styles.accountType, { color: textSecondary }]}>
-            {account.type.charAt(0).toUpperCase() + account.type.slice(1)}
+            {account.type}
           </Text>
         </View>
         <TouchableOpacity
@@ -170,25 +178,27 @@ export function BalanceCard({ account, onPress, onEdit, onDelete }: BalanceCardP
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: borderRadius['2xl'],
+    borderRadius: borderRadius['3xl'],
     padding: spacing.xl,
-    marginBottom: spacing.md,
-    ...shadows.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'transparent',
     overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.lg,
+    width: 46,
+    height: 46,
+    borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
+    borderWidth: 1,
   },
   headerText: {
     flex: 1,
@@ -199,13 +209,15 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   accountName: {
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.semibold,
-    marginBottom: spacing.xs,
+    fontSize: typography.fontSizes.lg,
+    fontWeight: typography.fontWeights.bold,
+    marginBottom: 2,
   },
   accountType: {
-    fontSize: typography.fontSizes.sm,
-    marginTop: spacing.xs,
+    fontSize: typography.fontSizes.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontWeight: typography.fontWeights.semibold,
   },
   balanceRow: {
     flexDirection: 'row',
@@ -213,9 +225,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   balance: {
-    fontSize: typography.fontSizes['3xl'],
+    fontSize: typography.fontSizes['2xl'],
     fontWeight: typography.fontWeights.bold,
     flex: 1,
+    letterSpacing: -0.5,
   },
   actions: {
     flexDirection: 'row',

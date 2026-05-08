@@ -15,7 +15,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { formatCurrency, categories } from '@/lib/types';
+import { formatCurrency } from '@/lib/types';
 import { TransactionDocument } from '@/lib/services/transactions';
 import { Account } from '@/lib/types';
 
@@ -38,7 +38,7 @@ export function TransactionItem({
   onEdit,
   onDelete,
 }: TransactionItemProps) {
-  const { cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
+  const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
   const scale = useSharedValue(1);
 
   const getTypeIcon = () => {
@@ -61,11 +61,6 @@ export function TransactionItem({
       case 'transfer':
         return colors.info;
     }
-  };
-
-  const getCategoryLabel = () => {
-    const category = categories.find((c) => c.id === transaction.category);
-    return category?.label || transaction.category;
   };
 
   const formatDate = (dateString: string) => {
@@ -118,6 +113,13 @@ export function TransactionItem({
   const Icon = getTypeIcon();
   const typeColor = getTypeColor();
 
+  // Extract emoji if present at start of category
+  // Using a simpler regex that is more compatible with older environments
+  const emojiRegex = /^([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}])/u;
+  const match = transaction.category.match(emojiRegex);
+  const emoji = match ? match[0] : null;
+  const cleanCategory = emoji ? transaction.category.replace(emoji, '').trim() : transaction.category;
+
   return (
     <AnimatedTouchable
       onPress={onPress}
@@ -126,13 +128,21 @@ export function TransactionItem({
       activeOpacity={0.9}
       style={[
         styles.container,
-        { backgroundColor: cardBackground, borderColor },
+        { 
+          backgroundColor: cardBackground,
+          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.04)',
+          ...shadows.sm
+        },
         animatedStyle,
       ]}
     >
       <View style={styles.content}>
-        <View style={[styles.iconContainer, { backgroundColor: `${typeColor}15` }]}>
-          <Icon size={20} color={typeColor} />
+        <View style={[styles.iconContainer, { backgroundColor: `${typeColor}12` }]}>
+          {emoji ? (
+            <Text style={{ fontSize: 20 }}>{emoji}</Text>
+          ) : (
+            <Icon size={18} color={typeColor} />
+          )}
         </View>
 
         <View style={styles.details}>
@@ -140,7 +150,7 @@ export function TransactionItem({
             <Text style={[styles.category, { color: textPrimary }]} numberOfLines={1}>
               {transaction.type === 'transfer'
                 ? `${sourceAccount?.name || 'Account'} → ${destinationAccount?.name || 'Account'}`
-                : getCategoryLabel()}
+                : cleanCategory}
             </Text>
             <Text style={[styles.amount, { color: typeColor }]}>
               {transaction.type === 'expense' ? '-' : transaction.type === 'income' ? '+' : ''}
@@ -196,11 +206,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.md,
-    borderRadius: borderRadius.xl,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
+    borderRadius: borderRadius['2xl'],
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.md,
     borderWidth: 1,
-    ...shadows.sm,
   },
   content: {
     flex: 1,
@@ -208,9 +217,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.lg,
+    width: 42,
+    height: 42,
+    borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
@@ -226,10 +235,9 @@ const styles = StyleSheet.create({
   },
   category: {
     fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.semibold,
+    fontWeight: typography.fontWeights.bold,
     flex: 1,
     marginRight: spacing.sm,
-    marginBottom: spacing.xs,
   },
   amount: {
     fontSize: typography.fontSizes.md,
@@ -242,11 +250,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   account: {
-    fontSize: typography.fontSizes.sm,
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.medium,
     flex: 1,
   },
   date: {
-    fontSize: typography.fontSizes.sm,
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.medium,
   },
   notes: {
     fontSize: typography.fontSizes.xs,

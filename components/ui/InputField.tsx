@@ -31,7 +31,7 @@ export function InputField({
   icon,
   containerStyle,
 }: InputFieldProps) {
-  const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
+  const { cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   
@@ -113,10 +113,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    minHeight: 44,
+    paddingVertical: spacing.md,
+    minHeight: 48,
   },
   iconContainer: {
     marginRight: spacing.sm,

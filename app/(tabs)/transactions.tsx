@@ -30,7 +30,7 @@ import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import {
-  categories,
+  SUGGESTED_CATEGORIES,
   formatCurrency,
 } from '@/lib/types';
 import { getAccounts } from '@/lib/services/accounts';
@@ -431,13 +431,34 @@ export default function TransactionScreen() {
         {/* Two Column Layout */}
         <View style={styles.twoColumn}>
           <View style={styles.column}>
-            <SelectField
+            <InputField
               label="Category"
-              options={categories}
-              value={category}
-              onChange={setCategory}
-              placeholder="Select category"
+              placeholder="e.g. 🍱 Lunch"
+              value={category || ''}
+              onChangeText={setCategory}
             />
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              style={styles.suggestionScroll}
+              contentContainerStyle={styles.suggestionContent}
+            >
+              {SUGGESTED_CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  onPress={() => {
+                    setCategory(cat);
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  style={[
+                    styles.suggestionChip,
+                    { backgroundColor: cardBackground, borderColor }
+                  ]}
+                >
+                  <Text style={{ color: textPrimary }}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
           <View style={styles.column}>
             <InputField
@@ -809,13 +830,34 @@ export default function TransactionScreen() {
           {/* Two Column Layout */}
           <View style={styles.twoColumn}>
             <View style={styles.column}>
-              <SelectField
+              <InputField
                 label="Category"
-                options={categories}
-                value={category}
-                onChange={setCategory}
-                placeholder="Select category"
+                placeholder="e.g. 🍱 Lunch"
+                value={category || ''}
+                onChangeText={setCategory}
               />
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                style={styles.suggestionScroll}
+                contentContainerStyle={styles.suggestionContent}
+              >
+                {SUGGESTED_CATEGORIES.map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    onPress={() => {
+                      setCategory(cat);
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    style={[
+                      styles.suggestionChip,
+                      { backgroundColor: cardBackground, borderColor }
+                    ]}
+                  >
+                    <Text style={{ color: textPrimary }}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
             <View style={styles.column}>
               <InputField
@@ -1126,5 +1168,19 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
+  },
+  suggestionScroll: {
+    marginTop: -spacing.sm,
+    marginBottom: spacing.md,
+  },
+  suggestionContent: {
+    gap: spacing.sm,
+    paddingRight: spacing.xl,
+  },
+  suggestionChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
   },
 });

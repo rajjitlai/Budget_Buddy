@@ -124,18 +124,38 @@ export const typography = {
   },
 };
 
-const createShadow = (radius: number) => ({
-  // Use boxShadow for modern React Native versions (Web/Native)
-  // Format: 'offsetX offsetY blurRadius spreadRadius color' or 'offsetX offsetY blurRadius color'
-  boxShadow: `0px 6px ${radius}px 0px rgba(15, 23, 42, 0.08)`,
-});
-
+/**
+ * Sophisticated layered shadows for premium depth
+ * Using multiple layers to simulate natural light falloff
+ */
 export const shadows = {
-  sm: createShadow(8),
-  md: createShadow(12),
-  lg: createShadow(16),
-  xl: createShadow(24),
+  sm: {
+    boxShadow: '0px 2px 4px rgba(15, 23, 42, 0.04), 0px 4px 8px rgba(15, 23, 42, 0.02)',
+    elevation: 2,
+  },
+  md: {
+    boxShadow: '0px 4px 8px rgba(15, 23, 42, 0.06), 0px 8px 16px rgba(15, 23, 42, 0.04)',
+    elevation: 4,
+  },
+  lg: {
+    boxShadow: '0px 8px 16px rgba(15, 23, 42, 0.08), 0px 16px 32px rgba(15, 23, 42, 0.06)',
+    elevation: 8,
+  },
+  xl: {
+    boxShadow: '0px 12px 24px rgba(15, 23, 42, 0.12), 0px 24px 48px rgba(15, 23, 42, 0.08)',
+    elevation: 12,
+  },
 };
+
+/**
+ * Glassmorphism Utility
+ */
+export const glass = (isDarkMode: boolean) => ({
+  backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.7)' : 'rgba(255, 255, 255, 0.7)',
+  borderWidth: 1,
+  borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(15, 23, 42, 0.05)',
+  backdropFilter: 'blur(20px)', // For web support if needed
+});
 
 export const theme = {
   colors,
