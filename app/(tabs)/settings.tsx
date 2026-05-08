@@ -36,6 +36,7 @@ import {
   Globe,
   FileText,
   Menu,
+  RefreshCcw,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
@@ -140,6 +141,7 @@ export default function SettingsScreen() {
   const [aiProvider, setAiProvider] = useState<string | null>(user?.aiConfig?.provider || 'openrouter');
   const [aiModel, setAiModel] = useState(user?.aiConfig?.model || 'google/gemma-3n-e2b-it:free');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState(user?.currency || 'Rs.');
 
@@ -149,8 +151,13 @@ export default function SettingsScreen() {
   }, []);
 
   const checkAppUpdates = async () => {
+    setIsCheckingUpdate(true);
     const info = await checkForUpdates();
     setUpdateInfo(info);
+    setIsCheckingUpdate(false);
+    if (!info.hasUpdate && Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
   };
 
   const loadSettings = async () => {
@@ -512,6 +519,28 @@ export default function SettingsScreen() {
                   © {new Date().getFullYear()} Budget Buddy
                 </Text>
               </View>
+              {/* Check for Updates Button */}
+              <TouchableOpacity
+                onPress={checkAppUpdates}
+                disabled={isCheckingUpdate}
+                style={[
+                  styles.checkUpdateBtn,
+                  { borderColor: colors.primary[500], opacity: isCheckingUpdate ? 0.6 : 1 }
+                ]}
+              >
+                <RefreshCw
+                  size={14}
+                  color={colors.primary[500]}
+                  style={isCheckingUpdate ? { opacity: 0.5 } : {}}
+                />
+                <Text style={[styles.checkUpdateText, { color: colors.primary[500] }]}>
+                  {isCheckingUpdate
+                    ? 'Checking...'
+                    : updateInfo?.hasUpdate
+                    ? `Update Available (v${updateInfo.latestVersion})`
+                    : 'Check for Updates'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Animated.View>
@@ -1378,6 +1407,22 @@ const styles = StyleSheet.create({
   aboutInfoText: {
     fontSize: typography.fontSizes.sm,
   },
+  checkUpdateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  checkUpdateText: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.semibold,
+  },
+
   developerCard: {
     padding: spacing.lg,
     borderBottomWidth: 1,

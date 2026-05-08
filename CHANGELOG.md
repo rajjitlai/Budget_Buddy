@@ -2,7 +2,14 @@
 
 All notable changes to **Budget Buddy** will be documented in this file.
 
+## [2.1.1] - 2026-05-08
+### Fixed
+- **Modal Animation**: Replaced glitchy spring dismiss with a smooth `withTiming` slide-down; tuned open spring to `damping: 30, stiffness: 250` for a natural feel.
+- **Dashboard AI Advice Card**: Removed `height: '100%'` that caused the card to stretch across the full page; replaced with `minHeight: 120`.
+- **Settings – Check for Updates**: Added a manual "Check for Updates" button in the About section with a loading state and haptic feedback on success.
+
 ## [2.1.0] - 2026-05-08
+
 ### Added
 - **Bento Grid Dashboard**: Restructured the home screen into a modern, clustered card layout.
 - **Skeleton Shimmers**: Replaced legacy loading spinners with hardware-accelerated shimmering skeletons for a smoother experience.

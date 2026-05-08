@@ -36,16 +36,17 @@ export function ModalSheet({ visible, onClose, title, children }: ModalSheetProp
 
   useEffect(() => {
     if (visible) {
-      translateY.value = withSpring(0, { damping: 20, stiffness: 300 });
+      translateY.value = withSpring(0, { damping: 30, stiffness: 250, mass: 0.8 });
       opacity.value = withTiming(1, { duration: 200 });
       if (Platform.OS !== 'web') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     } else {
-      translateY.value = withSpring(1000, { damping: 20, stiffness: 300 });
+      translateY.value = withTiming(1000, { duration: 250 });
       opacity.value = withTiming(0, { duration: 200 });
     }
   }, [visible]);
+
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

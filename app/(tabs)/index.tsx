@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderRadius: borderRadius['2xl'],
     borderWidth: 1,
-    height: '100%',
+    minHeight: 120,
     ...shadows.md,
     justifyContent: 'space-between',
   },
