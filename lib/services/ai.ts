@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const DEFAULT_MODEL = 'google/gemma-3n-e2b-it:free';
+const DEFAULT_MODEL = 'google/gemma-2-9b-it:free';
 const REFERER = process.env.EXPO_PUBLIC_APP_URL || 'https://budget-buddy.app';
 const APP_TITLE = 'Budget Buddy';
 

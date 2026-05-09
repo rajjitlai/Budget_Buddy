@@ -26,7 +26,7 @@ export async function exportData(): Promise<void> {
     const monthlyPlans = await getAllMonthlyPlans();
 
     const data: ExportData = {
-      version: Constants.expoConfig?.version || '2.1.0',
+      version: Constants.expoConfig?.version || '2.2.0',
       timestamp: new Date().toISOString(),
       accounts,
       transactions,

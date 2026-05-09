@@ -2,6 +2,30 @@
 
 All notable changes to **Budget Buddy** will be documented in this file.
 
+## [2.2.0] - 2026-05-09
+### Added
+- **Loans Tracker**: New dedicated drawer screen to track money you owe (borrowed) and money owed to you (lent). Features: principal/remaining balance, interest rate, due date, lender/borrower name, repayment recording, progress bar, overdue badge, and summary strip showing total owed vs total to collect.
+- **AI Alerts / Notifications**: New Notifications screen with persistent SQLite storage. Automatically generates smart alerts on each data load — high spending warnings (>80% of salary), category spike warnings (>50% of total expenses), savings milestone success, and no-transaction nudges. Deduplicates by title per day. Bell icon on Dashboard header shows red unread count badge. Drawer item also shows unread badge. Mark all read, delete individual, clear all supported.
+- **AI Chat**: New full-screen conversational AI assistant drawer tab. Injects live financial context (net worth, monthly income/expenses, savings rate, top categories) into the system prompt. Falls back to smart offline responses when no API key is configured. Suggested prompts on empty state. Typing indicator while AI responds.
+- **Persistent AI Chat History**: Chat messages stored in a `chat_messages` SQLite table. Full history loads on mount, each message saved on send. "Clear chat" trash button in header wipes history with haptic feedback.
+- **AI Mode Toggle**: ⚡ button in the AI Chat header instantly switches between live AI (API) and rule-based offline responses — useful when hitting rate limits. Red `ZapOff` icon and banner indicate offline mode.
+- **Smart Planner — AI Suggest**: "✨ AI Suggest Allocations" button on the income step of the Budget Planner. Analyzes last 3 months of transaction history to auto-fill fixed costs, savings goals, and allowances. Falls back to the 50/30/20 rule when no transaction history exists.
+- **AI Configuration — Custom Instructions**: New multiline field in Settings → AI Configuration. User-defined instructions appended to the system prompt (e.g. "Always use INR", "Focus on debt reduction").
+- **AI Configuration — Model Selection**: Editable model name field with provider-aware placeholder and a link to OpenRouter/OpenAI model directories.
+- **AI Finance Guardrails**: Hardened system prompt strictly limits AI responses to personal finance topics only. Off-topic questions receive a fixed refusal. Jailbreak-resistant phrasing included.
+
+### Fixed
+- **Notification Badge — Real-time**: Replaced 30-second polling with reactive `notifRefreshKey` in `DataContext`. Dashboard bell badge and drawer badge update instantly when notifications are marked read, deleted, or cleared.
+- **AI API Key Not Saving**: Fixed `updateUser` not being destructured from `useUser()` in `settings.tsx` — caused silent save failure.
+- **AI Config Fields Empty on Load**: Added `useEffect([user])` to sync AI config form fields after `UserContext` finishes loading from SecureStore — fields were always empty due to `null` user at `useState` init time.
+- **OpenRouter 400 Error**: Folded system prompt into the first user message instead of using the `system` role — free Gemma models on OpenRouter reject `system`-role messages.
+- **OpenRouter 404 Error**: Switched default model from non-existent `google/gemma-3n-e2b-it:free` to `google/gemma-2-9b-it:free`.
+
+### Fixed (internal)
+- `sqlite.ts`: Added `chat_messages` table via `CREATE TABLE IF NOT EXISTS` — safe migration, no data loss.
+- `DataContext.tsx`: Added `notifRefreshKey` + `triggerNotifRefresh` for reactive badge propagation without polling.
+- All version fallback strings updated from `2.1.0` → `2.2.0` across `_layout.tsx`, `updates.ts`, `dataPortability.ts`, and `README.md`.
+
 ## [2.1.2] - 2026-05-09
 ### Added
 - **Dashboard Analytics Strip**: New "This Month" row between Net Worth and Accounts showing Income, Expenses, and Savings Rate — computed live from loaded transactions via `useMemo`, zero extra DB calls.

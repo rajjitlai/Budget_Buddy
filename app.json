@@ -2,7 +2,7 @@
   "expo": {
     "name": "Budget Buddy",
     "slug": "budget-buddy",
-    "version": "2.1.2",
+    "version": "2.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",

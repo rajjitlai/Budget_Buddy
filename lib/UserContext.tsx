@@ -31,6 +31,7 @@ interface AIConfig {
   apiKey: string;
   provider: 'openrouter' | 'openai';
   model: string;
+  customInstructions?: string;
 }
 
 interface UserProfile {

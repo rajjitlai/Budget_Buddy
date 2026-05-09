@@ -123,7 +123,7 @@ const currencies = ['INR (?)', 'USD ($)', 'EUR (?)', 'GBP (�)', 'JPY (�)'];
 
 export default function SettingsScreen() {
   const { isDarkMode, toggleDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const router = useRouter();
   const navigation = useNavigation();
   
@@ -140,7 +140,8 @@ export default function SettingsScreen() {
   // AI Config State
   const [aiApiKey, setAiApiKey] = useState(user?.aiConfig?.apiKey || '');
   const [aiProvider, setAiProvider] = useState<string | null>(user?.aiConfig?.provider || 'openrouter');
-  const [aiModel, setAiModel] = useState(user?.aiConfig?.model || 'google/gemma-3n-e2b-it:free');
+  const [aiModel, setAiModel] = useState(user?.aiConfig?.model || 'google/gemma-2-9b-it:free');
+  const [aiCustomInstructions, setAiCustomInstructions] = useState(user?.aiConfig?.customInstructions || '');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
@@ -150,6 +151,18 @@ export default function SettingsScreen() {
     loadSettings();
     checkAppUpdates();
   }, []);
+
+  useEffect(() => {
+    if (user?.aiConfig) {
+      setAiApiKey(user.aiConfig.apiKey || '');
+      setAiProvider(user.aiConfig.provider || 'openrouter');
+      setAiModel(user.aiConfig.model || 'google/gemma-2-9b-it:free');
+      setAiCustomInstructions(user.aiConfig.customInstructions || '');
+    }
+    if (user?.currency) {
+      setSelectedCurrency(user.currency);
+    }
+  }, [user]);
 
   const checkAppUpdates = async () => {
     setIsCheckingUpdate(true);
@@ -203,32 +216,33 @@ export default function SettingsScreen() {
         }));
       }
 
-      // Sync AI config from user context
-      if (user?.aiConfig) {
-        setAiApiKey(user.aiConfig.apiKey);
-        setAiProvider(user.aiConfig.provider);
-        setAiModel(user.aiConfig.model);
-      }
     } catch (error) {
       console.error('Error loading settings:', error);
     }
   };
 
   const handleSaveAIConfig = async () => {
+    if (!aiApiKey.trim()) {
+      Alert.alert('Missing API Key', 'Please enter an API key before saving.');
+      return;
+    }
     try {
       await updateUser({
         aiConfig: {
-          apiKey: aiApiKey,
+          apiKey: aiApiKey.trim(),
           provider: (aiProvider as 'openrouter' | 'openai') || 'openrouter',
-          model: aiModel,
+          model: aiModel.trim() || 'google/gemma-2-9b-it:free',
+          customInstructions: aiCustomInstructions.trim() || undefined,
         },
       });
       setShowAIModal(false);
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
+      Alert.alert('Saved', 'AI configuration saved successfully.');
     } catch (error) {
       console.error('Error saving AI config:', error);
+      Alert.alert('Error', 'Failed to save AI configuration. Please try again.');
     }
   };
 
@@ -1001,7 +1015,20 @@ export default function SettingsScreen() {
           <Text style={[styles.modalHint, { color: textSecondary }]}>
             Personalize your AI insights by providing your own API key. Your key is stored securely on your device.
           </Text>
-          
+
+          {user?.aiConfig?.apiKey ? (
+            <View style={[styles.savedKeyBanner, { backgroundColor: `${colors.success}12`, borderColor: `${colors.success}30` }]}>
+              <Text style={[styles.savedKeyLabel, { color: colors.success }]}>✓ Key saved</Text>
+              <Text style={[styles.savedKeyValue, { color: textSecondary }]}>
+                {user.aiConfig.apiKey.slice(0, 8)}{'•'.repeat(12)}  ·  {user.aiConfig.provider}  ·  {user.aiConfig.model}
+              </Text>
+            </View>
+          ) : (
+            <View style={[styles.savedKeyBanner, { backgroundColor: `${colors.warning}12`, borderColor: `${colors.warning}30` }]}>
+              <Text style={[styles.savedKeyLabel, { color: colors.warning }]}>No key saved — using rule-based insights</Text>
+            </View>
+          )}
+
           <SelectField
             label="API Provider"
             options={[
@@ -1022,17 +1049,26 @@ export default function SettingsScreen() {
 
           <InputField
             label="Model Name"
-            placeholder={aiProvider === 'openrouter' ? 'google/gemma-3-4b-it:free' : 'gpt-4o-mini'}
+            placeholder={aiProvider === 'openrouter' ? 'e.g. google/gemma-2-9b-it:free' : 'e.g. gpt-4o-mini'}
             value={aiModel}
             onChangeText={setAiModel}
+          />
+
+          <InputField
+            label="Custom Instructions (optional)"
+            placeholder="e.g. Focus on saving goals. Always suggest the 50/30/20 rule."
+            value={aiCustomInstructions}
+            onChangeText={setAiCustomInstructions}
+            multiline
+            numberOfLines={3}
           />
 
           <View style={styles.modalHintContainer}>
             <Info size={16} color={colors.primary[500]} />
             <Text style={[styles.modalHintText, { color: textSecondary }]}>
               {aiProvider === 'openrouter' 
-                ? 'OpenRouter allows using free models like Gemma or paid ones like Claude/GPT.'
-                : 'OpenAI requires a paid API key and balance.'}
+                ? 'Find free & paid models at openrouter.ai/models — paste the model ID above (e.g. google/gemma-3n-e2b-it:free).'
+                : 'Find model names at platform.openai.com/docs/models (e.g. gpt-4o-mini, gpt-4o).'}
             </Text>
           </View>
 
@@ -1494,6 +1530,21 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.sm,
     marginBottom: spacing.lg,
     lineHeight: 20,
+  },
+  savedKeyBanner: {
+    borderWidth: 1,
+    borderRadius: borderRadius.xl,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  savedKeyLabel: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.bold,
+    marginBottom: 4,
+  },
+  savedKeyValue: {
+    fontSize: typography.fontSizes.xs,
+    fontFamily: 'monospace',
   },
   modalHintContainer: {
     flexDirection: 'row',

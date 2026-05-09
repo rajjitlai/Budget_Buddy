@@ -41,6 +41,7 @@ import { useRouter, useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
 import { formatCurrency, MonthlyPlan } from '@/lib/types';
 import { getCurrentMonthlyPlan, saveMonthlyPlan } from '@/lib/services/monthlyPlans';
+import { getTransactions } from '@/lib/services/transactions';
 import { InputField } from '@/components/ui/InputField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { AnimatedScale } from '@/components/ui/AnimatedScale';
@@ -65,6 +66,7 @@ export default function PlannerScreen() {
   const [currentStep, setCurrentStep] = useState<Step>('income');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
 
   // Plan State
   const [salary, setSalary] = useState('');
@@ -129,6 +131,61 @@ export default function PlannerScreen() {
 
   const updateItem = (id: string, field: 'label' | 'amount', value: string, setFn: React.Dispatch<React.SetStateAction<PlanItem[]>>) => {
     setFn(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+  };
+
+  const handleAISuggest = async () => {
+    const income = parseFloat(salary) || 0;
+    if (income <= 0) return;
+    setSuggesting(true);
+    try {
+      const transactions = await getTransactions({});
+      const now = new Date();
+      const last3Months = transactions.filter((t) => {
+        const d = new Date(t.date);
+        const monthsAgo = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+        return monthsAgo >= 0 && monthsAgo < 3 && t.type === 'expense';
+      });
+
+      const categoryMap: Record<string, number> = {};
+      last3Months.forEach((t) => {
+        categoryMap[t.category] = (categoryMap[t.category] || 0) + t.amount;
+      });
+
+      const totalSpent3m = Object.values(categoryMap).reduce((s, v) => s + v, 0);
+      const avgMonthlySpend = totalSpent3m / 3;
+
+      if (avgMonthlySpend > 0 && transactions.length > 0) {
+        const topCategories = Object.entries(categoryMap)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 4);
+
+        const newFixed: PlanItem[] = topCategories.slice(0, 2).map(([cat, total], i) => ({
+          id: `suggest-fixed-${i}`,
+          label: cat,
+          amount: Math.round(total / 3).toString(),
+        }));
+        const savingsPct = Math.max(10, Math.min(30, Math.round(((income - avgMonthlySpend) / income) * 100)));
+        const newSavings: PlanItem[] = [{ id: 'suggest-savings', label: 'Savings Goal', amount: Math.round(income * (savingsPct / 100)).toString() }];
+        const spendAmt = topCategories.slice(2).reduce((s, [, v]) => s + Math.round(v / 3), 0) || Math.round(income * 0.2);
+        const newAllowances: PlanItem[] = [{ id: 'suggest-variable', label: 'Variable Spending', amount: spendAmt.toString() }];
+
+        setFixedExpenses(newFixed);
+        setSavingsGoals(newSavings);
+        setAllowances(newAllowances);
+      } else {
+        setFixedExpenses([
+          { id: 'suggest-rent', label: 'Essentials', amount: Math.round(income * 0.5).toString() },
+        ]);
+        setSavingsGoals([{ id: 'suggest-savings', label: 'Savings Goal', amount: Math.round(income * 0.2).toString() }]);
+        setAllowances([{ id: 'suggest-variable', label: 'Discretionary', amount: Math.round(income * 0.3).toString() }]);
+      }
+
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      console.error('AI Suggest error:', e);
+    } finally {
+      setSuggesting(false);
+    }
   };
 
   const handleNext = () => {
@@ -310,6 +367,22 @@ export default function PlannerScreen() {
                 keyboardType="numeric"
                 prefix="Rs."
               />
+              {parseFloat(salary) > 0 && (
+                <TouchableOpacity
+                  onPress={handleAISuggest}
+                  disabled={suggesting}
+                  style={[styles.aiSuggestBtn, { backgroundColor: `${colors.primary[500]}12`, borderColor: `${colors.primary[500]}30` }]}
+                >
+                  {suggesting ? (
+                    <ActivityIndicator size="small" color={colors.primary[500]} />
+                  ) : (
+                    <Sparkles size={16} color={colors.primary[500]} />
+                  )}
+                  <Text style={[styles.aiSuggestText, { color: colors.primary[500] }]}>
+                    {suggesting ? 'Calculating...' : '✨ AI Suggest Allocations'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               <View style={styles.buttonRow}>
                 <PrimaryButton title="Next" onPress={handleNext} icon={<ChevronRight size={18} color="#fff" />} style={{ flex: 1 }} />
               </View>
@@ -465,6 +538,21 @@ const styles = StyleSheet.create({
   tipText: { fontSize: typography.fontSizes.xs, lineHeight: 18 },
   suggestedBox: { alignItems: 'flex-end', marginTop: spacing.sm },
   suggestedText: { fontSize: typography.fontSizes.xs, fontStyle: 'italic' },
+  aiSuggestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  aiSuggestText: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.semibold,
+  },
   iconButton: {
     width: 44,
     height: 44,

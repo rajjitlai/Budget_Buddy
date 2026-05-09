@@ -40,6 +40,8 @@ import {
 import { getAccounts, createAccount, updateAccount, deleteAccount } from '@/lib/services/accounts';
 import { useData } from '@/lib/DataContext';
 import { getTransactions } from '@/lib/services/transactions';
+import { generateAlerts, getUnreadCount } from '@/lib/services/notifications';
+import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
 import { NetWorthCard } from '@/components/NetWorthCard';
 import { BalanceCard } from '@/components/BalanceCard';
 import { AccountList } from '@/components/AccountList';
@@ -53,7 +55,7 @@ import { SelectField } from '@/components/ui/SelectField';
 export default function DashboardScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
-  const { refreshKey, triggerRefresh } = useData();
+  const { refreshKey, triggerRefresh, notifRefreshKey } = useData();
   const router = useRouter();
   const navigation = useNavigation();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -71,6 +73,7 @@ export default function DashboardScreen() {
   const [newAccountBalance, setNewAccountBalance] = useState('');
   const [newAccountIcon, setNewAccountIcon] = useState('🏦');
   const [refreshing, setRefreshing] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -95,7 +98,54 @@ export default function DashboardScreen() {
   useEffect(() => {
     loadAccounts();
     loadRecentTransactions();
+    loadUnreadCount();
   }, [refreshKey]);
+
+  useEffect(() => {
+    loadUnreadCount();
+  }, [notifRefreshKey]);
+
+  const loadUnreadCount = async () => {
+    try {
+      const count = await getUnreadCount();
+      setUnreadNotifCount(count);
+    } catch (e) {
+      console.error('Error loading unread count:', e);
+    }
+  };
+
+  const runAlertGeneration = async (txns: Transaction[]) => {
+    try {
+      const now = new Date();
+      const monthTxns = txns.filter(t => {
+        const d = new Date(t.date);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      });
+      const income = monthTxns.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+      const expenses = monthTxns.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+      const savingsPct = income > 0 ? Math.round(((income - expenses) / income) * 100) : 0;
+      const categoryMap: Record<string, number> = {};
+      monthTxns.filter(t => t.type === 'expense').forEach(t => {
+        categoryMap[t.category] = (categoryMap[t.category] || 0) + t.amount;
+      });
+      const categoryBreakdown = Object.entries(categoryMap)
+        .map(([category, amount]) => ({ category, amount }))
+        .sort((a, b) => b.amount - a.amount);
+      const plan = await getCurrentMonthlyPlan();
+      await generateAlerts({
+        salary: plan?.salary ?? 0,
+        monthlyExpenses: expenses,
+        savingsRate: savingsPct,
+        categoryBreakdown,
+        totalExpenses: expenses,
+        hasTransactionsThisMonth: monthTxns.length > 0,
+      });
+      const count = await getUnreadCount();
+      setUnreadNotifCount(count);
+    } catch (e) {
+      console.error('Error generating alerts:', e);
+    }
+  };
 
   const refreshData = async () => {
     setRefreshing(true);
@@ -133,6 +183,7 @@ export default function DashboardScreen() {
       setTransactionsLoading(true);
       const transactionDocs = await getTransactions({ limit: 10 }); // Get 10 most recent
       setTransactions(transactionDocs);
+      runAlertGeneration(transactionDocs);
     } catch (error) {
       console.error('Error loading transactions:', error);
     } finally {
@@ -311,6 +362,17 @@ export default function DashboardScreen() {
             </View>
           </View>
           <View style={styles.headerActions}>
+            <AnimatedScale
+              onPress={() => router.push('/(tabs)/notifications' as any)}
+              style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10` }]}
+            >
+              <Bell size={20} color={textSecondary} />
+              {unreadNotifCount > 0 && (
+                <View style={[styles.bellBadge, { backgroundColor: colors.error }]}>
+                  <Text style={styles.bellBadgeText}>{unreadNotifCount > 9 ? '9+' : unreadNotifCount}</Text>
+                </View>
+              )}
+            </AnimatedScale>
             <AnimatedScale 
               onPress={refreshData}
               style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10` }]}
@@ -656,6 +718,22 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: typography.fontWeights.bold,
   },
   section: {
     marginTop: spacing.xl,

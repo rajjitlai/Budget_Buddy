@@ -14,7 +14,13 @@ import {
   Target,
   Settings,
   HelpCircle,
+  Landmark,
+  Bell,
+  MessageCircle,
 } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { useData } from '@/lib/DataContext';
+import { getUnreadCount } from '@/lib/services/notifications';
 import { colors, borderRadius, typography, spacing } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useRouter } from 'expo-router';
@@ -23,13 +29,25 @@ import Constants from 'expo-constants';
 export default function DrawerLayout() {
   const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
   const router = useRouter();
+  const { notifRefreshKey } = useData();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const count = await getUnreadCount();
+        setUnreadCount(count);
+      } catch (e) {}
+    };
+    load();
+  }, [notifRefreshKey]);
 
   function CustomDrawerContent(props: any) {
     return (
       <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: 0 }}>
         <View style={styles.drawerHeader}>
           <Text style={[styles.drawerTitle, { color: textPrimary }]}>Budget Buddy</Text>
-          <Text style={[styles.drawerSubtitle, { color: textSecondary }]}>v{Constants.expoConfig?.version || '2.1.0'} Premium</Text>
+          <Text style={[styles.drawerSubtitle, { color: textSecondary }]}>v{Constants.expoConfig?.version || '2.2.0'} Premium</Text>
         </View>
         <DrawerItemList {...props} />
         <View style={styles.drawerDivider} />
@@ -117,12 +135,49 @@ export default function DrawerLayout() {
         }}
       />
       <Drawer.Screen
+        name="loans"
+        options={{
+          drawerLabel: 'Loans',
+          title: 'Loans Tracker',
+          drawerIcon: ({ color, size }) => (
+            <Landmark size={22} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="notifications"
+        options={{
+          drawerLabel: 'Notifications',
+          title: 'Alerts',
+          drawerIcon: ({ color, size }) => (
+            <View style={{ position: 'relative' }}>
+              <Bell size={22} color={color} />
+              {unreadCount > 0 && (
+                <View style={[styles.drawerBadge, { backgroundColor: colors.error }]}>
+                  <Text style={styles.drawerBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              )}
+            </View>
+          ),
+        }}
+      />
+      <Drawer.Screen
         name="insights"
         options={{
           drawerLabel: 'AI Insights',
           title: 'Financial Advice',
           drawerIcon: ({ color, size }) => (
             <Sparkles size={22} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="chat"
+        options={{
+          drawerLabel: 'AI Chat',
+          title: 'Finance Assistant',
+          drawerIcon: ({ color, size }) => (
+            <MessageCircle size={22} color={color} />
           ),
         }}
       />
@@ -161,5 +216,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
     marginVertical: spacing.md,
     marginHorizontal: spacing.xl,
+  },
+  drawerBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  drawerBadgeText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: '700',
   },
 });
