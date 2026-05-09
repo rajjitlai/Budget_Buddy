@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Platform,
   Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
@@ -155,14 +156,46 @@ export default function SettingsScreen() {
     const info = await checkForUpdates();
     setUpdateInfo(info);
     setIsCheckingUpdate(false);
-    if (!info.hasUpdate && Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const handleManualUpdateCheck = async () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    setIsCheckingUpdate(true);
+    const info = await checkForUpdates();
+    setUpdateInfo(info);
+    setIsCheckingUpdate(false);
+
+    if (info.hasUpdate) {
+      Alert.alert(
+        'Update Available',
+        `Version ${info.latestVersion} is available.\n\n${info.releaseNotes ? info.releaseNotes.slice(0, 200) + '...' : ''}`,
+        [
+          { text: 'Later', style: 'cancel' },
+          {
+            text: 'View Release',
+            onPress: () => {
+              if (info.downloadUrl) {
+                Linking.openURL(info.downloadUrl).catch(() => {});
+              }
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert('Up to Date', `You are running the latest version (v${info.latestVersion}).`);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     }
   };
 
   const loadSettings = async () => {
     try {
-      const advancedCharts = await SecureStore.getItemAsync('advancedCharts');
+      const advancedCharts = Platform.OS === 'web'
+        ? localStorage.getItem('advancedCharts')
+        : await SecureStore.getItemAsync('advancedCharts');
       if (advancedCharts !== null) {
         setSettings((prev) => ({
           ...prev,
@@ -273,10 +306,14 @@ export default function SettingsScreen() {
     const newValue = !settings[key as keyof typeof settings];
     setSettings((prev) => ({ ...prev, [key]: newValue }));
     
-    // Save advancedCharts setting to SecureStore
+    // Save advancedCharts setting
     if (key === 'advancedCharts') {
       try {
-        await SecureStore.setItemAsync('advancedCharts', String(newValue));
+        if (Platform.OS === 'web') {
+          localStorage.setItem('advancedCharts', String(newValue));
+        } else {
+          await SecureStore.setItemAsync('advancedCharts', String(newValue));
+        }
       } catch (error) {
         console.error('Error saving advanced charts setting:', error);
       }
@@ -521,7 +558,7 @@ export default function SettingsScreen() {
               </View>
               {/* Check for Updates Button */}
               <TouchableOpacity
-                onPress={checkAppUpdates}
+                onPress={handleManualUpdateCheck}
                 disabled={isCheckingUpdate}
                 style={[
                   styles.checkUpdateBtn,

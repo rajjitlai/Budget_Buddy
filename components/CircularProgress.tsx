@@ -25,15 +25,17 @@ export function CircularProgress({
 }: CircularProgressProps) {
   const { isDarkMode, textPrimary, textSecondary } = useTheme();
   
+  const safePercentage = isNaN(percentage) ? 0 : Math.max(0, Math.min(100, percentage));
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  const strokeDashoffset = circumference - (safePercentage / 100) * circumference;
   const center = size / 2;
+  const rotation = `rotate(-90, ${center}, ${center})`;
 
   return (
     <View style={styles.container}>
       <Svg width={size} height={size}>
-        <G rotation="-90" origin={`${center}, ${center}`}>
+        <G transform={rotation}>
           {/* Background circle */}
           <Circle
             cx={center}

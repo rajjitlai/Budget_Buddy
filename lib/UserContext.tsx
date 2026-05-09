@@ -1,7 +1,31 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { initDatabase } from '@/lib/database/sqlite';
+
+async function getStoredUser(key: string): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    try { return typeof window !== 'undefined' ? window.localStorage.getItem(key) : null; } catch { return null; }
+  }
+  try { return await SecureStore.getItemAsync(key); } catch { return null; }
+}
+
+async function setStoredUser(key: string, value: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    try { if (typeof window !== 'undefined') window.localStorage.setItem(key, value); } catch { }
+    return;
+  }
+  try { await SecureStore.setItemAsync(key, value); } catch { }
+}
+
+async function deleteStoredUser(key: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    try { if (typeof window !== 'undefined') window.localStorage.removeItem(key); } catch { }
+    return;
+  }
+  try { await SecureStore.deleteItemAsync(key); } catch { }
+}
 
 interface AIConfig {
   apiKey: string;
@@ -38,8 +62,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
         // Initialize database
         await initDatabase();
 
-        // Load user profile from SecureStore
-        const storedUser = await SecureStore.getItemAsync(USER_STORAGE_KEY);
+        // Load user profile
+        const storedUser = await getStoredUser(USER_STORAGE_KEY);
         if (storedUser) {
           setUser(JSON.parse(storedUser));
         } else {
@@ -71,7 +95,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
-    await SecureStore.setItemAsync(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+    await setStoredUser(USER_STORAGE_KEY, JSON.stringify(updatedUser));
   };
 
   const logout = async () => {
@@ -82,7 +106,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       biometricEnabled: false,
     };
     setUser(defaultUser);
-    await SecureStore.deleteItemAsync(USER_STORAGE_KEY);
+    await deleteStoredUser(USER_STORAGE_KEY);
   };
 
   const value: UserContextType = {

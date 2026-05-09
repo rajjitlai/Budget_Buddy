@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Animated, DimensionValue } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Animated, DimensionValue, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, borderRadius } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
@@ -13,14 +13,14 @@ interface SkeletonProps {
 
 export function Skeleton({ width = '100%', height = 20, radius = borderRadius.md, style }: SkeletonProps) {
   const { isDarkMode } = useTheme();
-  const shimmerValue = new Animated.Value(0);
+  const shimmerValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.loop(
       Animated.timing(shimmerValue, {
         toValue: 1,
         duration: 1500,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       })
     ).start();
   }, []);

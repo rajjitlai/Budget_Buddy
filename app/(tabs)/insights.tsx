@@ -28,6 +28,7 @@ import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
+import { useData } from '@/lib/DataContext';
 import { useRouter, useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
 import { AnimatedScale } from '@/components/ui/AnimatedScale';
@@ -62,6 +63,7 @@ interface ExpandableSection {
 export default function AIRecommendationScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
+  const { refreshKey } = useData();
   const navigation = useNavigation();
   
   const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
@@ -77,7 +79,7 @@ export default function AIRecommendationScreen() {
   useEffect(() => {
     loadData();
     loadAdvancedChartsSetting();
-  }, []);
+  }, [refreshKey]);
 
   const refreshData = async () => {
     setRefreshing(true);
@@ -90,7 +92,12 @@ export default function AIRecommendationScreen() {
 
   const loadAdvancedChartsSetting = async () => {
     try {
-      const value = await SecureStore.getItemAsync('advancedCharts');
+      let value: string | null = null;
+      if (Platform.OS === 'web') {
+        value = localStorage.getItem('advancedCharts');
+      } else {
+        value = await SecureStore.getItemAsync('advancedCharts');
+      }
       setShowAdvancedCharts(value === 'true');
     } catch (error) {
       console.error('Error loading advanced charts setting:', error);
@@ -321,7 +328,7 @@ export default function AIRecommendationScreen() {
                   Insights
                 </Text>
                 <Text style={[styles.subtitle, { color: textSecondary }]}>
-                  AI-powered recommendations
+                  {user?.aiConfig?.apiKey ? 'Using AI Intelligence' : 'Using custom calculations'}
                 </Text>
               </View>
             </View>

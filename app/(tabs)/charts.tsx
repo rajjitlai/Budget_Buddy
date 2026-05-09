@@ -17,6 +17,7 @@ import { AnimatedScale } from '@/components/ui/AnimatedScale';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
+import { useData } from '@/lib/DataContext';
 import { useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
 import { Account, Transaction, MonthlyPlan } from '@/lib/types';
@@ -28,6 +29,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 
 export default function ChartsScreen() {
   const { backgroundColor, textPrimary, textSecondary } = useTheme();
+  const { refreshKey } = useData();
   const navigation = useNavigation();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -37,7 +39,7 @@ export default function ChartsScreen() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [refreshKey]);
 
   const refreshData = async () => {
     setRefreshing(true);

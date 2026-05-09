@@ -34,7 +34,7 @@ const iconMap: Record<string, React.ComponentType<{ size: number; color: string 
 export function BalanceCard({ account, onPress }: BalanceCardProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
   const { user } = useUser();
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
 
   const IconComponent = iconMap[account.icon] || Wallet;
 

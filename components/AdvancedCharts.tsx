@@ -135,7 +135,7 @@ export function AdvancedCharts({ accounts, transactions, monthlyPlan }: Advanced
   // Calculate savings rate
   const savingsRate = useMemo(() => {
     if (!monthlyPlan || monthlyPlan.salary === 0) return 0;
-    const totalSavings = monthlyPlan.allocations.savings + monthlyPlan.allocations.emergency;
+    const totalSavings = (monthlyPlan.allocations.savings || 0) + (monthlyPlan.allocations.emergency || 0);
     return Math.round((totalSavings / monthlyPlan.salary) * 100);
   }, [monthlyPlan]);
 
@@ -148,50 +148,165 @@ export function AdvancedCharts({ accounts, transactions, monthlyPlan }: Advanced
     return Math.round(((current - previous) / previous) * 100);
   }, [monthlyTrends]);
 
-  // Calculate net worth trend over time (cumulative net savings per month)
+  // Calculate net worth trend anchored to current account balance
   const netWorthTrend = useMemo(() => {
     const now = new Date();
-    const trendData: { label: string; value: number }[] = [];
-    let cumulativeNet = 0;
-    
-    // Calculate net savings for each of the last 6 months
+    const currentNetWorth = accounts.reduce((sum, acc) => sum + acc.balance, 0);
+
+    // Compute monthly net (income - expenses) for last 6 months
+    const monthlyNets: { label: string; net: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      
-      // Get transactions for this specific month
-      const monthTransactions = transactions.filter((t) => {
-        const tDate = new Date(t.date);
-        return (
-          tDate.getFullYear() === date.getFullYear() &&
-          tDate.getMonth() === date.getMonth()
-        );
+      const monthTxns = transactions.filter((t) => {
+        const d = new Date(t.date);
+        return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
       });
-
-      const income = monthTransactions
-        .filter((t) => t.type === 'income')
-        .reduce((sum, t) => sum + t.amount, 0);
-      
-      const expenses = monthTransactions
-        .filter((t) => t.type === 'expense')
-        .reduce((sum, t) => sum + t.amount, 0);
-
-      const net = income - expenses;
-      cumulativeNet += net;
-
-      trendData.push({
+      const income = monthTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+      const expenses = monthTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+      monthlyNets.push({
         label: date.toLocaleDateString('en-US', { month: 'short' }),
-        value: Math.max(0, cumulativeNet), // Cumulative net savings
+        net: income - expenses,
       });
     }
 
+    // Work backwards from currentNetWorth to estimate each month's balance
+    const trendData: { label: string; value: number }[] = new Array(6);
+    trendData[5] = { label: monthlyNets[5].label, value: currentNetWorth };
+    for (let i = 4; i >= 0; i--) {
+      trendData[i] = {
+        label: monthlyNets[i].label,
+        value: trendData[i + 1].value - monthlyNets[i + 1].net,
+      };
+    }
+
     return trendData;
+  }, [transactions, accounts]);
+
+  // Cash flow for current month
+  const currentMonthFlow = useMemo(() => {
+    const now = new Date();
+    const thisMonth = transactions.filter((t) => {
+      const d = new Date(t.date);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const income = thisMonth.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const expenses = thisMonth.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    const net = income - expenses;
+    const savingsPct = income > 0 ? Math.round(((income - expenses) / income) * 100) : 0;
+    return { income, expenses, net, savingsPct };
   }, [transactions]);
+
+  // Budget vs Actual for current month
+  const budgetVsActual = useMemo(() => {
+    if (!monthlyPlan || monthlyPlan.salary === 0) return null;
+    const now = new Date();
+    const thisMonthExpenses = transactions.filter((t) => {
+      const d = new Date(t.date);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && t.type === 'expense';
+    });
+
+    const actualByCategory: Record<string, number> = {};
+    thisMonthExpenses.forEach((t) => {
+      const key = t.category.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s]+/u, '').trim() || t.category;
+      actualByCategory[key] = (actualByCategory[key] || 0) + t.amount;
+    });
+
+    const totalActual = thisMonthExpenses.reduce((s, t) => s + t.amount, 0);
+    const totalEssentials = Object.values(monthlyPlan.essentials).reduce((s, v) => s + v, 0);
+    const totalPlanned = totalEssentials + (monthlyPlan.allocations.spending || 0);
+
+    return { totalPlanned, totalActual, surplus: totalPlanned - totalActual };
+  }, [transactions, monthlyPlan]);
 
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.scrollContent}
     >
+      {/* Cash Flow Summary - Current Month */}
+      <Animated.View entering={FadeInDown.delay(50).duration(500)}>
+        <SectionHeader
+          title="This Month's Cash Flow"
+          subtitle={new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+        />
+        <View style={[styles.flowRow]}>
+          <View style={[styles.flowCard, { backgroundColor: `${colors.success}15`, borderColor: `${colors.success}30` }]}>
+            <View style={styles.flowIcon}>
+              <TrendingUp size={18} color={colors.success} />
+            </View>
+            <Text style={[styles.flowLabel, { color: colors.success }]}>Income</Text>
+            <Text style={[styles.flowValue, { color: colors.success }]}>{displayCurrency(currentMonthFlow.income)}</Text>
+          </View>
+          <View style={[styles.flowCard, { backgroundColor: `${colors.error}15`, borderColor: `${colors.error}30` }]}>
+            <View style={styles.flowIcon}>
+              <TrendingDown size={18} color={colors.error} />
+            </View>
+            <Text style={[styles.flowLabel, { color: colors.error }]}>Expenses</Text>
+            <Text style={[styles.flowValue, { color: colors.error }]}>{displayCurrency(currentMonthFlow.expenses)}</Text>
+          </View>
+          <View style={[styles.flowCard, { backgroundColor: currentMonthFlow.net >= 0 ? `${colors.primary[500]}15` : `${colors.warning}15`, borderColor: currentMonthFlow.net >= 0 ? `${colors.primary[500]}30` : `${colors.warning}30` }]}>
+            <View style={styles.flowIcon}>
+              <ArrowUpRight size={18} color={currentMonthFlow.net >= 0 ? colors.primary[500] : colors.warning} />
+            </View>
+            <Text style={[styles.flowLabel, { color: currentMonthFlow.net >= 0 ? colors.primary[500] : colors.warning }]}>Net</Text>
+            <Text style={[styles.flowValue, { color: currentMonthFlow.net >= 0 ? colors.primary[500] : colors.warning }]}>{displayCurrency(Math.abs(currentMonthFlow.net))}</Text>
+          </View>
+        </View>
+        {currentMonthFlow.income > 0 && (
+          <View style={[styles.savingsRateBar, { borderColor }]}>
+            <View style={styles.savingsRateHeader}>
+              <Text style={[styles.savingsRateLabel, { color: textSecondary }]}>Savings Rate</Text>
+              <Text style={[styles.savingsRateValue, { color: currentMonthFlow.savingsPct >= 20 ? colors.success : currentMonthFlow.savingsPct >= 10 ? colors.warning : colors.error }]}>
+                {currentMonthFlow.savingsPct}%
+              </Text>
+            </View>
+            <View style={styles.savingsRateTrack}>
+              <View style={[styles.savingsRateFill, {
+                width: `${Math.min(100, Math.max(0, currentMonthFlow.savingsPct))}%`,
+                backgroundColor: currentMonthFlow.savingsPct >= 20 ? colors.success : currentMonthFlow.savingsPct >= 10 ? colors.warning : colors.error,
+              }]} />
+            </View>
+            <Text style={[styles.savingsRateHint, { color: textSecondary }]}>Target: 20% or more</Text>
+          </View>
+        )}
+      </Animated.View>
+
+      {/* Budget vs Actual */}
+      {budgetVsActual && (
+        <Animated.View entering={FadeInDown.delay(100).duration(500)}>
+          <SectionHeader title="Budget vs Actual" subtitle="Planned spend vs real spend this month" />
+          <View style={[styles.chartCard, { backgroundColor: cardBackground, borderColor }]}>
+            <View style={styles.bvaRow}>
+              <View style={styles.bvaItem}>
+                <Text style={[styles.bvaLabel, { color: textSecondary }]}>Planned</Text>
+                <Text style={[styles.bvaValue, { color: textPrimary }]}>{displayCurrency(budgetVsActual.totalPlanned)}</Text>
+              </View>
+              <View style={styles.bvaDivider} />
+              <View style={styles.bvaItem}>
+                <Text style={[styles.bvaLabel, { color: textSecondary }]}>Actual</Text>
+                <Text style={[styles.bvaValue, { color: budgetVsActual.totalActual > budgetVsActual.totalPlanned ? colors.error : textPrimary }]}>{displayCurrency(budgetVsActual.totalActual)}</Text>
+              </View>
+              <View style={styles.bvaDivider} />
+              <View style={styles.bvaItem}>
+                <Text style={[styles.bvaLabel, { color: textSecondary }]}>{budgetVsActual.surplus >= 0 ? 'Under' : 'Over'}</Text>
+                <Text style={[styles.bvaValue, { color: budgetVsActual.surplus >= 0 ? colors.success : colors.error }]}>{displayCurrency(Math.abs(budgetVsActual.surplus))}</Text>
+              </View>
+            </View>
+            <View style={styles.bvaTrackContainer}>
+              <View style={styles.bvaTrack}>
+                <View style={[styles.bvaFill, {
+                  width: budgetVsActual.totalPlanned > 0 ? `${Math.min(100, (budgetVsActual.totalActual / budgetVsActual.totalPlanned) * 100)}%` : '0%',
+                  backgroundColor: budgetVsActual.totalActual > budgetVsActual.totalPlanned ? colors.error : colors.success,
+                }]} />
+              </View>
+              <Text style={[styles.bvaHint, { color: textSecondary }]}>
+                {budgetVsActual.totalPlanned > 0 ? `${Math.min(100, Math.round((budgetVsActual.totalActual / budgetVsActual.totalPlanned) * 100))}% of budget used` : 'Set up a budget plan to track this'}
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+      )}
+
       {/* Net Worth Trend Line Chart */}
       {netWorthTrend.length > 0 && (
         <Animated.View entering={FadeInDown.delay(100).duration(500)}>
@@ -230,7 +345,7 @@ export function AdvancedCharts({ accounts, transactions, monthlyPlan }: Advanced
                 Target: 20%
               </Text>
               <Text style={[styles.savingsAmount, { color: textPrimary }]}>
-                {displayCurrency(monthlyPlan.allocations.savings + monthlyPlan.allocations.emergency)} saved
+                {displayCurrency((monthlyPlan.allocations.savings || 0) + (monthlyPlan.allocations.emergency || 0))} saved
               </Text>
             </View>
           </View>
@@ -450,6 +565,109 @@ export function AdvancedCharts({ accounts, transactions, monthlyPlan }: Advanced
 const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: spacing['5xl'],
+  },
+  flowRow: {
+    flexDirection: 'row',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  flowCard: {
+    flex: 1,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    padding: spacing.md,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  flowIcon: {
+    marginBottom: 2,
+  },
+  flowLabel: {
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  flowValue: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.bold,
+  },
+  savingsRateBar: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    gap: spacing.sm,
+  },
+  savingsRateHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  savingsRateLabel: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.medium,
+  },
+  savingsRateValue: {
+    fontSize: typography.fontSizes.md,
+    fontWeight: typography.fontWeights.bold,
+  },
+  savingsRateTrack: {
+    height: 8,
+    backgroundColor: colors.slate[200],
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+  },
+  savingsRateFill: {
+    height: '100%',
+    borderRadius: borderRadius.full,
+  },
+  savingsRateHint: {
+    fontSize: typography.fontSizes.xs,
+  },
+  bvaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: spacing.lg,
+  },
+  bvaItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  bvaLabel: {
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  bvaValue: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.bold,
+  },
+  bvaDivider: {
+    width: 1,
+    backgroundColor: colors.slate[200],
+    marginVertical: spacing.xs,
+  },
+  bvaTrackContainer: {
+    gap: spacing.xs,
+  },
+  bvaTrack: {
+    height: 10,
+    backgroundColor: colors.slate[200],
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+  },
+  bvaFill: {
+    height: '100%',
+    borderRadius: borderRadius.full,
+  },
+  bvaHint: {
+    fontSize: typography.fontSizes.xs,
+    textAlign: 'right',
   },
   chartCard: {
     marginHorizontal: spacing.lg,

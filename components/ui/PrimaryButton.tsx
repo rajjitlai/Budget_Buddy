@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, Platform, ActivityIndicator } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -11,7 +11,7 @@ import { colors, spacing, typography, borderRadius, shadows } from '@/lib/theme'
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-interface PrimaryButtonProps {
+export interface PrimaryButtonProps {
   title: string;
   onPress: () => void;
   variant?: 'primary' | 'outline' | 'ghost';
@@ -20,6 +20,7 @@ interface PrimaryButtonProps {
   disabled?: boolean;
   style?: ViewStyle;
   size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
 }
 
 export function PrimaryButton({
@@ -31,6 +32,7 @@ export function PrimaryButton({
   disabled = false,
   style,
   size = 'md',
+  loading = false,
 }: PrimaryButtonProps) {
   const { textPrimary } = useTheme();
   const scale = useSharedValue(1);
@@ -139,17 +141,23 @@ export function PrimaryButton({
       ]}
     >
       <View style={styles.content}>
-        {icon && <View style={styles.iconContainer}>{icon}</View>}
-        <Text
-          style={[
-            styles.text,
-            { color: getTextColor() },
-            size === 'sm' && styles.textSm,
-            size === 'lg' && styles.textLg,
-          ]}
-        >
-          {title}
-        </Text>
+        {loading ? (
+          <ActivityIndicator size="small" color={getTextColor()} />
+        ) : (
+          <>
+            {icon && <View style={styles.iconContainer}>{icon}</View>}
+            <Text
+              style={[
+                styles.text,
+                { color: getTextColor() },
+                size === 'sm' && styles.textSm,
+                size === 'lg' && styles.textLg,
+              ]}
+            >
+              {title}
+            </Text>
+          </>
+        )}
       </View>
     </AnimatedTouchable>
   );

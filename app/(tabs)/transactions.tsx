@@ -47,7 +47,8 @@ import {
   deleteTransaction
 } from '@/lib/services/transactions';
 import { useUser } from '@/lib/UserContext';
-import { Account } from '@/lib/types';
+import { useData } from '@/lib/DataContext';
+import { Account, Transaction } from '@/lib/types';
 import { InputField } from '@/components/ui/InputField';
 import { SelectField } from '@/components/ui/SelectField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -61,6 +62,7 @@ type TabType = 'add' | 'history';
 export default function TransactionScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
+  const { refreshKey, triggerRefresh } = useData();
   const navigation = useNavigation();
   
   const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
@@ -94,7 +96,7 @@ export default function TransactionScreen() {
 
   useEffect(() => {
     loadAccounts();
-  }, []);
+  }, [refreshKey]);
 
   useEffect(() => {
     if (activeTab === 'history') {
@@ -242,7 +244,7 @@ export default function TransactionScreen() {
         type: transactionType,
       });
 
-      if (result.warning) {
+      if (result?.warning) {
         Alert.alert('Budget Alert', result.warning);
       }
 
@@ -251,7 +253,7 @@ export default function TransactionScreen() {
       }
 
       resetForm();
-      await loadAccounts();
+      triggerRefresh();
       
       // Switch to history tab to show the new transaction
       setActiveTab('history');
@@ -299,7 +301,7 @@ export default function TransactionScreen() {
       setIsEditModalVisible(false);
       setEditingTransaction(null);
       resetForm();
-      await loadAccounts();
+      triggerRefresh();
       await loadTransactions();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to update transaction');
@@ -323,7 +325,7 @@ export default function TransactionScreen() {
               if (Platform.OS !== 'web') {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }
-              await loadAccounts();
+              triggerRefresh();
               await loadTransactions();
             } catch (error: any) {
               Alert.alert('Error', error.message || 'Failed to delete transaction');
@@ -429,45 +431,6 @@ export default function TransactionScreen() {
               value={category || ''}
               onChangeText={setCategory}
             />
-            <View style={styles.scrollIndicatorContainer}>
-              <TouchableOpacity 
-                onPress={() => suggestionScrollRef.current?.scrollTo({ x: 0, animated: true })}
-                style={styles.scrollIndicator}
-              >
-                <ChevronLeft size={16} color={textSecondary} />
-              </TouchableOpacity>
-              
-              <ScrollView 
-                ref={suggestionScrollRef}
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                style={styles.suggestionScroll}
-                contentContainerStyle={styles.suggestionContent}
-              >
-                {SUGGESTED_CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    onPress={() => {
-                      setCategory(cat);
-                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    style={[
-                      styles.suggestionChip,
-                      { backgroundColor: cardBackground, borderColor }
-                    ]}
-                  >
-                    <Text style={{ color: textPrimary }}>{cat}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <TouchableOpacity 
-                onPress={() => suggestionScrollRef.current?.scrollToEnd({ animated: true })}
-                style={styles.scrollIndicator}
-              >
-                <ChevronRight size={16} color={textSecondary} />
-              </TouchableOpacity>
-            </View>
           </View>
           <View style={styles.column}>
             <InputField
@@ -478,6 +441,47 @@ export default function TransactionScreen() {
               icon={<Calendar size={18} color={textSecondary} />}
             />
           </View>
+        </View>
+
+        {/* Category Suggestion Chips - full width below both columns */}
+        <View style={styles.scrollIndicatorContainer}>
+          <TouchableOpacity 
+            onPress={() => suggestionScrollRef.current?.scrollTo({ x: 0, animated: true })}
+            style={styles.scrollIndicator}
+          >
+            <ChevronLeft size={16} color={textSecondary} />
+          </TouchableOpacity>
+          
+          <ScrollView 
+            ref={suggestionScrollRef}
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            style={styles.suggestionScroll}
+            contentContainerStyle={styles.suggestionContent}
+          >
+            {SUGGESTED_CATEGORIES.map((cat) => (
+              <TouchableOpacity
+                key={cat}
+                onPress={() => {
+                  setCategory(cat);
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                style={[
+                  styles.suggestionChip,
+                  { backgroundColor: cardBackground, borderColor }
+                ]}
+              >
+                <Text style={{ color: textPrimary }}>{cat}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <TouchableOpacity 
+            onPress={() => suggestionScrollRef.current?.scrollToEnd({ animated: true })}
+            style={styles.scrollIndicator}
+          >
+            <ChevronRight size={16} color={textSecondary} />
+          </TouchableOpacity>
         </View>
 
         {/* Account Selection */}
@@ -858,28 +862,6 @@ export default function TransactionScreen() {
                 value={category || ''}
                 onChangeText={setCategory}
               />
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                style={styles.suggestionScroll}
-                contentContainerStyle={styles.suggestionContent}
-              >
-                {SUGGESTED_CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    onPress={() => {
-                      setCategory(cat);
-                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    style={[
-                      styles.suggestionChip,
-                      { backgroundColor: cardBackground, borderColor }
-                    ]}
-                  >
-                    <Text style={{ color: textPrimary }}>{cat}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
             </View>
             <View style={styles.column}>
               <InputField
@@ -891,6 +873,30 @@ export default function TransactionScreen() {
               />
             </View>
           </View>
+
+          {/* Category Suggestion Chips - full width below both columns */}
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            style={styles.suggestionScroll}
+            contentContainerStyle={styles.suggestionContent}
+          >
+            {SUGGESTED_CATEGORIES.map((cat) => (
+              <TouchableOpacity
+                key={cat}
+                onPress={() => {
+                  setCategory(cat);
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                style={[
+                  styles.suggestionChip,
+                  { backgroundColor: cardBackground, borderColor }
+                ]}
+              >
+                <Text style={{ color: textPrimary }}>{cat}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
           {/* Account Selection */}
           <SelectField
@@ -1228,14 +1234,5 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  historyHeader: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-  },
-  historyHeaderContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
 });

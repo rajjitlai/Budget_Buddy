@@ -3,6 +3,5 @@
 export * from './accounts';
 export * from './transactions';
 export * from './monthlyPlans';
-export * from './auth';
 export * from './ai';
 

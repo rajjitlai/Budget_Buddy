@@ -36,6 +36,7 @@ import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
+import { useData } from '@/lib/DataContext';
 import { useRouter, useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
 import { formatCurrency, MonthlyPlan } from '@/lib/types';
@@ -57,6 +58,7 @@ interface PlanItem {
 export default function PlannerScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
+  const { refreshKey, triggerRefresh } = useData();
   const navigation = useNavigation();
   
   const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
@@ -83,7 +85,7 @@ export default function PlannerScreen() {
 
   useEffect(() => {
     loadExistingPlan();
-  }, []);
+  }, [refreshKey]);
 
   const loadExistingPlan = async () => {
     try {
@@ -162,7 +164,7 @@ export default function PlannerScreen() {
       const planData: MonthlyPlan = {
         salary: parseFloat(salary) || 0,
         essentials: {
-          rent: parseFloat(fixedExpenses.find(e => e.label.toLowerCase().includes('rent'))?.amount) || 0,
+          rent: parseFloat(fixedExpenses.find(e => e.label.toLowerCase().includes('rent'))?.amount ?? '0') || 0,
           bills: sum(fixedExpenses.filter(e => !e.label.toLowerCase().includes('rent'))),
           other: 0,
         },
@@ -175,11 +177,22 @@ export default function PlannerScreen() {
       };
 
       await saveMonthlyPlan(month, year, planData);
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Success', 'Plan saved! Your Budget Buddy is updated.');
-    } catch (error) {
+      triggerRefresh();
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      if (Platform.OS === 'web') {
+        window.alert('Plan saved! Your Budget Buddy is updated.');
+      } else {
+        Alert.alert('Success', 'Plan saved! Your Budget Buddy is updated.');
+      }
+    } catch (error: any) {
       console.error('Error saving plan:', error);
-      Alert.alert('Error', 'Failed to save plan.');
+      if (Platform.OS === 'web') {
+        window.alert('Error: ' + (error?.message || 'Failed to save plan.'));
+      } else {
+        Alert.alert('Error', error?.message || 'Failed to save plan.');
+      }
     } finally {
       setSaving(false);
     }
@@ -359,10 +372,10 @@ export default function PlannerScreen() {
               </View>
               
               <View style={styles.summaryGrid}>
-                <SummaryItem label="Income" value={totalIncome} color={textPrimary} />
-                <SummaryItem label="Fixed" value={totalFixed} color={colors.error} />
-                <SummaryItem label="Savings" value={totalSavings} color={colors.success} />
-                <SummaryItem label="Flexible" value={totalSpending} color={colors.warning} />
+                <SummaryItem label="Income" value={totalIncome} color={textPrimary} currency={user?.currency} />
+                <SummaryItem label="Fixed" value={totalFixed} color={colors.error} currency={user?.currency} />
+                <SummaryItem label="Savings" value={totalSavings} color={colors.success} currency={user?.currency} />
+                <SummaryItem label="Flexible" value={totalSpending} color={colors.warning} currency={user?.currency} />
               </View>
 
               <View style={[styles.resultBox, { backgroundColor: remaining >= 0 ? `${colors.success}10` : `${colors.error}10` }]}>
@@ -374,7 +387,7 @@ export default function PlannerScreen() {
 
               <View style={styles.buttonRow}>
                 <PrimaryButton title="Back" onPress={handleBack} variant="ghost" style={{ flex: 1 }} />
-                <PrimaryButton title="Apply Strategy" onPress={handleSave} loading={saving} style={{ flex: 2 }} />
+                <PrimaryButton title="Apply Strategy" onPress={handleSave} loading={saving} disabled={saving} style={{ flex: 2 }} />
               </View>
             </Animated.View>
           )}
@@ -401,12 +414,12 @@ export default function PlannerScreen() {
   );
 }
 
-function SummaryItem({ label, value, color }: { label: string; value: number; color: string }) {
+function SummaryItem({ label, value, color, currency }: { label: string; value: number; color: string; currency?: string }) {
   const { textSecondary } = useTheme();
   return (
     <View style={styles.summaryItem}>
       <Text style={[styles.summaryLabel, { color: textSecondary }]}>{label}</Text>
-      <Text style={[styles.summaryValue, { color }]}>{displayCurrency(value)}</Text>
+      <Text style={[styles.summaryValue, { color }]}>{formatCurrency(value, currency)}</Text>
     </View>
   );
 }

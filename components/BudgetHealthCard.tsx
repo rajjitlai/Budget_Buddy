@@ -54,6 +54,8 @@ export function BudgetHealthCard({ plan, transactions, variant = 'default' }: Bu
         borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.04)',
         padding: isCompact ? spacing.lg : spacing.xl,
         marginHorizontal: isCompact ? 0 : spacing.xl,
+        flex: isCompact ? 1 : undefined,
+        justifyContent: isCompact ? 'space-between' : undefined,
       }
     ]}>
       <View style={[styles.header, { marginBottom: isCompact ? spacing.md : spacing.xl }]}>

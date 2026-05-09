@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Platform,
   KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -149,7 +150,14 @@ export function ModalSheet({ visible, onClose, title, children }: ModalSheetProp
             </View>
 
             {/* Content */}
-            <View style={styles.content}>{children}</View>
+            <ScrollView
+              style={styles.contentScroll}
+              contentContainerStyle={styles.content}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {children}
+            </ScrollView>
           </SafeAreaView>
         </Animated.View>
       </KeyboardAvoidingView>
@@ -205,9 +213,13 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: spacing.xs,
   },
+  contentScroll: {
+    flexShrink: 1,
+  },
   content: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   // Web styles
   webBackdrop: {

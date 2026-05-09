@@ -14,7 +14,7 @@ interface NetWorthCardProps {
 
 export function NetWorthCard({ totalBalance, changePercent = null }: NetWorthCardProps) {
   const { user } = useUser();
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
 
   const toggleVisibility = () => {
     if (Platform.OS !== 'web') {

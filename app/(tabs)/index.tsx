@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,7 @@ import Animated, {
   interpolate,
   Extrapolate
 } from 'react-native-reanimated';
-import { Plus, Bell, RefreshCw, Sparkles, Menu } from 'lucide-react-native';
+import { Plus, Bell, RefreshCw, Menu, TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import { AnimatedScale } from '@/components/ui/AnimatedScale';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { RefreshButton } from '@/components/RefreshButton';
@@ -36,13 +36,11 @@ import {
   formatCurrency,
   SUGGESTED_ACCOUNT_TYPES,
   Transaction,
-  MonthlyPlan,
 } from '@/lib/types';
 import { getAccounts, createAccount, updateAccount, deleteAccount } from '@/lib/services/accounts';
+import { useData } from '@/lib/DataContext';
 import { getTransactions } from '@/lib/services/transactions';
-import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
 import { NetWorthCard } from '@/components/NetWorthCard';
-import { BudgetHealthCard } from '@/components/BudgetHealthCard';
 import { BalanceCard } from '@/components/BalanceCard';
 import { AccountList } from '@/components/AccountList';
 import { TransactionItem } from '@/components/TransactionItem';
@@ -55,6 +53,7 @@ import { SelectField } from '@/components/ui/SelectField';
 export default function DashboardScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
+  const { refreshKey, triggerRefresh } = useData();
   const router = useRouter();
   const navigation = useNavigation();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -63,7 +62,6 @@ export default function DashboardScreen() {
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   
   const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
-  const [showAllAccounts, setShowAllAccounts] = useState(false);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isViewAllModalVisible, setIsViewAllModalVisible] = useState(false);
@@ -73,8 +71,6 @@ export default function DashboardScreen() {
   const [newAccountBalance, setNewAccountBalance] = useState('');
   const [newAccountIcon, setNewAccountIcon] = useState('🏦');
   const [refreshing, setRefreshing] = useState(false);
-  const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
-
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -84,27 +80,29 @@ export default function DashboardScreen() {
 
   const netWorth = calculateNetWorth(accounts);
 
+  const thisMonth = useMemo(() => {
+    const now = new Date();
+    const filtered = transactions.filter(t => {
+      const d = new Date(t.date);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const income = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const expenses = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    const savingsPct = income > 0 ? Math.round(((income - expenses) / income) * 100) : 0;
+    return { income, expenses, savingsPct };
+  }, [transactions]);
+
   useEffect(() => {
     loadAccounts();
     loadRecentTransactions();
-    loadMonthlyPlan();
-  }, []);
+  }, [refreshKey]);
 
   const refreshData = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([loadAccounts(), loadRecentTransactions(), loadMonthlyPlan()]);
+      await Promise.all([loadAccounts(), loadRecentTransactions()]);
     } finally {
       setRefreshing(false);
-    }
-  };
-
-  const loadMonthlyPlan = async () => {
-    try {
-      const plan = await getCurrentMonthlyPlan();
-      setMonthlyPlan(plan);
-    } catch (error) {
-      console.error('Error loading monthly plan:', error);
     }
   };
 
@@ -173,8 +171,7 @@ export default function DashboardScreen() {
 
       await createAccount(accountData);
 
-      await loadAccounts();
-      await loadRecentTransactions();
+      triggerRefresh();
       setIsAddModalVisible(false);
       resetForm();
 
@@ -207,7 +204,7 @@ export default function DashboardScreen() {
         color: editingAccount.color, // Keep existing color
       });
 
-      await loadAccounts();
+      triggerRefresh();
       setIsEditModalVisible(false);
       resetForm();
 
@@ -219,43 +216,50 @@ export default function DashboardScreen() {
     }
   };
 
+  const confirmDelete = (message: string, onConfirm: () => void) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) onConfirm();
+    } else {
+      Alert.alert('Delete Account', message, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: onConfirm },
+      ]);
+    }
+  };
+
   const handleDeleteAccount = async (account: Account) => {
-    // Check if account has transactions
     try {
-      const transactions = await getTransactions({ accountId: account.id });
-      
-      if (transactions.length > 0) {
-        Alert.alert(
-          'Cannot Delete Account',
-          `This account has ${transactions.length} transaction(s). Please delete or reassign those transactions first.`,
-          [{ text: 'OK' }]
-        );
-        return;
-      }
+      const linkedTransactions = await getTransactions({ accountId: account.id });
 
-      Alert.alert(
-        'Delete Account',
-        `Are you sure you want to delete "${account.name}"? This action cannot be undone.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await deleteAccount(account.id);
-                await loadAccounts();
+      // Close the modal first — on iOS, Alert is swallowed when a Modal is still mounted
+      setIsEditModalVisible(false);
+      resetForm();
 
-                if (Platform.OS !== 'web') {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                }
-              } catch (error: any) {
-                Alert.alert('Error', error.message || 'Failed to delete account');
-              }
-            },
-          },
-        ]
-      );
+      const doDelete = async () => {
+        try {
+          await deleteAccount(account.id);
+          triggerRefresh();
+          if (Platform.OS !== 'web') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+        } catch (error: any) {
+          Alert.alert('Error', error.message || 'Failed to delete account');
+        }
+      };
+
+      setTimeout(() => {
+        if (linkedTransactions.length > 0) {
+          confirmDelete(
+            `"${account.name}" has ${linkedTransactions.length} transaction(s). Deleting it will also permanently remove all linked transactions. This cannot be undone.\n\nConfirm Force Delete?`,
+            doDelete
+          );
+        } else {
+          confirmDelete(
+            `Are you sure you want to delete "${account.name}"? This action cannot be undone.`,
+            doDelete
+          );
+        }
+      }, 300);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to check account transactions');
     }
@@ -316,44 +320,46 @@ export default function DashboardScreen() {
           </View>
         </Animated.View>
 
-        {/* Bento Grid - Phase 1 */}
-        <View style={styles.bentoGrid}>
-          {/* Net Worth - Large Hero */}
-          <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.bentoHero}>
-            <NetWorthCard totalBalance={netWorth} />
+        {/* Net Worth Hero */}
+        <Animated.View entering={FadeInDown.delay(100).springify()}>
+          <NetWorthCard totalBalance={netWorth} />
+        </Animated.View>
+
+        {/* This Month Analytics */}
+        {transactions.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(150).springify()} style={styles.analyticsRow}>
+            <View style={[styles.analyticsCard, { backgroundColor: `${colors.success}12`, borderColor: `${colors.success}30` }]}>
+              <TrendingUp size={16} color={colors.success} />
+              <Text style={[styles.analyticsLabel, { color: textSecondary }]}>Income</Text>
+              <Text style={[styles.analyticsValue, { color: colors.success }]} numberOfLines={1}>
+                {displayCurrency(thisMonth.income)}
+              </Text>
+            </View>
+            <View style={[styles.analyticsCard, { backgroundColor: `${colors.error}12`, borderColor: `${colors.error}30` }]}>
+              <TrendingDown size={16} color={colors.error} />
+              <Text style={[styles.analyticsLabel, { color: textSecondary }]}>Expenses</Text>
+              <Text style={[styles.analyticsValue, { color: colors.error }]} numberOfLines={1}>
+                {displayCurrency(thisMonth.expenses)}
+              </Text>
+            </View>
+            <View style={[styles.analyticsCard, {
+              backgroundColor: thisMonth.savingsPct >= 0 ? `${colors.primary[500]}12` : `${colors.warning}12`,
+              borderColor: thisMonth.savingsPct >= 0 ? `${colors.primary[500]}30` : `${colors.warning}30`,
+            }]}>
+              <Minus size={16} color={thisMonth.savingsPct >= 0 ? colors.primary[500] : colors.warning} />
+              <Text style={[styles.analyticsLabel, { color: textSecondary }]}>Saved</Text>
+              <Text style={[styles.analyticsValue, { color: thisMonth.savingsPct >= 0 ? colors.primary[500] : colors.warning }]} numberOfLines={1}>
+                {thisMonth.savingsPct}%
+              </Text>
+            </View>
           </Animated.View>
-
-          <View style={styles.bentoRow}>
-            {/* Budget Health - Medium Card */}
-            {monthlyPlan && (
-              <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.bentoMain}>
-                <BudgetHealthCard plan={monthlyPlan} transactions={transactions} variant="compact" />
-              </Animated.View>
-            )}
-
-            {/* AI Insights - Small Card */}
-            <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.bentoSide}>
-              <AnimatedScale 
-                onPress={() => router.push('/(tabs)/insights')}
-                style={[styles.miniCard, { backgroundColor: cardBackground, borderColor }]}
-              >
-                <View style={[styles.miniIcon, { backgroundColor: `${colors.warning}15` }]}>
-                  <Sparkles size={20} color={colors.warning} />
-                </View>
-                <Text style={[styles.miniLabel, { color: textSecondary }]}>AI Advice</Text>
-                <Text style={[styles.miniValue, { color: textPrimary }]}>Check Now</Text>
-              </AnimatedScale>
-            </Animated.View>
-          </View>
-        </View>
+        )}
 
         {/* Accounts Section */}
         <View style={styles.section}>
           <SectionHeader
             title="My Accounts"
             subtitle={`${accounts.length} Total`}
-            actionLabel={showAllAccounts ? "Show Less" : "See All"}
-            onAction={() => setShowAllAccounts(!showAllAccounts)}
           />
           
           <ScrollView 
@@ -368,7 +374,7 @@ export default function DashboardScreen() {
                 <Skeleton width={200} height={180} radius={borderRadius['3xl']} />
               </View>
             ) : (
-              accounts.slice(0, showAllAccounts ? accounts.length : 5).map((account, index) => (
+              accounts.map((account, index) => (
                 <Animated.View 
                   key={account.id} 
                   entering={FadeInRight.delay(300 + index * 100).springify()}
@@ -587,6 +593,14 @@ export default function DashboardScreen() {
               style={styles.submitButton}
             />
           </View>
+          {editingAccount && (
+            <TouchableOpacity
+              onPress={() => handleDeleteAccount(editingAccount)}
+              style={styles.deleteAccountBtn}
+            >
+              <Text style={styles.deleteAccountText}>Delete Account</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ModalSheet>
 
@@ -642,48 +656,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  bentoGrid: {
-    paddingHorizontal: spacing.xl,
-    gap: spacing.md,
-  },
-  bentoHero: {
-    marginHorizontal: -spacing.xl, // Neutralize container padding for full width hero
-  },
-  bentoRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: -spacing.md, // Tighten up the grid
-  },
-  bentoMain: {
-    flex: 1.8,
-  },
-  bentoSide: {
-    flex: 1,
-  },
-  miniCard: {
-    padding: spacing.lg,
-    borderRadius: borderRadius['2xl'],
-    borderWidth: 1,
-    minHeight: 120,
-    ...shadows.md,
-    justifyContent: 'space-between',
-  },
-  miniIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  miniLabel: {
-    fontSize: typography.fontSizes.xs,
-    fontWeight: typography.fontWeights.medium,
-  },
-  miniValue: {
-    fontSize: typography.fontSizes.sm,
-    fontWeight: typography.fontWeights.bold,
   },
   section: {
     marginTop: spacing.xl,
@@ -778,5 +750,39 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
+  },
+  deleteAccountBtn: {
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  deleteAccountText: {
+    color: colors.error,
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.semibold,
+  },
+  analyticsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  analyticsCard: {
+    flex: 1,
+    padding: spacing.md,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    gap: spacing.xs,
+  },
+  analyticsLabel: {
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.medium,
+  },
+  analyticsValue: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.bold,
   },
 });

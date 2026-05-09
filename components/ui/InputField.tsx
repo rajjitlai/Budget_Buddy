@@ -4,7 +4,7 @@ import { Eye, EyeOff } from 'lucide-react-native';
 import { useTheme } from '@/lib/ThemeContext';
 import { colors, spacing, typography, borderRadius } from '@/lib/theme';
 
-interface InputFieldProps {
+export interface InputFieldProps {
   label: string;
   placeholder: string;
   value: string;
@@ -16,6 +16,8 @@ interface InputFieldProps {
   error?: string;
   icon?: React.ReactNode;
   containerStyle?: ViewStyle;
+  maxLength?: number;
+  prefix?: string;
 }
 
 export function InputField({
@@ -30,6 +32,8 @@ export function InputField({
   error,
   icon,
   containerStyle,
+  maxLength,
+  prefix,
 }: InputFieldProps) {
   const { cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
@@ -60,6 +64,7 @@ export function InputField({
         ]}
       >
         {icon && <View style={styles.iconContainer}>{icon}</View>}
+        {prefix ? <Text style={[styles.prefix, { color: textPrimary }]}>{prefix}</Text> : null}
         <TextInput
           style={[
             styles.input,
@@ -78,6 +83,7 @@ export function InputField({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
+          maxLength={maxLength}
         />
         {showPasswordToggle && (
           <TouchableOpacity
@@ -141,5 +147,10 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: typography.fontSizes.xs,
     marginTop: spacing.xs,
+  },
+  prefix: {
+    fontSize: typography.fontSizes.md,
+    fontWeight: typography.fontWeights.semibold,
+    marginRight: spacing.xs,
   },
 });
