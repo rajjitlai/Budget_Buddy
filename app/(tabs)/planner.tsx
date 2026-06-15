@@ -46,6 +46,10 @@ import { InputField } from '@/components/ui/InputField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { AnimatedScale } from '@/components/ui/AnimatedScale';
 
+const SUGGESTED_FIXED = ['Rent', 'Electricity', 'Water', 'Internet', 'Insurance', 'Loan EMI', 'Groceries'];
+const SUGGESTED_SAVINGS = ['Emergency Fund', 'Retirement', 'Mutual Funds', 'Stocks', 'Vacation'];
+const SUGGESTED_ALLOWANCES = ['Dining Out', 'Shopping', 'Entertainment', 'Cafes', 'Gym / Health'];
+
 const { width } = Dimensions.get('window');
 
 type Step = 'income' | 'fixed' | 'savings' | 'variable' | 'summary';
@@ -283,6 +287,93 @@ export default function PlannerScreen() {
     );
   };
 
+  const renderQuickAdd = (
+    suggestions: string[],
+    currentItems: PlanItem[],
+    setFn: React.Dispatch<React.SetStateAction<PlanItem[]>>
+  ) => {
+    const activeLabels = currentItems.map(item => item.label.toLowerCase().trim());
+    return (
+      <View style={styles.suggestionsRow}>
+        {suggestions.map((s) => {
+          const isActive = activeLabels.includes(s.toLowerCase().trim());
+          return (
+            <TouchableOpacity
+              key={s}
+              onPress={() => {
+                if (isActive) {
+                  setFn(prev => prev.filter(item => item.label.toLowerCase().trim() !== s.toLowerCase().trim()));
+                } else {
+                  setFn(prev => {
+                    const emptyIndex = prev.findIndex(item => !item.label.trim());
+                    if (emptyIndex !== -1) {
+                      const updated = [...prev];
+                      updated[emptyIndex] = { ...updated[emptyIndex], label: s };
+                      return updated;
+                    }
+                    return [...prev, { id: Math.random().toString(), label: s, amount: '' }];
+                  });
+                }
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              style={[
+                styles.suggestionChip,
+                {
+                  backgroundColor: isActive ? `${colors.primary[500]}15` : (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                  borderColor: isActive ? colors.primary[500] : borderColor,
+                }
+              ]}
+            >
+              <Text style={[
+                styles.suggestionChipText,
+                { color: isActive ? colors.primary[500] : textSecondary }
+              ]}>
+                {isActive ? `✓ ${s}` : `+ ${s}`}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderRatioVisualizer = () => {
+    if (totalIncome <= 0) return null;
+    
+    const fixedPct = Math.min(100, Math.max(0, (totalFixed / totalIncome) * 100));
+    const savingsPct = Math.min(100, Math.max(0, (totalSavings / totalIncome) * 100));
+    const spendingPct = Math.min(100, Math.max(0, (totalSpending / totalIncome) * 100));
+    const leftoverPct = Math.max(0, 100 - fixedPct - savingsPct - spendingPct);
+    
+    return (
+      <View style={[styles.visualizerCard, { backgroundColor: cardBackground, borderColor }]}>
+        <Text style={[styles.visualizerTitle, { color: textPrimary }]}>Live Allocation Ratios</Text>
+        
+        <View style={styles.segmentBar}>
+          {fixedPct > 0 && (
+            <View style={[styles.barSegment, { flex: fixedPct, backgroundColor: colors.info }]} />
+          )}
+          {savingsPct > 0 && (
+            <View style={[styles.barSegment, { flex: savingsPct, backgroundColor: colors.success }]} />
+          )}
+          {spendingPct > 0 && (
+            <View style={[styles.barSegment, { flex: spendingPct, backgroundColor: colors.warning }]} />
+          )}
+          {leftoverPct > 0 && (
+            <View style={[styles.barSegment, { flex: leftoverPct, backgroundColor: isDarkMode ? colors.slate[700] : colors.slate[300] }]} />
+          )}
+        </View>
+        
+        <View style={styles.legendContainer}>
+          <LegendItem label="Fixed (Needs)" value={`${fixedPct.toFixed(0)}%`} target="50%" color={colors.info} />
+          <LegendItem label="Savings" value={`${savingsPct.toFixed(0)}%`} target="20%" color={colors.success} />
+          <LegendItem label="Allowances (Wants)" value={`${spendingPct.toFixed(0)}%`} target="30%" color={colors.warning} />
+          <LegendItem label="Leftover" value={`${leftoverPct.toFixed(0)}%`} color={isDarkMode ? colors.slate[400] : colors.slate[600]} />
+        </View>
+      </View>
+    );
+  };
+
   const renderSectionItems = (items: PlanItem[], setFn: React.Dispatch<React.SetStateAction<PlanItem[]>>) => (
     <View style={styles.itemsList}>
       {items.map((item) => (
@@ -343,7 +434,7 @@ export default function PlannerScreen() {
               <Target size={28} color={colors.primary[500]} />
             </View>
           </View>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={[styles.title, { color: textPrimary }]}>Budget Strategy</Text>
             <Text style={[styles.subtitle, { color: textSecondary }]}>Customize your monthly allocations</Text>
           </View>
@@ -395,8 +486,10 @@ export default function PlannerScreen() {
                 <ShieldCheck size={24} color={colors.info} />
                 <Text style={[styles.cardTitle, { color: textPrimary }]}>Step 2: Fixed Costs</Text>
               </View>
-              <Text style={[styles.cardHint, { color: textSecondary }]}>Non-negotiable bills and necessities.</Text>
+              <Text style={[styles.cardHint, { color: textSecondary }]}>Non-negotiable bills, necessities, and rent.</Text>
               {renderSectionItems(fixedExpenses, setFixedExpenses)}
+              {renderQuickAdd(SUGGESTED_FIXED, fixedExpenses, setFixedExpenses)}
+              {renderRatioVisualizer()}
               <View style={styles.buttonRow}>
                 <PrimaryButton title="Back" onPress={handleBack} variant="ghost" style={{ flex: 1 }} />
                 <PrimaryButton title="Next" onPress={handleNext} icon={<ChevronRight size={18} color="#fff" />} style={{ flex: 2 }} />
@@ -410,11 +503,10 @@ export default function PlannerScreen() {
                 <TrendingUp size={24} color={colors.success} />
                 <Text style={[styles.cardTitle, { color: textPrimary }]}>Step 3: Savings Goals</Text>
               </View>
-              <Text style={[styles.cardHint, { color: textSecondary }]}>Prioritize your future self.</Text>
+              <Text style={[styles.cardHint, { color: textSecondary }]}>Prioritize your future self (emergency fund, investments, etc.).</Text>
               {renderSectionItems(savingsGoals, setSavingsGoals)}
-              <View style={styles.suggestedBox}>
-                <Text style={[styles.suggestedText, { color: textSecondary }]}>Suggested (20%): {displayCurrency(totalIncome * 0.2)}</Text>
-              </View>
+              {renderQuickAdd(SUGGESTED_SAVINGS, savingsGoals, setSavingsGoals)}
+              {renderRatioVisualizer()}
               <View style={styles.buttonRow}>
                 <PrimaryButton title="Back" onPress={handleBack} variant="ghost" style={{ flex: 1 }} />
                 <PrimaryButton title="Next" onPress={handleNext} icon={<ChevronRight size={18} color="#fff" />} style={{ flex: 2 }} />
@@ -428,8 +520,10 @@ export default function PlannerScreen() {
                 <Sparkles size={24} color={colors.warning} />
                 <Text style={[styles.cardTitle, { color: textPrimary }]}>Step 4: Allowances</Text>
               </View>
-              <Text style={[styles.cardHint, { color: textSecondary }]}>Food, fun, and lifestyle spending.</Text>
+              <Text style={[styles.cardHint, { color: textSecondary }]}>Food, fun, cafe, shopping, and lifestyle spending.</Text>
               {renderSectionItems(allowances, setAllowances)}
+              {renderQuickAdd(SUGGESTED_ALLOWANCES, allowances, setAllowances)}
+              {renderRatioVisualizer()}
               <View style={styles.buttonRow}>
                 <PrimaryButton title="Back" onPress={handleBack} variant="ghost" style={{ flex: 1 }} />
                 <PrimaryButton title="Finish" onPress={handleNext} icon={<CheckCircle2 size={18} color="#fff" />} style={{ flex: 2 }} />
@@ -446,10 +540,12 @@ export default function PlannerScreen() {
               
               <View style={styles.summaryGrid}>
                 <SummaryItem label="Income" value={totalIncome} color={textPrimary} currency={user?.currency} />
-                <SummaryItem label="Fixed" value={totalFixed} color={colors.error} currency={user?.currency} />
+                <SummaryItem label="Fixed" value={totalFixed} color={colors.info} currency={user?.currency} />
                 <SummaryItem label="Savings" value={totalSavings} color={colors.success} currency={user?.currency} />
                 <SummaryItem label="Flexible" value={totalSpending} color={colors.warning} currency={user?.currency} />
               </View>
+
+              {renderRatioVisualizer()}
 
               <View style={[styles.resultBox, { backgroundColor: remaining >= 0 ? `${colors.success}10` : `${colors.error}10` }]}>
                 <Text style={[styles.resultLabel, { color: textSecondary }]}>Leftover</Text>
@@ -493,6 +589,21 @@ function SummaryItem({ label, value, color, currency }: { label: string; value: 
     <View style={styles.summaryItem}>
       <Text style={[styles.summaryLabel, { color: textSecondary }]}>{label}</Text>
       <Text style={[styles.summaryValue, { color }]}>{formatCurrency(value, currency)}</Text>
+    </View>
+  );
+}
+
+function LegendItem({ label, value, target, color }: { label: string; value: string; target?: string; color: string }) {
+  const { textPrimary, textSecondary } = useTheme();
+  return (
+    <View style={styles.legendItem}>
+      <View style={styles.legendHeader}>
+        <View style={[styles.legendDot, { backgroundColor: color }]} />
+        <Text style={[styles.legendLabel, { color: textSecondary }]}>{label}</Text>
+      </View>
+      <Text style={[styles.legendValue, { color: textPrimary }]}>
+        {value} {target ? `(Target ${target})` : ''}
+      </Text>
     </View>
   );
 }
@@ -559,5 +670,72 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  suggestionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  suggestionChip: {
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+  },
+  suggestionChipText: {
+    fontSize: typography.fontSizes.xs,
+    fontWeight: '500',
+  },
+  visualizerCard: {
+    padding: spacing.md,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    marginVertical: spacing.md,
+  },
+  visualizerTitle: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+  },
+  segmentBar: {
+    height: 12,
+    borderRadius: 6,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+    marginBottom: spacing.md,
+  },
+  barSegment: {
+    height: '100%',
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  legendItem: {
+    minWidth: '45%',
+    marginBottom: 4,
+  },
+  legendHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendLabel: {
+    fontSize: typography.fontSizes.xs,
+  },
+  legendValue: {
+    fontSize: typography.fontSizes.xs - 1,
+    fontWeight: 'bold',
+    marginLeft: 14,
   },
 });

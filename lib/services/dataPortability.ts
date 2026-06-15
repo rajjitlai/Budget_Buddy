@@ -26,7 +26,7 @@ export async function exportData(): Promise<void> {
     const monthlyPlans = await getAllMonthlyPlans();
 
     const data: ExportData = {
-      version: Constants.expoConfig?.version || '2.2.0',
+      version: Constants.expoConfig?.version || '2.2.1',
       timestamp: new Date().toISOString(),
       accounts,
       transactions,
@@ -47,7 +47,7 @@ export async function exportData(): Promise<void> {
     } else {
       // For native, use FileSystem and Sharing
       const fileName = `budget_buddy_backup_${Date.now()}.json`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
       
       await FileSystem.writeAsStringAsync(fileUri, jsonString, {
         encoding: FileSystem.EncodingType.UTF8,

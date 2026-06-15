@@ -91,9 +91,6 @@ export default function PrivacyPolicyScreen() {
               • Local-only data storage (we never see your financial data)
             </Text>
             <Text style={[styles.bulletPoint, { color: textSecondary }]}>
-              • Optional biometric locking (FaceID/Fingerprint)
-            </Text>
-            <Text style={[styles.bulletPoint, { color: textSecondary }]}>
               • Secure credential storage for settings using Expo SecureStore
             </Text>
             <Text style={[styles.bulletPoint, { color: textSecondary }]}>

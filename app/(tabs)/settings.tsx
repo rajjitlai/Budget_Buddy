@@ -110,7 +110,7 @@ const faqs: FAQItem[] = [
   {
     id: '7',
     question: 'Is my financial data secure?',
-    answer: 'Yes! Your data is stored locally on your device in a secure SQLite database. We do not store your data on our servers, ensuring total privacy. You can also enable biometric locking for an extra layer of security.',
+    answer: 'Yes! Your data is stored locally on your device in a secure SQLite database. We do not store your data on our servers, ensuring total privacy.',
   },
   {
     id: '8',
@@ -753,9 +753,6 @@ export default function SettingsScreen() {
           </Text>
           <Text style={[styles.modalBulletPoint, { color: textSecondary }]}>
             • Local-only data storage (we never see your financial data)
-          </Text>
-          <Text style={[styles.modalBulletPoint, { color: textSecondary }]}>
-            • Optional biometric locking (FaceID/Fingerprint)
           </Text>
           <Text style={[styles.modalBulletPoint, { color: textSecondary }]}>
             • Secure credential storage for settings using Expo SecureStore

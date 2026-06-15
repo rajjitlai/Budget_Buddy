@@ -183,7 +183,6 @@ Budget Buddy uses local-first authentication and security:
 - **Local SQLite**: All financial data stays on your device.
 - **Secure Store**: Credentials and API keys are encrypted locally.
 - **Privacy First**: No cloud syncing of your private transactions.
-- **Biometrics**: Support for FaceID/TouchID/Fingerprint locking.
 
 ## 💾 Data Portability
 
@@ -213,4 +212,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ using React Native and Expo — v2.2.0 — © 2026**
+**Built with ❤️ using React Native and Expo — v2.2.1 — © 2026**

@@ -37,7 +37,6 @@ interface AIConfig {
 interface UserProfile {
   name: string;
   onboarded: boolean;
-  biometricEnabled: boolean;
   aiConfig?: AIConfig;
   currency?: string;
 }
@@ -72,7 +71,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
           const defaultUser: UserProfile = {
             name: 'Guest',
             onboarded: false,
-            biometricEnabled: false,
             aiConfig: {
               apiKey: '',
               provider: 'openrouter',
@@ -104,7 +102,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const defaultUser: UserProfile = {
       name: 'Guest',
       onboarded: false,
-      biometricEnabled: false,
     };
     setUser(defaultUser);
     await deleteStoredUser(USER_STORAGE_KEY);

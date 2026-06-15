@@ -2,6 +2,11 @@
 
 All notable changes to **Budget Buddy** will be documented in this file.
 
+## [2.2.1] - 2026-06-15
+### Fixed
+- **Data Export**: Replaced `FileSystem.documentDirectory` with `FileSystem.cacheDirectory` to resolve Native/Android Sharing API permission/FileProvider issues.
+- **Biometrics Cleanup**: Removed all legacy references, setting attributes, and descriptions of FaceID/TouchID/Fingerprint locking, as this is better managed by OS-level app locks.
+
 ## [2.2.0] - 2026-05-09
 ### Added
 - **Loans Tracker**: New dedicated drawer screen to track money you owe (borrowed) and money owed to you (lent). Features: principal/remaining balance, interest rate, due date, lender/borrower name, repayment recording, progress bar, overdue badge, and summary strip showing total owed vs total to collect.
