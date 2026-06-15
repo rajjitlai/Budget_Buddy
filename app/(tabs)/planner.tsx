@@ -40,7 +40,7 @@ import { useData } from '@/lib/DataContext';
 import { useRouter, useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
 import { formatCurrency, MonthlyPlan } from '@/lib/types';
-import { getCurrentMonthlyPlan, saveMonthlyPlan } from '@/lib/services/monthlyPlans';
+import { getCurrentMonthlyPlan, saveMonthlyPlan, deleteCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
 import { getTransactions } from '@/lib/services/transactions';
 import { InputField } from '@/components/ui/InputField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -71,6 +71,7 @@ export default function PlannerScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
+  const [hasExistingPlan, setHasExistingPlan] = useState(false);
 
   // Plan State
   const [salary, setSalary] = useState('');
@@ -98,6 +99,7 @@ export default function PlannerScreen() {
       setLoading(true);
       const plan = await getCurrentMonthlyPlan();
       if (plan) {
+        setHasExistingPlan(true);
         setSalary(plan.salary.toString());
         
         // Reconstruct dynamic fields from the flat structure (legacy support)
@@ -115,6 +117,8 @@ export default function PlannerScreen() {
         if (plan.allocations.spending) allow.push({ id: Math.random().toString(), label: 'Variable Spending', amount: plan.allocations.spending.toString() });
         if (plan.allocations.salaryBuffer) allow.push({ id: Math.random().toString(), label: 'Buffer', amount: plan.allocations.salaryBuffer.toString() });
         if (allow.length > 0) setAllowances(allow);
+      } else {
+        setHasExistingPlan(false);
       }
     } catch (error) {
       console.error('Error loading plan:', error);
@@ -238,6 +242,7 @@ export default function PlannerScreen() {
       };
 
       await saveMonthlyPlan(month, year, planData);
+      setHasExistingPlan(true);
       triggerRefresh();
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -256,6 +261,61 @@ export default function PlannerScreen() {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeletePlan = () => {
+    const performDelete = async () => {
+      try {
+        setLoading(true);
+        await deleteCurrentMonthlyPlan();
+        
+        // Reset states
+        setSalary('');
+        setFixedExpenses([
+          { id: '1', label: 'Rent / Mortgage', amount: '' },
+          { id: '2', label: 'Utilities & Bills', amount: '' },
+        ]);
+        setSavingsGoals([
+          { id: '1', label: 'Emergency Fund', amount: '' },
+        ]);
+        setAllowances([
+          { id: '1', label: 'Variable Spending', amount: '' },
+        ]);
+        setHasExistingPlan(false);
+        setCurrentStep('income');
+        
+        triggerRefresh();
+        
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        if (Platform.OS === 'web') {
+          window.alert('Budget plan reset successfully.');
+        } else {
+          Alert.alert('Success', 'Budget plan reset successfully.');
+        }
+      } catch (err) {
+        console.error('Error deleting plan:', err);
+        Alert.alert('Error', 'Failed to delete budget plan.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to delete the currently applied monthly plan? This will clear all planned budget limits.')) {
+        performDelete();
+      }
+    } else {
+      Alert.alert(
+        'Reset Budget Plan',
+        'Are you sure you want to delete the currently applied monthly plan? This will clear all planned budget limits.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: performDelete }
+        ]
+      );
     }
   };
 
@@ -471,6 +531,17 @@ export default function PlannerScreen() {
                   )}
                   <Text style={[styles.aiSuggestText, { color: colors.primary[500] }]}>
                     {suggesting ? 'Calculating...' : '✨ AI Suggest Allocations'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {hasExistingPlan && (
+                <TouchableOpacity
+                  onPress={handleDeletePlan}
+                  style={[styles.deletePlanBtn, { backgroundColor: `${colors.error}10`, borderColor: `${colors.error}30`, marginTop: spacing.sm }]}
+                >
+                  <Trash2 size={16} color={colors.error} />
+                  <Text style={[styles.deletePlanText, { color: colors.error }]}>
+                    Reset Current Plan
                   </Text>
                 </TouchableOpacity>
               )}
@@ -737,5 +808,20 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.xs - 1,
     fontWeight: 'bold',
     marginLeft: 14,
+  },
+  deletePlanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  deletePlanText: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.semibold,
   },
 });

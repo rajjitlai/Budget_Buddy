@@ -37,9 +37,7 @@
       "expo-secure-store",
       "expo-font",
       "expo-web-browser",
-      "expo-sqlite",
-      "expo-sharing",
-      "expo-document-picker"
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true

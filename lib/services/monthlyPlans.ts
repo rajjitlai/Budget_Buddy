@@ -74,3 +74,25 @@ export async function getAllMonthlyPlans(): Promise<any[]> {
     allocations: JSON.parse(row.allocations),
   }));
 }
+
+/**
+ * Delete a specific monthly plan
+ */
+export async function deleteMonthlyPlan(month: string, year: number): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'DELETE FROM monthly_plans WHERE month = ? AND year = ?',
+    [month, year]
+  );
+}
+
+/**
+ * Delete the currently applied monthly plan
+ */
+export async function deleteCurrentMonthlyPlan(): Promise<void> {
+  const now = new Date();
+  const month = now.toLocaleString('default', { month: 'long' });
+  const year = now.getFullYear();
+
+  await deleteMonthlyPlan(month, year);
+}

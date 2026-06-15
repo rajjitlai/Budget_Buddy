@@ -3,8 +3,14 @@
 All notable changes to **Budget Buddy** will be documented in this file.
 
 ## [2.2.1] - 2026-06-15
+### Added
+- **Reset Budget Plan**: Added the ability to completely delete/reset the currently applied monthly budget strategy in the planner, clearing database constraints and resetting state forms.
+- **Budget Ratios Visualizer**: Integrated a live, responsive 50/30/20 category segment visualizer bar that updates in real-time as users adjust income, fixed expenses, savings, and allowances.
+- **Planner Suggester Chips**: Added tap-to-add category suggester chips (e.g. Rent, Groceries, Mutual Funds) at each step of the Budget Planner to avoid manual labels typing.
+
 ### Fixed
-- **Data Export**: Replaced `FileSystem.documentDirectory` with `FileSystem.cacheDirectory` to resolve Native/Android Sharing API permission/FileProvider issues.
+- **Data Export**: Replaced `FileSystem.documentDirectory` with `FileSystem.cacheDirectory` in dataPortability.ts to resolve Native/Android Sharing API permission/FileProvider issues in standalone APKs.
+- **EAS Build Config Plugin**: Removed invalid config plugin entries for expo-sharing and expo-document-picker from app.json to fix EAS compilation checks.
 - **Biometrics Cleanup**: Removed all legacy references, setting attributes, and descriptions of FaceID/TouchID/Fingerprint locking, as this is better managed by OS-level app locks.
 
 ## [2.2.0] - 2026-05-09
