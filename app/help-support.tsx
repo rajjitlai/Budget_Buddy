@@ -152,7 +152,7 @@ export default function HelpSupportScreen() {
           <Text style={[styles.sectionHeader, { color: textPrimary }]}>Getting Started</Text>
           <View style={[styles.infoCard, { backgroundColor: cardBackground, borderColor }]}>
             <Text style={[styles.infoText, { color: textSecondary }]}>
-              Welcome to Budget Buddy! Here's how to get started:
+              {"Welcome to Budget Buddy! Here's how to get started:"}
             </Text>
             <Text style={[styles.stepText, { color: textSecondary }]}>
               1. Add your accounts (Salary, Spending, Savings, etc.)
@@ -233,7 +233,7 @@ export default function HelpSupportScreen() {
           <View style={[styles.contactCard, { backgroundColor: cardBackground, borderColor }]}>
             <Text style={[styles.contactTitle, { color: textPrimary }]}>Need More Help?</Text>
             <Text style={[styles.contactText, { color: textSecondary }]}>
-              If you can't find what you're looking for, feel free to reach out:
+              {"If you can't find what you're looking for, feel free to reach out:"}
             </Text>
             <TouchableOpacity
               onPress={openEmail}

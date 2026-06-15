@@ -137,7 +137,7 @@ export default function PrivacyPolicyScreen() {
             </Text>
 
             <Text style={[styles.sectionTitle, { color: textPrimary }]}>
-              7. Children's Privacy
+              {"7. Children's Privacy"}
             </Text>
             <Text style={[styles.content, { color: textSecondary }]}>
               Budget Buddy is not intended for users under the age of 13. We do not knowingly collect personal information from children under 13.
@@ -147,7 +147,7 @@ export default function PrivacyPolicyScreen() {
               8. Changes to This Policy
             </Text>
             <Text style={[styles.content, { color: textSecondary }]}>
-              We may update this Privacy Policy from time to time. We will notify you of any changes by updating the "Last Updated" date at the top of this policy.
+              {"We may update this Privacy Policy from time to time. We will notify you of any changes by updating the \"Last Updated\" date at the top of this policy."}
             </Text>
 
             <Text style={[styles.sectionTitle, { color: textPrimary }]}>

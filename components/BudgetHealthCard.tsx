@@ -113,7 +113,7 @@ export function BudgetHealthCard({ plan, transactions, variant = 'default' }: Bu
       {isOverBudget && !isCompact && (
         <View style={[styles.warningBox, { backgroundColor: `${colors.error}10` }]}>
           <Text style={[styles.warningText, { color: colors.error }]}>
-            You've exceeded your planned budget by {displayCurrency(totalSpent - totalBudget)}. Consider pausing non-essential spending.
+            {"You've exceeded your planned budget by "}{displayCurrency(totalSpent - totalBudget)}. Consider pausing non-essential spending.
           </Text>
         </View>
       )}

@@ -265,8 +265,8 @@ export default function SettingsScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
       await exportData();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to export data');
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to export data');
     }
   };
 
@@ -801,7 +801,7 @@ export default function SettingsScreen() {
           </Text>
 
           <Text style={[styles.modalSectionTitle, { color: textPrimary }]}>
-            7. Children's Privacy
+            {"7. Children's Privacy"}
           </Text>
           <Text style={[styles.modalContent, { color: textSecondary }]}>
             Budget Buddy is not intended for users under the age of 13. We do not knowingly collect personal information from children under 13.
@@ -811,7 +811,7 @@ export default function SettingsScreen() {
             8. Changes to This Policy
           </Text>
           <Text style={[styles.modalContent, { color: textSecondary }]}>
-            We may update this Privacy Policy from time to time. We will notify you of any changes by updating the "Last Updated" date at the top of this policy.
+            {"We may update this Privacy Policy from time to time. We will notify you of any changes by updating the \"Last Updated\" date at the top of this policy."}
           </Text>
 
           <Text style={[styles.modalSectionTitle, { color: textPrimary }]}>
@@ -849,7 +849,7 @@ export default function SettingsScreen() {
             2. Description of Service
           </Text>
           <Text style={[styles.modalContent, { color: textSecondary }]}>
-            Budget Buddy is a personal finance management application that helps you track accounts, manage transactions, plan budgets, and receive AI-powered financial insights. The service is provided "as is" for your personal use.
+            {"Budget Buddy is a personal finance management application that helps you track accounts, manage transactions, plan budgets, and receive AI-powered financial insights. The service is provided \"as is\" for your personal use."}
           </Text>
 
           <Text style={[styles.modalSectionTitle, { color: textPrimary }]}>
@@ -881,7 +881,7 @@ export default function SettingsScreen() {
             • Use the service for any illegal or unauthorized purpose
           </Text>
           <Text style={[styles.modalBulletPoint, { color: textSecondary }]}>
-            • Attempt to gain unauthorized access to the service or other users' accounts
+            {"• Attempt to gain unauthorized access to the service or other users' accounts"}
           </Text>
           <Text style={[styles.modalBulletPoint, { color: textSecondary }]}>
             • Interfere with or disrupt the service or servers
@@ -927,7 +927,7 @@ export default function SettingsScreen() {
             8. Limitation of Liability
           </Text>
           <Text style={[styles.modalContent, { color: textSecondary }]}>
-            Budget Buddy is provided "as is" without warranties of any kind. We are not liable for any direct, indirect, incidental, or consequential damages arising from your use of the service, including but not limited to financial losses or data loss.
+            {"Budget Buddy is provided \"as is\" without warranties of any kind. We are not liable for any direct, indirect, incidental, or consequential damages arising from your use of the service, including but not limited to financial losses or data loss."}
           </Text>
 
           <Text style={[styles.modalSectionTitle, { color: textPrimary }]}>
@@ -1125,7 +1125,7 @@ export default function SettingsScreen() {
           <Text style={[styles.modalSectionHeader, { color: textPrimary }]}>Getting Started</Text>
           <View style={[styles.modalInfoCard, { backgroundColor: cardBackground, borderColor }]}>
             <Text style={[styles.modalContent, { color: textSecondary }]}>
-              Welcome to Budget Buddy! Here's how to get started:
+              {"Welcome to Budget Buddy! Here's how to get started:"}
             </Text>
             <Text style={[styles.modalStepText, { color: textSecondary }]}>
               1. Add your accounts (Salary, Spending, Savings, etc.)
@@ -1202,7 +1202,7 @@ export default function SettingsScreen() {
           <View style={[styles.modalContactCard, { backgroundColor: cardBackground, borderColor }]}>
             <Text style={[styles.modalContactTitle, { color: textPrimary }]}>Need More Help?</Text>
             <Text style={[styles.modalContactText, { color: textSecondary }]}>
-              If you can't find what you're looking for, feel free to reach out:
+              {"If you can't find what you're looking for, feel free to reach out:"}
             </Text>
             <TouchableOpacity
               onPress={openEmail}

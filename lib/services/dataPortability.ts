@@ -61,9 +61,9 @@ export async function exportData(): Promise<void> {
         });
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error exporting data:', error);
-    throw new Error('Failed to export data');
+    throw new Error(`Failed to export data: ${error?.message || error}`);
   }
 }
 

@@ -148,7 +148,7 @@ export default function NotificationsScreen() {
             <Bell size={48} color={textSecondary} style={{ opacity: 0.3, marginBottom: spacing.md }} />
             <Text style={[styles.emptyTitle, { color: textPrimary }]}>All Clear!</Text>
             <Text style={[styles.emptySubtitle, { color: textSecondary }]}>
-              No alerts right now. We'll notify you when something needs your attention.
+              {"No alerts right now. We'll notify you when something needs your attention."}
             </Text>
           </Animated.View>
         ) : (

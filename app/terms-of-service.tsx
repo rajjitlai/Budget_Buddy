@@ -54,7 +54,7 @@ export default function TermsOfServiceScreen() {
               2. Description of Service
             </Text>
             <Text style={[styles.content, { color: textSecondary }]}>
-              Budget Buddy is a personal finance management application that helps you track accounts, manage transactions, plan budgets, and receive AI-powered financial insights. The service is provided "as is" for your personal use.
+              {"Budget Buddy is a personal finance management application that helps you track accounts, manage transactions, plan budgets, and receive AI-powered financial insights. The service is provided \"as is\" for your personal use."}
             </Text>
 
             <Text style={[styles.sectionTitle, { color: textPrimary }]}>
@@ -86,7 +86,7 @@ export default function TermsOfServiceScreen() {
               • Use the service for any illegal or unauthorized purpose
             </Text>
             <Text style={[styles.bulletPoint, { color: textSecondary }]}>
-              • Attempt to gain unauthorized access to the service or other users' accounts
+              {"• Attempt to gain unauthorized access to the service or other users' accounts"}
             </Text>
             <Text style={[styles.bulletPoint, { color: textSecondary }]}>
               • Interfere with or disrupt the service or servers
@@ -132,7 +132,7 @@ export default function TermsOfServiceScreen() {
               8. Limitation of Liability
             </Text>
             <Text style={[styles.content, { color: textSecondary }]}>
-              Budget Buddy is provided "as is" without warranties of any kind. We are not liable for any direct, indirect, incidental, or consequential damages arising from your use of the service, including but not limited to financial losses or data loss.
+              {"Budget Buddy is provided \"as is\" without warranties of any kind. We are not liable for any direct, indirect, incidental, or consequential damages arising from your use of the service, including but not limited to financial losses or data loss."}
             </Text>
 
             <Text style={[styles.sectionTitle, { color: textPrimary }]}>
