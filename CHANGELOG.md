@@ -2,8 +2,9 @@
 
 All notable changes to **Budget Buddy** will be documented in this file.
 
-## [2.2.1] - 2026-06-15
+## [2.2.1] - 2026-06-16
 ### Added
+- **Auto-logged Balance Corrections**: Direct account balance changes made from the Dashboard Edit Modal are now tracked via auto-generated adjustment transactions under the `🛠️ Adjustment` category, preserving complete financial history.
 - **Reset Budget Plan**: Added the ability to completely delete/reset the currently applied monthly budget strategy in the planner, clearing database constraints and resetting state forms.
 - **Budget Ratios Visualizer**: Integrated a live, responsive 50/30/20 category segment visualizer bar that updates in real-time as users adjust income, fixed expenses, savings, and allowances.
 - **Planner Suggester Chips**: Added tap-to-add category suggester chips (e.g. Rent, Groceries, Mutual Funds) at each step of the Budget Planner to avoid manual labels typing.

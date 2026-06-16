@@ -39,7 +39,7 @@ import {
 } from '@/lib/types';
 import { getAccounts, createAccount, updateAccount, deleteAccount } from '@/lib/services/accounts';
 import { useData } from '@/lib/DataContext';
-import { getTransactions } from '@/lib/services/transactions';
+import { getTransactions, createTransaction } from '@/lib/services/transactions';
 import { generateAlerts, getUnreadCount } from '@/lib/services/notifications';
 import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
 import { NetWorthCard } from '@/components/NetWorthCard';
@@ -247,13 +247,33 @@ export default function DashboardScreen() {
     if (!editingAccount || !newAccountName || !newAccountType) return;
 
     try {
+      const oldBalance = editingAccount.balance;
+      const newBalance = parseFloat(newAccountBalance) || 0;
+      const balanceDifference = newBalance - oldBalance;
+
+      // 1. Update general account settings (excluding balance for now if it changed)
       await updateAccount(editingAccount.id, {
         name: newAccountName,
         type: newAccountType,
-        balance: parseFloat(newAccountBalance) || 0,
         icon: newAccountIcon || editingAccount.icon,
-        color: editingAccount.color, // Keep existing color
+        color: editingAccount.color,
       });
+
+      // 2. Log adjustment transaction if balance actually changed
+      if (balanceDifference !== 0) {
+        const type = balanceDifference > 0 ? 'income' : 'expense';
+        const amount = Math.abs(balanceDifference);
+
+        await createTransaction({
+          amount,
+          category: '🛠️ Adjustment',
+          sourceAccountId: editingAccount.id,
+          destinationAccountId: null,
+          notes: 'Balance adjustment',
+          date: new Date().toISOString().split('T')[0],
+          type,
+        });
+      }
 
       triggerRefresh();
       setIsEditModalVisible(false);
