@@ -47,7 +47,7 @@ export default function DrawerLayout() {
       <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: 0 }}>
         <View style={styles.drawerHeader}>
           <Text style={[styles.drawerTitle, { color: textPrimary }]}>Budget Buddy</Text>
-          <Text style={[styles.drawerSubtitle, { color: textSecondary }]}>v{Constants.expoConfig?.version || '2.2.1'} Premium</Text>
+          <Text style={[styles.drawerSubtitle, { color: textSecondary }]}>v{Constants.expoConfig?.version || '2.3.1'} Premium</Text>
         </View>
         <DrawerItemList {...props} />
         <View style={styles.drawerDivider} />
@@ -76,6 +76,9 @@ export default function DrawerLayout() {
       drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
         headerShown: false,
+        drawerType: 'front',
+        swipeEdgeWidth: 35,
+        keyboardDismissMode: 'on-drag',
         drawerStyle: {
           backgroundColor: isDarkMode ? colors.slate[950] : '#ffffff',
           width: 280,

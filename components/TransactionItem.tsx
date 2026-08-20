@@ -16,14 +16,13 @@ import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
-import { formatCurrency } from '@/lib/types';
-import { TransactionDocument } from '@/lib/services/transactions';
-import { Account } from '@/lib/types';
+import { formatCurrency, Transaction, Account } from '@/lib/types';
+import { getCategoryColor } from '@/lib/utils/categorizer';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-interface TransactionItemProps {
-  transaction: TransactionDocument;
+export interface TransactionItemProps {
+  transaction: Transaction;
   sourceAccount?: Account;
   destinationAccount?: Account;
   onPress?: () => void;
@@ -50,6 +49,7 @@ export function TransactionItem({
       case 'expense':
         return ArrowUpRight;
       case 'transfer':
+      default:
         return ArrowLeftRight;
     }
   };
@@ -64,6 +64,8 @@ export function TransactionItem({
         return colors.info;
     }
   };
+
+  const categoryColor = getCategoryColor(transaction.category);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -114,13 +116,7 @@ export function TransactionItem({
 
   const Icon = getTypeIcon();
   const typeColor = getTypeColor();
-
-  // Extract emoji if present at start of category
-  // Using a simpler regex that is more compatible with older environments
-  const emojiRegex = /^([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}])/u;
-  const match = transaction.category.match(emojiRegex);
-  const emoji = match ? match[0] : null;
-  const cleanCategory = emoji ? transaction.category.replace(emoji, '').trim() : transaction.category;
+  const cleanCategory = transaction.category.charAt(0).toUpperCase() + transaction.category.slice(1);
 
   return (
     <AnimatedTouchable
@@ -130,21 +126,26 @@ export function TransactionItem({
       activeOpacity={0.9}
       style={[
         styles.container,
-        { 
+        {
           backgroundColor: cardBackground,
-          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.04)',
-          ...shadows.sm
+          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)',
+          ...shadows.sm,
         },
         animatedStyle,
       ]}
     >
       <View style={styles.content}>
-        <View style={[styles.iconContainer, { backgroundColor: `${typeColor}12` }]}>
-          {emoji ? (
-            <Text style={{ fontSize: 20 }}>{emoji}</Text>
-          ) : (
-            <Icon size={18} color={typeColor} />
-          )}
+        {/* Category-tinted glowing icon ring */}
+        <View
+          style={[
+            styles.iconContainer,
+            {
+              backgroundColor: `${categoryColor}16`,
+              borderColor: `${categoryColor}30`,
+            },
+          ]}
+        >
+          <Icon size={18} color={categoryColor} />
         </View>
 
         <View style={styles.details}>
@@ -164,14 +165,14 @@ export function TransactionItem({
             <Text style={[styles.account, { color: textSecondary }]} numberOfLines={1}>
               {transaction.type === 'transfer'
                 ? 'Transfer'
-                : sourceAccount?.name || 'Unknown Account'}
+                : sourceAccount?.name || 'Account'}
             </Text>
             <Text style={[styles.date, { color: textSecondary }]}>
               {formatDate(transaction.date)}
             </Text>
           </View>
 
-          {transaction.notes && (
+          {transaction.notes && transaction.notes.trim().length > 0 && (
             <Text style={[styles.notes, { color: textSecondary }]} numberOfLines={1}>
               {transaction.notes}
             </Text>
@@ -184,18 +185,20 @@ export function TransactionItem({
           <TouchableOpacity
             onPress={handleEdit}
             style={[styles.actionButton, { backgroundColor: `${colors.primary[500]}15` }]}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
           >
-            <Edit size={16} color={colors.primary[500]} />
+            <Edit size={15} color={colors.primary[500]} />
           </TouchableOpacity>
         )}
         {onDelete && (
           <TouchableOpacity
             onPress={handleDelete}
             style={[styles.actionButton, { backgroundColor: `${colors.error}15` }]}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
           >
-            <Trash2 size={16} color={colors.error} />
+            <Trash2 size={15} color={colors.error} />
           </TouchableOpacity>
         )}
       </View>
@@ -210,7 +213,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius['2xl'],
     marginHorizontal: spacing.xl,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm + 2,
     borderWidth: 1,
   },
   content: {
@@ -219,12 +222,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconContainer: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
+    borderWidth: 1,
   },
   details: {
     flex: 1,
@@ -233,7 +237,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: 2,
   },
   category: {
     fontSize: typography.fontSizes.md,
@@ -244,38 +248,39 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: typography.fontSizes.md,
     fontWeight: typography.fontWeights.bold,
+    letterSpacing: -0.2,
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
   },
   account: {
     fontSize: typography.fontSizes.xs,
     fontWeight: typography.fontWeights.medium,
     flex: 1,
+    opacity: 0.8,
   },
   date: {
     fontSize: typography.fontSizes.xs,
     fontWeight: typography.fontWeights.medium,
+    opacity: 0.8,
   },
   notes: {
     fontSize: typography.fontSizes.xs,
-    fontStyle: 'italic',
-    marginTop: spacing.xs,
+    marginTop: 3,
+    opacity: 0.75,
   },
   actions: {
     flexDirection: 'row',
-    gap: spacing.xs,
+    gap: 6,
     marginLeft: spacing.sm,
   },
   actionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: borderRadius.md,
+    width: 30,
+    height: 30,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
 });
-

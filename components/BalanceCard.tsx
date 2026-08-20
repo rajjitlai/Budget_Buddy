@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Wallet,
   CreditCard,
@@ -14,8 +15,9 @@ import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
-import { Account, formatCurrency } from '@/lib/types';
+import { Account } from '@/lib/types';
 import { AnimatedScale } from './ui/AnimatedScale';
+import { AnimatedCounter } from './ui/AnimatedCounter';
 
 interface BalanceCardProps {
   account: Account;
@@ -34,7 +36,7 @@ const iconMap: Record<string, React.ComponentType<{ size: number; color: string 
 export function BalanceCard({ account, onPress }: BalanceCardProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
   const { user } = useUser();
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
 
   const IconComponent = iconMap[account.icon] || Wallet;
 
@@ -47,45 +49,59 @@ export function BalanceCard({ account, onPress }: BalanceCardProps) {
   };
 
   const getHiddenBalance = () => {
-    return 'Rs. ••••••';
+    const symbol = user?.currency || 'Rs.';
+    return `${symbol} ••••••`;
   };
+
+  const accountColor = account.color || colors.primary[500];
 
   return (
     <AnimatedScale
       onPress={onPress}
       style={[
         styles.container,
-        { 
+        {
           backgroundColor: cardBackground,
-          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.04)',
+          borderColor: isDarkMode ? `${accountColor}30` : `${accountColor}20`,
         },
       ]}
     >
+      {/* Subtle top-corner gradient ambient glow */}
+      <LinearGradient
+        colors={[`${accountColor}15`, 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+      />
+
       <View style={styles.header}>
         <View
           style={[
             styles.iconContainer,
-            { backgroundColor: `${account.color}15`, borderColor: `${account.color}25` },
+            { backgroundColor: `${accountColor}18`, borderColor: `${accountColor}35` },
           ]}
         >
           {iconMap[account.icon] ? (
-            <IconComponent size={24} color={account.color} />
+            <IconComponent size={22} color={accountColor} />
           ) : (
-            <Text style={{ fontSize: 22 }}>{account.icon || '🏦'}</Text>
+            <Text style={{ fontSize: 20 }}>{account.icon || '🏦'}</Text>
           )}
         </View>
         <TouchableOpacity
           onPress={toggleVisibility}
-          style={styles.eyeButton}
+          style={[styles.eyeButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.7}
         >
           {isVisible ? (
-            <Eye size={18} color={textSecondary} />
+            <Eye size={16} color={textSecondary} />
           ) : (
-            <EyeOff size={18} color={textSecondary} />
+            <EyeOff size={16} color={textSecondary} />
           )}
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.content}>
         <Text style={[styles.accountName, { color: textPrimary }]} numberOfLines={1}>
           {account.name}
@@ -93,49 +109,60 @@ export function BalanceCard({ account, onPress }: BalanceCardProps) {
         <Text style={[styles.accountType, { color: textSecondary }]}>
           {account.type}
         </Text>
-        
-        <Text style={[styles.balance, { color: textPrimary }]} numberOfLines={1}>
-          {isVisible ? formatCurrency(account.balance, user?.currency) : getHiddenBalance()}
-        </Text>
+
+        {isVisible ? (
+          <AnimatedCounter
+            value={account.balance}
+            currency={user?.currency}
+            style={[styles.balance, { color: textPrimary }]}
+          />
+        ) : (
+          <Text style={[styles.balance, { color: textPrimary }]} numberOfLines={1}>
+            {getHiddenBalance()}
+          </Text>
+        )}
       </View>
-      
-      <View style={[styles.accentBar, { backgroundColor: account.color }]} />
+
+      <View style={[styles.accentBar, { backgroundColor: accountColor }]} />
     </AnimatedScale>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    width: 200,
-    height: 180,
+    width: 205,
+    height: 185,
     borderRadius: borderRadius['3xl'],
     padding: spacing.lg,
     marginRight: spacing.md,
     borderWidth: 1,
     overflow: 'hidden',
-    ...shadows.lg,
+    ...shadows.md,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   iconContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: borderRadius['2xl'],
+    width: 46,
+    height: 46,
+    borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
   eyeButton: {
-    padding: spacing.xs,
-    borderRadius: borderRadius.md,
-    backgroundColor: 'rgba(128, 128, 128, 0.05)',
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     flex: 1,
+    justifyContent: 'flex-end',
   },
   accountName: {
     fontSize: typography.fontSizes.md,
@@ -145,22 +172,22 @@ const styles = StyleSheet.create({
   accountType: {
     fontSize: typography.fontSizes.xs,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     fontWeight: typography.fontWeights.semibold,
-    opacity: 0.6,
-    marginBottom: spacing.sm,
+    opacity: 0.65,
+    marginBottom: spacing.xs + 2,
   },
   balance: {
-    fontSize: typography.fontSizes.xl,
+    fontSize: typography.fontSizes.xl + 1,
     fontWeight: typography.fontWeights.bold,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   accentBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 6,
-    opacity: 0.8,
+    height: 5,
+    opacity: 0.85,
   },
 });

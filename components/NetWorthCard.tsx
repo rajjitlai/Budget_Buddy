@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TrendingUp, Wallet, Eye, EyeOff } from 'lucide-react-native';
+import { TrendingUp, Wallet, Eye, EyeOff, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
-import { formatCurrency } from '@/lib/types';
 import { useUser } from '@/lib/UserContext';
+import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 
 interface NetWorthCardProps {
   totalBalance: number;
@@ -14,7 +14,7 @@ interface NetWorthCardProps {
 
 export function NetWorthCard({ totalBalance, changePercent = null }: NetWorthCardProps) {
   const { user } = useUser();
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
 
   const toggleVisibility = () => {
     if (Platform.OS !== 'web') {
@@ -24,13 +24,14 @@ export function NetWorthCard({ totalBalance, changePercent = null }: NetWorthCar
   };
 
   const getHiddenBalance = () => {
-    return 'Rs. ••••••';
+    const symbol = user?.currency || 'Rs.';
+    return `${symbol} ••••••`;
   };
 
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={colors.gradients.emerald as any}
+        colors={['#0F766E', '#14B8A6', '#0D9488']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
@@ -39,7 +40,7 @@ export function NetWorthCard({ totalBalance, changePercent = null }: NetWorthCar
           <View style={styles.header}>
             <View style={styles.leftHeader}>
               <View style={styles.iconContainer}>
-                <Wallet size={22} color="#ffffff" />
+                <Wallet size={20} color="#ffffff" />
               </View>
               <Text style={styles.label}>Total Net Worth</Text>
             </View>
@@ -47,23 +48,30 @@ export function NetWorthCard({ totalBalance, changePercent = null }: NetWorthCar
               onPress={toggleVisibility}
               style={styles.eyeButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
             >
               {isVisible ? (
-                <Eye size={20} color="#ffffff" />
+                <Eye size={18} color="#ffffff" />
               ) : (
-                <EyeOff size={20} color="#ffffff" />
+                <EyeOff size={18} color="rgba(255, 255, 255, 0.7)" />
               )}
             </TouchableOpacity>
           </View>
-          
-          <Text style={styles.balance}>
-            {isVisible ? formatCurrency(totalBalance, user?.currency) : getHiddenBalance()}
-          </Text>
-          
+
+          {isVisible ? (
+            <AnimatedCounter
+              value={totalBalance}
+              currency={user?.currency}
+              style={styles.balance}
+            />
+          ) : (
+            <Text style={styles.balance}>{getHiddenBalance()}</Text>
+          )}
+
           {typeof changePercent === 'number' && isVisible && (
             <View style={styles.changeContainer}>
               <View style={styles.badge}>
-                <TrendingUp size={14} color="#ffffff" />
+                <TrendingUp size={13} color="#ffffff" />
                 <Text style={styles.changeText}>
                   {changePercent >= 0 ? '+' : ''}
                   {changePercent}%
@@ -73,8 +81,8 @@ export function NetWorthCard({ totalBalance, changePercent = null }: NetWorthCar
             </View>
           )}
         </View>
-        
-        {/* Decorative mesh pattern elements */}
+
+        {/* Ambient radial mesh decorations */}
         <View style={[styles.decorativeCircle, styles.circle1]} />
         <View style={[styles.decorativeCircle, styles.circle2]} />
         <View style={[styles.decorativeCircle, styles.circle3]} />
@@ -90,6 +98,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius['3xl'],
     ...shadows.lg,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   gradient: {
     padding: spacing.xl,
@@ -112,23 +122,24 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   iconContainer: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
-    fontSize: typography.fontSizes.md,
+    fontSize: typography.fontSizes.sm + 1,
     fontWeight: typography.fontWeights.medium,
-    color: 'rgba(255, 255, 255, 0.95)',
+    color: 'rgba(255, 255, 255, 0.92)',
+    letterSpacing: 0.3,
   },
   eyeButton: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -136,7 +147,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes['4xl'],
     fontWeight: typography.fontWeights.bold,
     color: '#ffffff',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
   },
   changeContainer: {
     flexDirection: 'row',
@@ -148,47 +159,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingVertical: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: borderRadius.full,
   },
   changeText: {
-    fontSize: typography.fontSizes.sm,
+    fontSize: typography.fontSizes.xs + 1,
     color: '#ffffff',
     fontWeight: typography.fontWeights.bold,
   },
   sinceText: {
     fontSize: typography.fontSizes.xs,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.82)',
     fontWeight: typography.fontWeights.medium,
   },
   decorativeCircle: {
     position: 'absolute',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 999,
   },
   circle1: {
-    top: -50,
+    top: -60,
     right: -50,
-    width: 180,
-    height: 180,
+    width: 200,
+    height: 200,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   circle2: {
-    bottom: -40,
-    left: -20,
-    width: 120,
-    height: 120,
+    bottom: -50,
+    left: -30,
+    width: 140,
+    height: 140,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   circle3: {
-    top: 20,
-    right: 40,
-    width: 60,
-    height: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    top: 30,
+    right: 60,
+    width: 80,
+    height: 80,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
 });
-
-
-

@@ -24,9 +24,7 @@ export function AccountList({
         <BalanceCard
           key={account.id}
           account={account}
-          onPress={() => onAccountPress?.(account)}
-          onEdit={onAccountEdit ? () => onAccountEdit(account) : undefined}
-          onDelete={onAccountDelete ? () => onAccountDelete(account) : undefined}
+          onPress={() => (onAccountEdit ? onAccountEdit(account) : onAccountPress?.(account))}
         />
       ))}
     </View>
