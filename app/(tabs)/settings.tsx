@@ -38,6 +38,7 @@ import {
   FileText,
   Menu,
   RefreshCcw,
+  History,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
@@ -145,6 +146,7 @@ export default function SettingsScreen() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [showChangelogModal, setShowChangelogModal] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState(user?.currency || 'Rs.');
 
   useEffect(() => {
@@ -229,9 +231,9 @@ export default function SettingsScreen() {
     try {
       await updateUser({
         aiConfig: {
-          apiKey: aiApiKey.trim(),
+          apiKey: aiApiKey.trim().replace(/^["']|["']$/g, ''),
           provider: (aiProvider as 'openrouter' | 'openai') || 'openrouter',
-          model: aiModel.trim() || 'google/gemma-2-9b-it:free',
+          model: aiModel.trim() || (aiProvider === 'openai' ? 'gpt-4o-mini' : 'openrouter/free'),
           customInstructions: aiCustomInstructions.trim() || undefined,
         },
       });
@@ -564,7 +566,7 @@ export default function SettingsScreen() {
               </Text>
               <View style={styles.aboutInfo}>
                 <Text style={[styles.aboutInfoText, { color: textSecondary }]}>
-                  Version {Constants.expoConfig?.version || '2.1.0'}
+                  Version {Constants.expoConfig?.version || '2.3.1'}
                 </Text>
                 <Text style={[styles.aboutInfoText, { color: textSecondary }]}>
                   © {new Date().getFullYear()} Budget Buddy
@@ -593,6 +595,14 @@ export default function SettingsScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+            {renderSettingItem(
+              History,
+              "What's New in v2.3.1",
+              'View release notes & changelog',
+              'link',
+              undefined,
+              () => setShowChangelogModal(true)
+            )}
           </View>
         </Animated.View>
 
@@ -675,7 +685,7 @@ export default function SettingsScreen() {
         >
           <Text style={[styles.appName, { color: textPrimary }]}>Budget Buddy</Text>
           <Text style={[styles.appVersion, { color: textSecondary }]}>
-            Version {Constants.expoConfig?.version || '2.1.0'}
+            Version {Constants.expoConfig?.version || '2.3.1'}
           </Text>
           {updateInfo?.hasUpdate && (
             <TouchableOpacity 
@@ -698,14 +708,9 @@ export default function SettingsScreen() {
         onClose={() => setShowPrivacyModal(false)}
         title="Privacy Policy"
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={styles.modalScroll}
-          contentContainerStyle={styles.modalContentContainer}
-        >
-          <Text style={[styles.modalLastUpdated, { color: textSecondary }]}>
-            Last Updated: May 2026
-          </Text>
+        <Text style={[styles.modalLastUpdated, { color: textSecondary }]}>
+          Last Updated: May 2026
+        </Text>
 
           <Text style={[styles.modalSectionTitle, { color: textPrimary }]}>
             1. Information We Collect
@@ -820,7 +825,6 @@ export default function SettingsScreen() {
           <Text style={[styles.modalContent, { color: textSecondary }]}>
             If you have questions about this Privacy Policy or our data practices, please contact us through the Help & Support section in the app settings.
           </Text>
-        </ScrollView>
       </ModalSheet>
 
       {/* Terms of Service Modal */}
@@ -829,14 +833,9 @@ export default function SettingsScreen() {
         onClose={() => setShowTermsModal(false)}
         title="Terms of Service"
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={styles.modalScroll}
-          contentContainerStyle={styles.modalContentContainer}
-        >
-          <Text style={[styles.modalLastUpdated, { color: textSecondary }]}>
-            Last Updated: May 2026
-          </Text>
+        <Text style={[styles.modalLastUpdated, { color: textSecondary }]}>
+          Last Updated: May 2026
+        </Text>
 
           <Text style={[styles.modalSectionTitle, { color: textPrimary }]}>
             1. Acceptance of Terms
@@ -964,7 +963,6 @@ export default function SettingsScreen() {
           <Text style={[styles.modalContent, { color: textSecondary }]}>
             For questions about these Terms of Service, please contact us through the Help & Support section in the app settings.
           </Text>
-        </ScrollView>
       </ModalSheet>
 
       {/* Currency Selection Modal */}
@@ -1028,6 +1026,7 @@ export default function SettingsScreen() {
 
           <SelectField
             label="API Provider"
+            placeholder="Select provider"
             options={[
               { id: 'openrouter', label: 'OpenRouter (Recommended)', icon: 'Globe' },
               { id: 'openai', label: 'OpenAI', icon: 'Sparkles' },
@@ -1046,10 +1045,44 @@ export default function SettingsScreen() {
 
           <InputField
             label="Model Name"
-            placeholder={aiProvider === 'openrouter' ? 'e.g. google/gemma-2-9b-it:free' : 'e.g. gpt-4o-mini'}
+            placeholder={aiProvider === 'openrouter' ? 'e.g. openrouter/free (Recommended)' : 'e.g. gpt-4o-mini'}
             value={aiModel}
             onChangeText={setAiModel}
           />
+
+          {aiProvider === 'openrouter' && (
+            <View style={{ marginBottom: spacing.md }}>
+              <Text style={{ fontSize: typography.fontSizes.xs, color: textSecondary, marginBottom: spacing.xs }}>
+                Quick Model Presets:
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.xs }}>
+                {[
+                  { label: 'Auto Free (Recommended)', model: 'openrouter/free' },
+                  { label: 'Gemma 4 Free', model: 'google/gemma-4-26b-a4b-it:free' },
+                  { label: 'Nemotron Free', model: 'nvidia/nemotron-3.5-lightning:free' },
+                  { label: 'GLM 5.2 Free', model: 'z-ai/glm-5.2:free' },
+                  { label: 'GPT-4o Mini', model: 'openai/gpt-4o-mini' },
+                ].map((item) => (
+                  <TouchableOpacity
+                    key={item.model}
+                    onPress={() => setAiModel(item.model)}
+                    style={{
+                      paddingVertical: 6,
+                      paddingHorizontal: 10,
+                      borderRadius: borderRadius.lg,
+                      borderWidth: 1,
+                      borderColor: aiModel === item.model ? colors.primary[500] : borderColor,
+                      backgroundColor: aiModel === item.model ? `${colors.primary[500]}15` : cardBackground,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, color: aiModel === item.model ? colors.primary[500] : textPrimary, fontWeight: '500' }}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
           <InputField
             label="Custom Instructions (optional)"
@@ -1064,7 +1097,7 @@ export default function SettingsScreen() {
             <Info size={16} color={colors.primary[500]} />
             <Text style={[styles.modalHintText, { color: textSecondary }]}>
               {aiProvider === 'openrouter' 
-                ? 'Find free & paid models at openrouter.ai/models — paste the model ID above (e.g. google/gemma-3n-e2b-it:free).'
+                ? 'Use "openrouter/free" to automatically route to active free models, or choose from the presets above.'
                 : 'Find model names at platform.openai.com/docs/models (e.g. gpt-4o-mini, gpt-4o).'}
             </Text>
           </View>
@@ -1086,13 +1119,8 @@ export default function SettingsScreen() {
         onClose={() => setShowHelpModal(false)}
         title="Help & Support"
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={styles.modalScroll}
-          contentContainerStyle={styles.modalContentContainer}
-        >
-          {/* Quick Actions */}
-          <View style={styles.modalQuickActions}>
+        {/* Quick Actions */}
+        <View style={styles.modalQuickActions}>
             <TouchableOpacity
               onPress={openEmail}
               style={[styles.modalActionCard, { backgroundColor: cardBackground, borderColor }]}
@@ -1214,7 +1242,125 @@ export default function SettingsScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
+      </ModalSheet>
+
+      {/* Changelog Modal */}
+      <ModalSheet
+        visible={showChangelogModal}
+        onClose={() => setShowChangelogModal(false)}
+        title="Release Notes & Changelog"
+      >
+        {/* Release v2.3.1 */}
+        <View style={[styles.changelogCard, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : colors.slate[50], borderColor }]}>
+          <View style={styles.changelogHeader}>
+            <View style={styles.changelogVersionRow}>
+              <Text style={[styles.changelogVersion, { color: textPrimary }]}>v2.3.1</Text>
+              <View style={[styles.changelogBadge, { backgroundColor: colors.primary[500] }]}>
+                <Text style={styles.changelogBadgeText}>Latest Release</Text>
+              </View>
+            </View>
+            <Text style={[styles.changelogDate, { color: textSecondary }]}>August 2026</Text>
+          </View>
+
+          {/* Section 1 */}
+          <View style={styles.changelogSection}>
+            <Text style={[styles.changelogSectionTitle, { color: colors.primary[500] }]}>
+              Account Grid & Interactive Popups
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Replaced account bottom sheet with a centered, 2-column interactive grid popup dialog featuring account icons, color themes, balances, and check badges.
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • WhatsApp-style reactive 60fps soft keyboard height translation across AI Chat and Transaction form notes inputs.
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Auto-scroll on input focus to keep transaction notes and action buttons directly visible above the keyboard.
+            </Text>
+          </View>
+
+          {/* Section 2 */}
+          <View style={styles.changelogSection}>
+            <Text style={[styles.changelogSectionTitle, { color: colors.primary[500] }]}>
+              Multi-Model AI & Real-Time Connect
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Added <Text style={{ fontWeight: '600', color: textPrimary }}>openrouter/free</Text> auto-routing with instant failover across Gemma 4, Nemotron 3.5, and GLM 5.2.
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Real-time error diagnostic feedback for invalid keys (401), rate limits (429), or credit limits (402).
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Rich Markdown preview formatting in Chat bubbles and AI Insight cards.
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Enforced strict personal finance domain guardrails preventing code generation.
+            </Text>
+          </View>
+
+          {/* Section 3 */}
+          <View style={styles.changelogSection}>
+            <Text style={[styles.changelogSectionTitle, { color: colors.primary[500] }]}>
+              Analytics & Dynamic Category Analysis
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Auto-inferred transaction categories from notes and merchant names as you type.
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Interactive dynamic SVG Pie & Donut chart with deterministic color palettes in Analytics.
+            </Text>
+          </View>
+
+          {/* Section 4 */}
+          <View style={styles.changelogSection}>
+            <Text style={[styles.changelogSectionTitle, { color: colors.primary[500] }]}>
+              Visual Design & Micro-Interactions
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Animated rolling number counters on net worth and account balance values.
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Linear gradient meshes, ambient glows, and tactile privacy eye toggle on Hero cards.
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Glowing area curve fills on Net Worth Trend line charts.
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Category-tinted circular glow rings for transaction icon badges.
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Dynamic Savings Milestone celebration banner on the home dashboard.
+            </Text>
+          </View>
+
+          {/* Section 5 */}
+          <View style={styles.changelogSection}>
+            <Text style={[styles.changelogSectionTitle, { color: colors.primary[500] }]}>
+              Navigation & Device Optimizations
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Dynamic safe area insets for Android 3-button navigation and gesture navigation bars.
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Android hardware back button modal dismissal.
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Configured drawer swipe edge width to avoid gesture navigation conflicts.
+            </Text>
+          </View>
+
+          {/* Section 6 */}
+          <View style={styles.changelogSection}>
+            <Text style={[styles.changelogSectionTitle, { color: colors.primary[500] }]}>
+              Data Integrity & Full Backup Scope
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Fixed loan partial update overwrite bug.
+            </Text>
+            <Text style={[styles.changelogItemText, { color: textSecondary }]}>
+              • Extended backup/restore to serialize accounts, transactions, monthly plans, loans, notifications, and chat history atomically.
+            </Text>
+          </View>
+        </View>
       </ModalSheet>
     </SafeAreaView>
   );
@@ -1576,6 +1722,9 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.lg,
     fontWeight: typography.fontWeights.bold,
   },
+  modalActions: {
+    marginTop: spacing.xl,
+  },
   updateBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1590,6 +1739,54 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  changelogCard: {
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  changelogHeader: {
+    marginBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150, 150, 150, 0.15)',
+    paddingBottom: spacing.sm,
+  },
+  changelogVersionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  changelogVersion: {
+    fontSize: typography.fontSizes.xl,
+    fontWeight: typography.fontWeights.bold,
+  },
+  changelogBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
+  },
+  changelogBadgeText: {
+    color: '#ffffff',
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.bold,
+  },
+  changelogDate: {
+    fontSize: typography.fontSizes.xs,
+  },
+  changelogSection: {
+    marginBottom: spacing.md,
+  },
+  changelogSectionTitle: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.semibold,
+    marginBottom: spacing.xs,
+  },
+  changelogItemText: {
+    fontSize: typography.fontSizes.sm,
+    lineHeight: 20,
+    marginBottom: 4,
   },
 });
 

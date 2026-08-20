@@ -21,6 +21,7 @@ import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { AIInsight } from '@/lib/types';
+import { MarkdownView } from '@/components/ui/MarkdownView';
 
 interface AIInsightCardProps {
   insight: AIInsight;
@@ -138,12 +139,20 @@ export function AIInsightCard({ insight, onActionPress }: AIInsightCardProps) {
               </Text>
             </View>
           </View>
-          <Text
-            style={[styles.description, { color: textSecondary }]}
-            numberOfLines={isExpanded ? undefined : 2}
-          >
-            {insight.description}
-          </Text>
+          {isExpanded ? (
+            <MarkdownView
+              content={insight.description}
+              textColor={textSecondary}
+              style={{ marginTop: spacing.xs }}
+            />
+          ) : (
+            <Text
+              style={[styles.description, { color: textSecondary }]}
+              numberOfLines={2}
+            >
+              {insight.description}
+            </Text>
+          )}
         </View>
         <Animated.View style={animatedChevronStyle}>
           <ChevronDown size={20} color={textSecondary} />

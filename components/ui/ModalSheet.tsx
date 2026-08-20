@@ -6,15 +6,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  KeyboardAvoidingView,
   ScrollView,
+  useWindowDimensions,
+  BackHandler,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
+  useAnimatedKeyboard,
   FadeIn,
   FadeOut,
 } from 'react-native-reanimated';
@@ -23,7 +25,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/lib/ThemeContext';
 import { colors, spacing, typography, borderRadius, shadows } from '@/lib/theme';
 
-interface ModalSheetProps {
+export interface ModalSheetProps {
   visible: boolean;
   onClose: () => void;
   title: string;
@@ -31,31 +33,54 @@ interface ModalSheetProps {
 }
 
 export function ModalSheet({ visible, onClose, title, children }: ModalSheetProps) {
-  const { isDarkMode, cardBackground, textPrimary, textSecondary, backgroundColor } = useTheme();
-  const translateY = useSharedValue(1000);
+  const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const keyboard = useAnimatedKeyboard({ isStatusBarTranslucentAndroid: true });
+
+  const scale = useSharedValue(0.92);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      translateY.value = withSpring(0, { damping: 30, stiffness: 250, mass: 0.8 });
-      opacity.value = withTiming(1, { duration: 200 });
+      scale.value = withSpring(1, { damping: 24, stiffness: 280, mass: 0.7 });
+      opacity.value = withTiming(1, { duration: 180 });
       if (Platform.OS !== 'web') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     } else {
-      translateY.value = withTiming(1000, { duration: 250 });
-      opacity.value = withTiming(0, { duration: 200 });
+      scale.value = withTiming(0.92, { duration: 150 });
+      opacity.value = withTiming(0, { duration: 150 });
     }
   }, [visible]);
 
+  // Handle Android hardware / system back button
+  useEffect(() => {
+    if (!visible) return;
+
+    const onBackPress = () => {
+      onClose();
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [visible, onClose]);
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
   }));
 
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const cardAnimStyle = useAnimatedStyle(() => {
+    const kbOffset = keyboard.height.value > 0 ? -Math.min(keyboard.height.value * 0.4, 180) : 0;
+    return {
+      opacity: opacity.value,
+      transform: [
+        { scale: scale.value },
+        { translateY: kbOffset },
+      ],
+    };
+  });
 
   const handleBackdropPress = () => {
     if (Platform.OS !== 'web') {
@@ -64,63 +89,20 @@ export function ModalSheet({ visible, onClose, title, children }: ModalSheetProp
     onClose();
   };
 
-  if (Platform.OS === 'web') {
-    // Web: Centered modal
-    return (
-      <Modal
-        visible={visible}
-        transparent
-        animationType="fade"
-        onRequestClose={onClose}
-      >
-        <Animated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(200)}
-          style={[styles.webBackdrop, backdropStyle]}
-        >
-          <TouchableOpacity
-            style={styles.backdropTouchable}
-            activeOpacity={1}
-            onPress={handleBackdropPress}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={(e) => e.stopPropagation()}
-              style={[styles.webModal, { backgroundColor: cardBackground }]}
-            >
-              <View style={styles.webHeader}>
-                <Text style={[styles.webTitle, { color: textPrimary }]}>
-                  {title}
-                </Text>
-                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <X size={24} color={textSecondary} />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.webContent}>{children}</View>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </Animated.View>
-      </Modal>
-    );
-  }
+  const modalWidth = Math.min(width - spacing.xl * 2, 480);
+  const maxModalHeight = Math.min(height - (insets.top + insets.bottom + 48), 640);
 
-  // Mobile: Bottom sheet
   return (
     <Modal
       visible={visible}
       transparent
       animationType="none"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
-        <Animated.View
-          style={[styles.backdrop, backdropStyle]}
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(200)}
-        >
+      <View style={styles.modalRoot}>
+        {/* Backdrop Overlay */}
+        <Animated.View style={[styles.backdrop, backdropStyle]}>
           <TouchableOpacity
             style={styles.backdropTouchable}
             activeOpacity={1}
@@ -128,130 +110,117 @@ export function ModalSheet({ visible, onClose, title, children }: ModalSheetProp
           />
         </Animated.View>
 
-        <Animated.View
+        {/* Centered Popup Dialog Card */}
+        <View
           style={[
-            styles.sheet,
-            { backgroundColor: cardBackground },
-            sheetStyle,
+            styles.centerWrapper,
+            {
+              paddingTop: insets.top + spacing.md,
+              paddingBottom: insets.bottom + spacing.md,
+            },
           ]}
+          pointerEvents="box-none"
         >
-          <SafeAreaView edges={['bottom']}>
-            {/* Handle bar */}
-            <View style={styles.handleContainer}>
-              <View style={[styles.handle, { backgroundColor: textSecondary }]} />
-            </View>
-
+          <Animated.View
+            style={[
+              styles.popupCard,
+              {
+                width: modalWidth,
+                maxHeight: maxModalHeight,
+                backgroundColor: cardBackground,
+                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(15, 23, 42, 0.08)',
+              },
+              cardAnimStyle,
+            ]}
+          >
             {/* Header */}
-            <View style={styles.header}>
-              <Text style={[styles.title, { color: textPrimary }]}>{title}</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={textSecondary} />
+            <View style={[styles.header, { borderBottomColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : colors.slate[200] }]}>
+              <Text style={[styles.title, { color: textPrimary }]} numberOfLines={1}>
+                {title}
+              </Text>
+              <TouchableOpacity
+                onPress={onClose}
+                style={[styles.closeButton, { backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.06)' : colors.slate[100] }]}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                activeOpacity={0.7}
+              >
+                <X size={18} color={textSecondary} />
               </TouchableOpacity>
             </View>
 
-            {/* Content */}
+            {/* Scrollable Content */}
             <ScrollView
               style={styles.contentScroll}
               contentContainerStyle={styles.content}
               keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              bounces={true}
+              overScrollMode="always"
             >
               {children}
             </ScrollView>
-          </SafeAreaView>
-        </Animated.View>
-      </KeyboardAvoidingView>
+          </Animated.View>
+        </View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  modalRoot: {
     flex: 1,
+    position: 'relative',
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
   },
   backdropTouchable: {
     flex: 1,
   },
-  sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: borderRadius['2xl'],
-    borderTopRightRadius: borderRadius['2xl'],
-    maxHeight: '90%',
-    ...shadows.xl,
-  },
-  handleContainer: {
+  centerWrapper: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    opacity: 0.3,
+  popupCard: {
+    borderRadius: borderRadius['2xl'],
+    borderWidth: 1,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    ...shadows.xl,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.lg,
+    paddingVertical: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: colors.slate[200],
   },
   title: {
-    fontSize: typography.fontSizes['2xl'],
+    fontSize: typography.fontSizes.xl,
     fontWeight: typography.fontWeights.bold,
     flex: 1,
+    marginRight: spacing.md,
   },
   closeButton: {
-    padding: spacing.xs,
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   contentScroll: {
+    flexGrow: 0,
     flexShrink: 1,
   },
   content: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xl,
-  },
-  // Web styles
-  webBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  webModal: {
-    width: '100%',
-    maxWidth: 500,
-    borderRadius: borderRadius['2xl'],
-    maxHeight: '90%',
-    ...shadows.xl,
-  },
-  webHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.slate[200],
-  },
-  webTitle: {
-    fontSize: typography.fontSizes['2xl'],
-    fontWeight: typography.fontWeights.bold,
-    flex: 1,
-  },
-  webContent: {
-    padding: spacing.xl,
-    maxHeight: 600,
   },
 });

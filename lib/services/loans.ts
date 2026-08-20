@@ -34,9 +34,33 @@ export async function createLoan(data: Omit<Loan, 'id' | 'createdAt'>): Promise<
 
 export async function updateLoan(id: string, data: Partial<Omit<Loan, 'id' | 'createdAt'>>): Promise<void> {
   const db = await getDatabase();
+  const fieldMap: Record<string, string> = {
+    name: 'name',
+    type: 'type',
+    principal: 'principal',
+    remaining: 'remaining',
+    interestRate: 'interest_rate',
+    dueDate: 'due_date',
+    lenderBorrower: 'lender_borrower',
+    notes: 'notes',
+  };
+
+  const setClauses: string[] = [];
+  const values: any[] = [];
+
+  for (const [key, dbColumn] of Object.entries(fieldMap)) {
+    if (key in data) {
+      setClauses.push(`${dbColumn} = ?`);
+      values.push((data as any)[key] ?? null);
+    }
+  }
+
+  if (setClauses.length === 0) return;
+
+  values.push(id);
   await db.runAsync(
-    `UPDATE loans SET name=?, type=?, principal=?, remaining=?, interest_rate=?, due_date=?, lender_borrower=?, notes=? WHERE id=?`,
-    [data.name ?? '', data.type ?? 'borrowed', data.principal ?? 0, data.remaining ?? 0, data.interestRate ?? 0, data.dueDate ?? null, data.lenderBorrower ?? null, data.notes ?? null, id]
+    `UPDATE loans SET ${setClauses.join(', ')} WHERE id = ?`,
+    values
   );
 }
 

@@ -212,4 +212,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ using React Native and Expo — v2.2.1 — © 2026**
+**Built with ❤️ using React Native and Expo — v2.3.1 — © 2026**

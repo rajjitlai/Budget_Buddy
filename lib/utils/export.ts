@@ -23,8 +23,8 @@ export async function exportDataAsJSON(): Promise<void> {
       monthlyPlan,
     };
 
-    const fileName = \`budget_buddy_export_\${new Date().getTime()}.json\`;
-    const filePath = \`\${FileSystem.cacheDirectory}\${fileName}\`;
+    const fileName = `budget_buddy_export_${new Date().getTime()}.json`;
+    const filePath = `${FileSystem.cacheDirectory}${fileName}`;
 
     await FileSystem.writeAsStringAsync(filePath, JSON.stringify(data, null, 2));
 
@@ -70,8 +70,8 @@ export async function exportTransactionsToCSV(): Promise<void> {
       ...rows.map(row => row.join(',')),
     ].join('\n');
 
-    const fileName = \`transactions_export_\${new Date().getTime()}.csv\`;
-    const filePath = \`\${FileSystem.cacheDirectory}\${fileName}\`;
+    const fileName = `transactions_export_${new Date().getTime()}.csv`;
+    const filePath = `${FileSystem.cacheDirectory}${fileName}`;
 
     await FileSystem.writeAsStringAsync(filePath, csvContent);
 

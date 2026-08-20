@@ -11,8 +11,13 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  useAnimatedKeyboard,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -39,6 +44,7 @@ import {
   SUGGESTED_CATEGORIES,
   formatCurrency,
 } from '@/lib/types';
+import { inferCategoryFromText } from '@/lib/utils/categorizer';
 import { getAccounts } from '@/lib/services/accounts';
 import { 
   createTransaction, 
@@ -66,7 +72,19 @@ export default function TransactionScreen() {
   const navigation = useNavigation();
   
   const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
+  const insets = useSafeAreaInsets();
+  const keyboard = useAnimatedKeyboard({ isStatusBarTranslucentAndroid: true });
+  const formScrollRef = React.useRef<ScrollView>(null);
   const suggestionScrollRef = React.useRef<ScrollView>(null);
+
+  const animatedKeyboardPadding = useAnimatedStyle(() => {
+    const kbHeight = keyboard.height.value;
+    return {
+      flex: 1,
+      paddingBottom: kbHeight > 0 ? kbHeight : 0,
+    };
+  });
+
   const [activeTab, setActiveTab] = useState<TabType>('add');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -200,6 +218,8 @@ export default function TransactionScreen() {
   const accountOptions = accounts.map((acc) => ({
     id: acc.id,
     label: `${acc.name} (${displayCurrency(acc.balance)})`,
+    icon: acc.icon,
+    color: acc.color,
   }));
 
   const handleTabChange = (tab: TabType) => {
@@ -227,6 +247,19 @@ export default function TransactionScreen() {
     setTransactionType('expense');
   };
 
+  const handleNotesChange = (text: string) => {
+    setNotes(text);
+    if (!category || category.trim() === '') {
+      const inferred = inferCategoryFromText(text);
+      if (inferred) {
+        setCategory(inferred.category);
+        if (transactionType !== 'transfer') {
+          setTransactionType(inferred.type);
+        }
+      }
+    }
+  };
+
   const handleSubmit = async () => {
     if (!amount || !sourceAccount || (transactionType !== 'transfer' && !category)) {
       return;
@@ -238,7 +271,7 @@ export default function TransactionScreen() {
         amount: parseFloat(amount),
         category: category || 'other',
         sourceAccountId: sourceAccount,
-        destinationAccountId: transactionType === 'transfer' ? destinationAccount : undefined,
+        destinationAccountId: transactionType === 'transfer' ? (destinationAccount || undefined) : undefined,
         notes,
         date,
         type: transactionType,
@@ -270,7 +303,7 @@ export default function TransactionScreen() {
     setAmount(transaction.amount.toString());
     setCategory(transaction.category);
     setSourceAccount(transaction.sourceAccountId);
-    setDestinationAccount(transaction.destinationAccountId);
+    setDestinationAccount(transaction.destinationAccountId || null);
     setNotes(transaction.notes);
     setDate(transaction.date.split('T')[0]);
     setTransactionType(transaction.type);
@@ -288,7 +321,7 @@ export default function TransactionScreen() {
         amount: parseFloat(amount),
         category: category || 'other',
         sourceAccountId: sourceAccount,
-        destinationAccountId: transactionType === 'transfer' ? destinationAccount : undefined,
+        destinationAccountId: transactionType === 'transfer' ? (destinationAccount || undefined) : undefined,
         notes,
         date,
         type: transactionType,
@@ -364,11 +397,13 @@ export default function TransactionScreen() {
   };
 
   const renderAddTransaction = () => (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
-    >
+    <Animated.View style={animatedKeyboardPadding}>
+      <ScrollView
+        ref={formScrollRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
       {/* Transaction Type Selector */}
       <Animated.View
         entering={FadeInDown.delay(200).duration(500)}
@@ -427,7 +462,7 @@ export default function TransactionScreen() {
           <View style={styles.column}>
             <InputField
               label="Category"
-              placeholder="e.g. 🍱 Lunch"
+              placeholder="e.g. Lunch"
               value={category || ''}
               onChangeText={setCategory}
             />
@@ -516,11 +551,14 @@ export default function TransactionScreen() {
         {/* Notes */}
         <InputField
           label="Notes (Optional)"
-          placeholder="Add a note..."
+          placeholder="e.g. Starbucks, Uber, Walmart Groceries, Rent..."
           value={notes}
-          onChangeText={setNotes}
+          onChangeText={handleNotesChange}
           multiline
           numberOfLines={3}
+          onFocus={() => {
+            setTimeout(() => formScrollRef.current?.scrollToEnd({ animated: true }), 150);
+          }}
           icon={<FileText size={18} color={textSecondary} />}
         />
 
@@ -536,7 +574,8 @@ export default function TransactionScreen() {
         </View>
       </Animated.View>
     </ScrollView>
-  );
+  </Animated.View>
+);
 
   const renderHistory = () => {
     if (transactionsLoading) {
@@ -858,7 +897,7 @@ export default function TransactionScreen() {
             <View style={styles.column}>
               <InputField
                 label="Category"
-                placeholder="e.g. 🍱 Lunch"
+                placeholder="e.g. Lunch"
                 value={category || ''}
                 onChangeText={setCategory}
               />

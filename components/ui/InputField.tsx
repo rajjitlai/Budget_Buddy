@@ -18,6 +18,8 @@ export interface InputFieldProps {
   containerStyle?: ViewStyle;
   maxLength?: number;
   prefix?: string;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 export function InputField({
@@ -34,6 +36,8 @@ export function InputField({
   containerStyle,
   maxLength,
   prefix,
+  onFocus,
+  onBlur,
 }: InputFieldProps) {
   const { cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
@@ -80,8 +84,14 @@ export function InputField({
           secureTextEntry={actualSecureTextEntry}
           multiline={multiline}
           numberOfLines={numberOfLines}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onFocus={() => {
+            setIsFocused(true);
+            onFocus?.();
+          }}
+          onBlur={() => {
+            setIsFocused(false);
+            onBlur?.();
+          }}
           autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
           maxLength={maxLength}
         />

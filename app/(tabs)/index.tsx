@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { 
   FadeInDown, 
   FadeInRight,
@@ -51,8 +51,10 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ModalSheet } from '@/components/ui/ModalSheet';
 import { InputField } from '@/components/ui/InputField';
 import { SelectField } from '@/components/ui/SelectField';
+import { MilestoneBanner } from '@/components/ui/MilestoneBanner';
 
 export default function DashboardScreen() {
+  const insets = useSafeAreaInsets();
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
   const { refreshKey, triggerRefresh, notifRefreshKey } = useData();
@@ -92,7 +94,7 @@ export default function DashboardScreen() {
     const income = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     const expenses = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
     const savingsPct = income > 0 ? Math.round(((income - expenses) / income) * 100) : 0;
-    return { income, expenses, savingsPct };
+    return { income, expenses, savingsPct, net: income - expenses };
   }, [transactions]);
 
   useEffect(() => {
@@ -268,7 +270,7 @@ export default function DashboardScreen() {
           amount,
           category: '🛠️ Adjustment',
           sourceAccountId: editingAccount.id,
-          destinationAccountId: null,
+          destinationAccountId: undefined,
           notes: 'Balance adjustment',
           date: new Date().toISOString().split('T')[0],
           type,
@@ -437,6 +439,16 @@ export default function DashboardScreen() {
           </Animated.View>
         )}
 
+        {/* Milestone Savings Celebration Banner */}
+        {thisMonth && thisMonth.savingsPct >= 20 && (
+          <MilestoneBanner
+            savingsRate={thisMonth.savingsPct}
+            surplus={thisMonth.net}
+            currency={user?.currency}
+            onPress={() => router.push('/(tabs)/charts' as any)}
+          />
+        )}
+
         {/* Accounts Section */}
         <View style={styles.section}>
           <SectionHeader
@@ -521,10 +533,16 @@ export default function DashboardScreen() {
         <View style={{ height: 140 }} />
       </Animated.ScrollView>
 
-      {/* Floating Action Button */}
+      {/* Floating Action Button - Navigates to Add Transaction */}
       <AnimatedScale
-        onPress={() => setIsAddModalVisible(true)}
-        style={[styles.fab, { backgroundColor: colors.primary[500] }]}
+        onPress={() => router.push('/(tabs)/transactions' as any)}
+        style={[
+          styles.fab,
+          {
+            backgroundColor: colors.primary[500],
+            bottom: Math.max(insets.bottom, 16) + 16,
+          },
+        ]}
         haptic="heavy"
       >
         <Plus size={28} color="#ffffff" />

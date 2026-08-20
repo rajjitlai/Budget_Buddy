@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Svg, { Polyline, Circle, Line, G, Text as SvgText, Polygon } from 'react-native-svg';
+import Svg, { Polyline, Circle, Line, G, Text as SvgText, Polygon, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { colors, borderRadius, typography, spacing } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
@@ -28,9 +28,9 @@ export function LineChart({
   showDots = true,
   title,
 }: LineChartProps) {
-  const { textPrimary, textSecondary } = useTheme();
+  const { isDarkMode, textPrimary, textSecondary, borderColor } = useTheme();
   const { user } = useUser();
-  
+
   const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
 
   if (data.length === 0) {
@@ -43,8 +43,8 @@ export function LineChart({
     );
   }
 
-  const padding = 40;
-  const chartWidth = 300;
+  const padding = 36;
+  const chartWidth = 310;
   const chartHeight = height;
   const innerWidth = chartWidth - padding * 2;
   const innerHeight = chartHeight - padding * 2;
@@ -63,10 +63,10 @@ export function LineChart({
     return { x, y, value: point.value, label: point.label };
   });
 
-  // Create path for the line using Polyline format (x,y pairs)
+  // Create path for the line
   const linePoints = points.map((point) => `${point.x},${point.y}`).join(' ');
 
-  // Create area polygon points (for gradient effect) - closed shape
+  // Create area polygon points with smooth bottom closing
   const areaPoints = [
     ...points.map((p) => `${p.x},${p.y}`),
     `${points[points.length - 1].x},${padding + innerHeight}`,
@@ -74,7 +74,7 @@ export function LineChart({
   ].join(' ');
 
   // Grid lines
-  const gridLines = 5;
+  const gridLines = 4;
   const gridLineYPositions = Array.from({ length: gridLines }, (_, i) => {
     return padding + (i / (gridLines - 1)) * innerHeight;
   });
@@ -88,6 +88,8 @@ export function LineChart({
       ? Math.abs(((lastValue - firstValue) / firstValue) * 100).toFixed(1)
       : '0';
 
+  const gradientId = `area-gradient-${Math.random().toString(36).substring(2, 8)}`;
+
   return (
     <View style={styles.container}>
       {title && (
@@ -95,25 +97,40 @@ export function LineChart({
           <Text style={[styles.title, { color: textPrimary }]}>{title}</Text>
           <View style={styles.trendContainer}>
             {trend === 'up' && (
-              <Text style={[styles.trendText, { color: colors.success }]}>
-                ↑ +{trendPercentage}%
-              </Text>
+              <View style={[styles.trendBadge, { backgroundColor: `${colors.success}18` }]}>
+                <Text style={[styles.trendText, { color: colors.success }]}>
+                  ↑ +{trendPercentage}%
+                </Text>
+              </View>
             )}
             {trend === 'down' && (
-              <Text style={[styles.trendText, { color: colors.error }]}>
-                ↓ -{trendPercentage}%
-              </Text>
+              <View style={[styles.trendBadge, { backgroundColor: `${colors.error}18` }]}>
+                <Text style={[styles.trendText, { color: colors.error }]}>
+                  ↓ -{trendPercentage}%
+                </Text>
+              </View>
             )}
             {trend === 'neutral' && (
-              <Text style={[styles.trendText, { color: textSecondary }]}>
-                → 0%
-              </Text>
+              <View style={[styles.trendBadge, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
+                <Text style={[styles.trendText, { color: textSecondary }]}>
+                  → 0%
+                </Text>
+              </View>
             )}
           </View>
         </View>
       )}
+
       <View style={styles.chartContainer}>
         <Svg width={chartWidth} height={chartHeight}>
+          <Defs>
+            <SvgGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={color} stopOpacity="0.35" />
+              <Stop offset="80%" stopColor={color} stopOpacity="0.05" />
+              <Stop offset="100%" stopColor={color} stopOpacity="0.0" />
+            </SvgGradient>
+          </Defs>
+
           {/* Grid lines */}
           {showGrid &&
             gridLineYPositions.map((y, index) => (
@@ -123,22 +140,20 @@ export function LineChart({
                 y1={y}
                 x2={chartWidth - padding}
                 y2={y}
-                stroke={colors.slate[200]}
+                stroke={isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}
                 strokeWidth={1}
                 strokeDasharray="4,4"
-                opacity={0.3}
               />
             ))}
 
-          {/* Area fill (gradient effect) */}
+          {/* Glowing Area Fill */}
           <Polygon
             points={areaPoints}
-            fill={color}
-            fillOpacity={0.1}
+            fill={`url(#${gradientId})`}
             stroke="none"
           />
 
-          {/* Main line */}
+          {/* Main Line with Stroke Glow */}
           <Polyline
             points={linePoints}
             fill="none"
@@ -148,23 +163,23 @@ export function LineChart({
             strokeLinejoin="round"
           />
 
-          {/* Data points */}
+          {/* Data Points */}
           {showDots &&
             points.map((point, index) => (
-              <Circle
-                key={`point-${index}`}
-                cx={point.x}
-                cy={point.y}
-                r={5}
-                fill={color}
-                stroke="#ffffff"
-                strokeWidth={2}
-              />
+              <G key={`point-${index}`}>
+                <Circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={5}
+                  fill={color}
+                  stroke={isDarkMode ? '#0F172A' : '#FFFFFF'}
+                  strokeWidth={2}
+                />
+              </G>
             ))}
 
           {/* X-axis labels */}
           {points.map((point, index) => {
-            // Show every other label or first/last
             if (
               index === 0 ||
               index === points.length - 1 ||
@@ -174,10 +189,11 @@ export function LineChart({
                 <SvgText
                   key={`label-${index}`}
                   x={point.x}
-                  y={chartHeight - 10}
+                  y={chartHeight - 8}
                   fontSize={10}
                   fill={textSecondary}
                   textAnchor="middle"
+                  fontWeight="500"
                 >
                   {point.label}
                 </SvgText>
@@ -188,8 +204,8 @@ export function LineChart({
         </Svg>
       </View>
 
-      {/* Value labels */}
-      <View style={styles.valueContainer}>
+      {/* Value Labels Summary */}
+      <View style={[styles.valueContainer, { borderTopColor: borderColor }]}>
         <View style={styles.valueItem}>
           <View style={[styles.valueDot, { backgroundColor: color }]} />
           <Text style={[styles.valueLabel, { color: textSecondary }]}>Start</Text>
@@ -220,20 +236,25 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   title: {
-    fontSize: typography.fontSizes.lg,
+    fontSize: typography.fontSizes.md + 1,
     fontWeight: typography.fontWeights.bold,
   },
   trendContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  trendBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
+  },
   trendText: {
-    fontSize: typography.fontSizes.sm,
-    fontWeight: typography.fontWeights.semibold,
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.bold,
   },
   chartContainer: {
     alignItems: 'center',
-    marginVertical: spacing.md,
+    marginVertical: spacing.xs,
   },
   emptyContainer: {
     padding: spacing.xl,
@@ -248,23 +269,24 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.slate[200],
   },
   valueItem: {
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 2,
   },
   valueDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginBottom: 2,
   },
   valueLabel: {
     fontSize: typography.fontSizes.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   valueText: {
-    fontSize: typography.fontSizes.sm,
-    fontWeight: typography.fontWeights.semibold,
+    fontSize: typography.fontSizes.md,
+    fontWeight: typography.fontWeights.bold,
   },
 });
-

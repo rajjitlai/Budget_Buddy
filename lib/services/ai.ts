@@ -1,11 +1,17 @@
 import { AIInsight, Account, Transaction, MonthlyPlan, formatCurrency } from '@/lib/types';
-
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const DEFAULT_MODEL = 'google/gemma-2-9b-it:free';
-const REFERER = process.env.EXPO_PUBLIC_APP_URL || 'https://budget-buddy.app';
+export const DEFAULT_MODEL = 'openrouter/free';
+export const FALLBACK_MODELS = [
+  'openrouter/free',
+  'google/gemma-4-26b-a4b-it:free',
+  'nvidia/nemotron-3.5-lightning:free',
+  'z-ai/glm-5.2:free',
+];
+const REFERER = 'https://budget-buddy.app';
 const APP_TITLE = 'Budget Buddy';
 
 export interface GenerateInsightsParams {
@@ -14,7 +20,7 @@ export interface GenerateInsightsParams {
   monthlyPlan?: MonthlyPlan | null;
 }
 
-interface OpenRouterResponse {
+interface AIResponse {
   choices?: Array<{
     message?: {
       content?: string;
@@ -22,62 +28,78 @@ interface OpenRouterResponse {
   }>;
 }
 
-const buildPrompt = ({ accounts, transactions, monthlyPlan }: GenerateInsightsParams) => {
+const buildPrompt = ({ accounts, transactions, monthlyPlan }: GenerateInsightsParams): string => {
   const summary = {
-    accounts,
-    transactions,
-    monthlyPlan,
+    accounts: accounts.map((a) => ({ name: a.name, type: a.type, balance: a.balance })),
+    recentTransactions: transactions.slice(0, 30).map((t) => ({
+      amount: t.amount,
+      category: t.category,
+      type: t.type,
+      date: t.date,
+    })),
+    monthlyPlan: monthlyPlan
+      ? {
+          salary: monthlyPlan.salary,
+          essentials: monthlyPlan.essentials,
+          allocations: monthlyPlan.allocations,
+        }
+      : null,
   };
 
-  return `You are an AI financial planning assistant for the Budget Buddy mobile app.
-Analyze the following JSON payload and return up to three actionable insights that help the user manage their money.
-Each insight must include: title, description, optional action, and priority (high|medium|low).
-Respond ONLY with JSON matching this shape:
+  return `You are a financial advisor for the Budget Buddy app.
+Analyze the following financial summary and return 3 to 4 actionable, specific insights.
+Return ONLY valid JSON matching this exact structure, with no extra text or markdown:
 {
   "insights": [
-    { "title": "", "description": "", "action": "", "priority": "high" }
+    {
+      "id": "ai-1",
+      "title": "Title of insight",
+      "description": "Detailed observation and recommendation",
+      "action": "Optional concise action item",
+      "priority": "high",
+      "type": "recommendation"
+    }
   ]
 }
 
-Context:
+Priority must be: "high" | "medium" | "low"
+Type must be: "recommendation" | "warning" | "info" | "success"
+
+Financial Summary:
 ${JSON.stringify(summary, null, 2)}`;
 };
 
 /**
  * Generate insights using rule-based analysis (fallback when API is not available)
  */
-function generateRuleBasedInsights(params: GenerateInsightsParams): AIInsight[] {
+export function generateRuleBasedInsights(params: GenerateInsightsParams): AIInsight[] {
   const { accounts, transactions, monthlyPlan } = params;
   const insights: AIInsight[] = [];
 
-  // Calculate totals
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
   const expenses = transactions.filter((t) => t.type === 'expense');
   const income = transactions.filter((t) => t.type === 'income');
   const totalExpenses = expenses.reduce((sum, t) => sum + t.amount, 0);
   const totalIncome = income.reduce((sum, t) => sum + t.amount, 0);
 
-  // Get recent transactions (last 30 days)
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const recentTransactions = transactions.filter(
-    (t) => new Date(t.date) >= thirtyDaysAgo
+  const recentExpenses = transactions.filter(
+    (t) => t.type === 'expense' && new Date(t.date) >= thirtyDaysAgo
   );
-  const recentExpenses = recentTransactions.filter((t) => t.type === 'expense');
   const monthlySpending = recentExpenses.reduce((sum, t) => sum + t.amount, 0);
 
-  // Find spending account
-  const spendingAccount = accounts.find((acc) => acc.type === 'spending');
-  const salaryAccount = accounts.find((acc) => acc.type === 'salary');
-  const savingsAccount = accounts.find((acc) => acc.type === 'savings');
+  const spendingAccount = accounts.find((acc) => acc.type.toLowerCase().includes('spending'));
+  const salaryAccount = accounts.find((acc) => acc.type.toLowerCase().includes('salary'));
+  const savingsAccount = accounts.find((acc) => acc.type.toLowerCase().includes('savings'));
 
   // Insight 1: Low spending account balance
   if (spendingAccount && spendingAccount.balance < 5000) {
-    const recommendedAmount = monthlySpending * 0.3; // 30% of monthly spending
+    const recommendedAmount = Math.max(monthlySpending * 0.3, 5000);
     insights.push({
       id: 'insight-1',
       title: 'Low Spending Account Balance',
-      description: `Your spending account has ${formatCurrency(spendingAccount.balance)}. Consider transferring ${formatCurrency(recommendedAmount)} from your salary account to maintain smooth cash flow.`,
+      description: `Your spending account has ${formatCurrency(spendingAccount.balance)}. Consider transferring ${formatCurrency(recommendedAmount)} to maintain smooth cash flow.`,
       type: 'warning',
       action: `Transfer ${formatCurrency(recommendedAmount)} to Spending`,
       priority: 'high',
@@ -89,15 +111,15 @@ function generateRuleBasedInsights(params: GenerateInsightsParams): AIInsight[] 
     const emergencyFund = savingsAccount.balance;
     const monthlyEssentials = monthlyPlan
       ? Object.values(monthlyPlan.essentials).reduce((sum, val) => sum + val, 0) +
-        monthlyPlan.allocations.spending
-      : monthlySpending;
-    const monthsCovered = emergencyFund / monthlyEssentials;
+        (monthlyPlan.allocations.spending || 0)
+      : Math.max(monthlySpending, 10000);
+    const monthsCovered = monthlyEssentials > 0 ? emergencyFund / monthlyEssentials : 0;
 
     if (monthsCovered < 3) {
       insights.push({
         id: 'insight-2',
         title: 'Emergency Fund Alert',
-        description: `Your emergency fund covers ${monthsCovered.toFixed(1)} months of expenses. Financial experts recommend 6 months for better security.`,
+        description: `Your emergency fund covers ${monthsCovered.toFixed(1)} months of expenses. Financial experts recommend 6 months of living expenses for security.`,
         type: 'warning',
         action: `Increase emergency fund by ${formatCurrency(monthlyEssentials * 0.2)}/month`,
         priority: 'high',
@@ -105,78 +127,70 @@ function generateRuleBasedInsights(params: GenerateInsightsParams): AIInsight[] 
     } else if (monthsCovered >= 6) {
       insights.push({
         id: 'insight-2',
-        title: 'Excellent Emergency Fund',
-        description: `Your emergency fund covers ${monthsCovered.toFixed(1)} months of expenses. Great job maintaining financial security!`,
+        title: 'Strong Emergency Fund',
+        description: `Your emergency fund covers ${monthsCovered.toFixed(1)} months of living expenses. Excellent financial buffer!`,
         type: 'success',
         priority: 'low',
       });
     }
   }
 
-  // Insight 3: Spending vs Income analysis
+  // Insight 3: Savings rate analysis
   if (monthlyPlan && monthlyPlan.salary > 0) {
-    const savingsRate = ((monthlyPlan.salary - monthlySpending) / monthlyPlan.salary) * 100;
-    
+    const savingsRate = Math.round(((monthlyPlan.salary - monthlySpending) / monthlyPlan.salary) * 100);
     if (savingsRate < 20) {
       insights.push({
         id: 'insight-3',
-        title: 'Low Savings Rate',
-        description: `Your current savings rate is ${savingsRate.toFixed(1)}%. Consider reducing discretionary spending to reach the recommended 20% savings rate.`,
+        title: 'Savings Rate Below 20%',
+        description: `Your current savings rate is ${savingsRate}%. Target at least 20% to build wealth over time.`,
         type: 'recommendation',
-        action: 'Review spending categories',
+        action: 'Review discretionary spending',
         priority: 'medium',
       });
     } else if (savingsRate >= 30) {
       insights.push({
         id: 'insight-3',
         title: 'Great Savings Rate!',
-        description: `You're saving ${savingsRate.toFixed(1)}% of your income. Keep up the excellent work!`,
+        description: `You're saving ${savingsRate}% of your income. Keep up the disciplined budgeting!`,
         type: 'success',
         priority: 'low',
       });
     }
   }
 
-  // Insight 4: Account balance distribution
-  if (salaryAccount && spendingAccount) {
-    const salaryBalance = salaryAccount.balance;
-    const spendingBalance = spendingAccount.balance;
-    const ratio = spendingBalance / salaryBalance;
-
-    if (ratio < 0.1 && salaryBalance > 20000) {
-      const recommendedTransfer = Math.min(salaryBalance * 0.15, 10000);
-      insights.push({
-        id: 'insight-4',
-        title: 'Optimize Cash Flow',
-        description: `Your spending account has low balance compared to salary account. Consider moving ${formatCurrency(recommendedTransfer)} for better liquidity.`,
-        type: 'recommendation',
-        action: `Move ${formatCurrency(recommendedTransfer)} to Spending`,
-        priority: 'medium',
-      });
-    }
-  }
-
-  // Insight 5: High spending category
+  // Insight 4: Category concentration
   if (recentExpenses.length > 0) {
     const categorySpending: Record<string, number> = {};
     recentExpenses.forEach((expense) => {
       categorySpending[expense.category] = (categorySpending[expense.category] || 0) + expense.amount;
     });
 
-    const topCategory = Object.entries(categorySpending).sort((a, b) => b[1] - a[1])[0];
-    if (topCategory && topCategory[1] > monthlySpending * 0.4) {
+    const sortedCategories = Object.entries(categorySpending).sort((a, b) => b[1] - a[1]);
+    const topCategory = sortedCategories[0];
+    if (topCategory && monthlySpending > 0 && topCategory[1] > monthlySpending * 0.4) {
+      const pct = Math.round((topCategory[1] / monthlySpending) * 100);
       insights.push({
-        id: 'insight-5',
-        title: 'High Spending Category',
-        description: `You're spending ${formatCurrency(topCategory[1])} on ${topCategory[0]} this month, which is ${((topCategory[1] / monthlySpending) * 100).toFixed(0)}% of your total expenses. Consider reviewing this category.`,
+        id: 'insight-4',
+        title: `High Spend in ${topCategory[0]}`,
+        description: `"${topCategory[0]}" accounts for ${pct}% (${formatCurrency(topCategory[1])}) of your spending this month.`,
         type: 'info',
-        action: 'Review spending patterns',
+        action: 'Review category transactions',
         priority: 'medium',
       });
     }
   }
 
-  // Return top 3-4 insights sorted by priority
+  // Insight 5: Net worth overview
+  if (insights.length < 3 && totalBalance > 0) {
+    insights.push({
+      id: 'insight-5',
+      title: 'Net Worth Status',
+      description: `Your total net worth across ${accounts.length} account(s) is ${formatCurrency(totalBalance)}. Consistent tracking helps build financial security.`,
+      type: 'info',
+      priority: 'low',
+    });
+  }
+
   return insights
     .sort((a, b) => {
       const priorityOrder = { high: 3, medium: 2, low: 1 };
@@ -185,185 +199,114 @@ function generateRuleBasedInsights(params: GenerateInsightsParams): AIInsight[] 
     .slice(0, 4);
 }
 
+function parseInsightsJSON(content: string): AIInsight[] | null {
+  try {
+    let clean = content.trim();
+    // Match JSON code blocks
+    const match = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (match) {
+      clean = match[1].trim();
+    } else {
+      // Find outermost JSON object
+      const firstOpen = clean.indexOf('{');
+      const lastClose = clean.lastIndexOf('}');
+      if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
+        clean = clean.substring(firstOpen, lastClose + 1);
+      }
+    }
+
+    const parsed = JSON.parse(clean);
+    const list: any[] = Array.isArray(parsed) ? parsed : (parsed.insights || parsed.recommendations || []);
+    if (!Array.isArray(list) || list.length === 0) return null;
+
+    return list.map((item, index) => ({
+      id: item.id || `ai-${index}-${Date.now()}`,
+      title: String(item.title || 'Financial Insight'),
+      description: String(item.description || ''),
+      action: item.action ? String(item.action) : undefined,
+      type: (['recommendation', 'warning', 'info', 'success'].includes(item.type) ? item.type : 'info') as AIInsight['type'],
+      priority: (['high', 'medium', 'low'].includes(item.priority) ? item.priority : 'medium') as AIInsight['priority'],
+    }));
+  } catch (err) {
+    console.warn('Failed to parse AI insights JSON:', err);
+    return null;
+  }
+}
+
 /**
- * Generate AI insights using OpenRouter API or fallback to rule-based
+ * Generate AI insights using OpenRouter/OpenAI with resilient model fallback
  */
 export async function generateAIInsights(params: GenerateInsightsParams): Promise<AIInsight[]> {
-  let apiKey = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
+  let apiKey = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY || '';
   let model = DEFAULT_MODEL;
   let provider = 'openrouter';
 
   try {
-    const storedUser = await SecureStore.getItemAsync('budget_buddy_user_profile');
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      if (user.aiConfig?.apiKey) {
-        apiKey = user.aiConfig.apiKey;
-        model = user.aiConfig.model || model;
+    const stored = Platform.OS === 'web'
+      ? (typeof window !== 'undefined' ? window.localStorage.getItem('budget_buddy_user_profile') : null)
+      : await SecureStore.getItemAsync('budget_buddy_user_profile');
+
+    if (stored) {
+      const user = JSON.parse(stored);
+      if (user.aiConfig?.apiKey?.trim()) {
+        apiKey = user.aiConfig.apiKey.trim().replace(/^["']|["']$/g, '');
+        model = user.aiConfig.model?.trim() || model;
         provider = user.aiConfig.provider || provider;
       }
     }
   } catch (err) {
-    console.warn('Error loading user AI config, using defaults:', err);
+    console.warn('Error loading user AI config:', err);
+  }
+
+  // If no API key provided, generate smart rule-based insights
+  if (!apiKey) {
+    return generateRuleBasedInsights(params);
   }
 
   const apiUrl = provider === 'openai' ? OPENAI_API_URL : OPENROUTER_API_URL;
-
-  // Debug: Check if API key is loaded
-  console.log(`${provider} API check:`, {
-    exists: !!apiKey,
-    length: apiKey?.length || 0,
-    model: model,
-  });
-
-  // If no API key, use rule-based insights
-  if (!apiKey) {
-    console.log(`No ${provider} API key found. Using rule-based insights.`);
-    return generateRuleBasedInsights(params);
-  }
-
-  // Validate API key format for OpenRouter
-  if (provider === 'openrouter' && !apiKey.startsWith('sk-or-v1-')) {
-    console.warn('OpenRouter API key format appears invalid. Should start with "sk-or-v1-"');
-    console.warn('Falling back to rule-based insights.');
-    return generateRuleBasedInsights(params);
-  }
-
-  // Build prompt first to check size
   const prompt = buildPrompt(params);
-  
-  // Limit prompt size to avoid token limits (rough estimate: 1 token ≈ 4 characters)
-  const maxPromptLength = 8000; // Conservative limit for free tier
-  const truncatedPrompt = prompt.length > maxPromptLength 
-    ? prompt.substring(0, maxPromptLength) + '\n\n[Data truncated due to size limits]'
-    : prompt;
 
-  // Simplified body - this model doesn't support system messages
-  // Combine instructions into the user message instead
-  const userPrompt = `You are a financial advisor. Analyze the financial data and return insights as JSON.
+  // Models to attempt in order
+  const modelsToTry = provider === 'openrouter'
+    ? Array.from(new Set([model, ...FALLBACK_MODELS]))
+    : [model];
 
-Format: {"insights": [{"title": "", "description": "", "action": "", "priority": "high|medium|low", "type": "recommendation|warning|info|success"}]}
-
-Return ONLY valid JSON, no markdown code blocks.
-
-${truncatedPrompt}`;
-
-  const body: any = {
-    model: model,
-    messages: [
-      {
-        role: 'user',
-        content: userPrompt,
-      },
-    ],
-  };
-
-  // Don't add temperature or response_format for free models - they often cause 400 errors
-  console.log(`Sending request to ${provider}:`, {
-    model: model,
-    promptLength: truncatedPrompt.length,
-  });
-
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': REFERER,
-        'X-Title': APP_TITLE,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      let errorDetails = '';
-      let errorData: any = null;
-      try {
-        const errorText = await response.text();
-        try {
-          errorData = JSON.parse(errorText);
-          errorDetails = errorData.error?.message || errorData.message || JSON.stringify(errorData);
-        } catch {
-          errorDetails = errorText;
-        }
-      } catch {
-        errorDetails = 'Unknown error';
-      }
-      
-      console.warn(
-        `OpenRouter API failed: ${response.status} ${response.statusText}. ` +
-        `Error: ${errorDetails}. Falling back to rule-based insights.`
-      );
-      
-      // Log more details for 400 errors to help debug
-      if (response.status === 400) {
-        console.warn('400 Bad Request - Debug Info:');
-        console.warn(`- API Key present: ${apiKey ? 'Yes' : 'No'}`);
-        console.warn(`- Model: ${model}`);
-        console.warn(`- Provider: ${provider}`);
-        console.warn(`- Request body size: ${JSON.stringify(body).length} chars`);
-        if (errorData) {
-          console.warn(`- Provider error: ${JSON.stringify(errorData)}`);
-        }
-        console.error('Common causes:');
-        console.error('1. Invalid API key format');
-        console.error('2. API key not activated or expired');
-        console.error('3. Model name incorrect or unavailable');
-        console.error('4. Request body too large');
-        console.error('');
-        console.error('TROUBLESHOOTING STEPS:');
-        console.error('1. Verify API key in Settings');
-        console.error('2. Verify model name is correct and available');
-        console.error(`   Current model: ${model}`);
-      }
-      
-      return generateRuleBasedInsights(params);
-    }
-
-    const data = (await response.json()) as OpenRouterResponse;
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      console.warn('OpenRouter API returned empty content. Falling back to rule-based insights.');
-      return generateRuleBasedInsights(params);
-    }
-
+  for (const currentModel of modelsToTry) {
     try {
-      // Try to extract JSON from markdown code blocks if present
-      let jsonContent = content.trim();
-      const jsonMatch = jsonContent.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-      if (jsonMatch) {
-        jsonContent = jsonMatch[1];
-      }
-      
-      const parsed = JSON.parse(jsonContent) as { insights?: Partial<AIInsight>[] };
-      const apiInsights = (parsed.insights ?? []).map((insight, index) => ({
-        id: insight.id ?? `ai-${index}`,
-        title: insight.title ?? 'Insight',
-        description: insight.description ?? '',
-        action: insight.action,
-        type: (insight.type as AIInsight['type']) ?? 'info',
-        priority: (insight.priority as AIInsight['priority']) ?? 'medium',
-      }));
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': REFERER,
+          'X-Title': APP_TITLE,
+        },
+        body: JSON.stringify({
+          model: currentModel,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
 
-      // If API returned valid insights, use them; otherwise fallback
-      if (apiInsights.length > 0) {
-        console.log(`Successfully generated ${apiInsights.length} AI insights`);
-        return apiInsights;
+      if (response.ok) {
+        const data = (await response.json()) as AIResponse;
+        const content = data.choices?.[0]?.message?.content;
+        if (content) {
+          const insights = parseInsightsJSON(content);
+          if (insights && insights.length > 0) {
+            return insights;
+          }
+        }
       } else {
-        console.warn('OpenRouter API returned empty insights array. Falling back to rule-based insights.');
-        return generateRuleBasedInsights(params);
+        console.warn(`Model ${currentModel} returned HTTP ${response.status}`);
+        if (response.status === 401) {
+          break; // Don't retry other models if key is invalid
+        }
       }
-    } catch (error) {
-      console.error('Failed to parse AI response:', error);
-      console.error('Response content:', content.substring(0, 500)); // Log first 500 chars
-      return generateRuleBasedInsights(params);
+    } catch (err) {
+      console.warn(`Error calling model ${currentModel}:`, err);
     }
-  } catch (error) {
-    console.error('Error calling OpenRouter API:', error);
-    // Fallback to rule-based insights on any error
-    return generateRuleBasedInsights(params);
   }
-}
 
+  // Fallback to rule-based analysis if all API models fail
+  return generateRuleBasedInsights(params);
+}

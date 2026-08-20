@@ -9,7 +9,9 @@ import { formatCurrency, Transaction, Account } from '@/lib/types';
 import { StackedBarChart } from './StackedBarChart';
 import { CircularProgress } from './CircularProgress';
 import { LineChart } from './LineChart';
+import { PieChart } from './PieChart';
 import { SectionHeader } from './ui/SectionHeader';
+import { getCategoryColor } from '@/lib/utils/categorizer';
 
 interface AdvancedChartsProps {
   accounts: Account[];
@@ -424,45 +426,22 @@ export function AdvancedCharts({ accounts, transactions, monthlyPlan }: Advanced
         </Animated.View>
       )}
 
-      {/* Spending by Category */}
+      {/* Spending by Category Dynamic Pie Chart */}
       {spendingByCategory.length > 0 && (
         <Animated.View entering={FadeInDown.delay(500).duration(500)}>
-          <SectionHeader title="Spending by Category" subtitle="Top expense categories" />
+          <SectionHeader title="Category Breakdown" subtitle="Dynamic category distribution & pie chart" />
           <View style={[styles.chartCard, { backgroundColor: cardBackground, borderColor }]}>
-            <View style={styles.categoryList}>
-              {spendingByCategory.slice(0, 8).map((item, index) => {
-                const totalSpending = spendingByCategory.reduce((sum, cat) => sum + cat.amount, 0);
-                const percentage = (item.amount / totalSpending) * 100;
-                return (
-                  <View key={index} style={styles.categoryItem}>
-                    <View style={styles.categoryLeft}>
-                      <Text style={[styles.categoryLabel, { color: textPrimary }]}>
-                        {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
-                      </Text>
-                      <View style={styles.categoryBarContainer}>
-                        <View
-                          style={[
-                            styles.categoryBar,
-                            {
-                              width: `${percentage}%`,
-                              backgroundColor: colors.primary[500],
-                            },
-                          ]}
-                        />
-                      </View>
-                    </View>
-                    <View style={styles.categoryRight}>
-                      <Text style={[styles.categoryValue, { color: textPrimary }]}>
-                        {displayCurrency(item.amount)}
-                      </Text>
-                      <Text style={[styles.categoryPercentage, { color: textSecondary }]}>
-                        {percentage.toFixed(1)}%
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
+            <PieChart
+              data={spendingByCategory.map((item) => ({
+                label: item.category,
+                value: item.amount,
+                color: getCategoryColor(item.category),
+              }))}
+              size={210}
+              donut={true}
+              currency={user?.currency}
+              centerTitle="Expenses"
+            />
           </View>
         </Animated.View>
       )}

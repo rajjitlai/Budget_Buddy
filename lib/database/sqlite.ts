@@ -108,5 +108,9 @@ export async function runInTransaction<T>(
   action: (db: SQLite.SQLiteDatabase) => Promise<T>
 ): Promise<T> {
   const database = await getDatabase();
-  return database.withTransactionAsync(() => action(database));
+  let result: T;
+  await database.withTransactionAsync(async () => {
+    result = await action(database);
+  });
+  return result!;
 }
