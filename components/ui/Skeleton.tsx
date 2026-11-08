@@ -1,14 +1,13 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, DimensionValue, Platform } from 'react-native';
+import { View, StyleSheet, Animated, DimensionValue, Platform, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, borderRadius } from '@/lib/theme';
+import { borderRadius } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-
 interface SkeletonProps {
   width?: DimensionValue;
   height?: DimensionValue;
   radius?: number;
-  style?: any;
+  style?: ViewStyle;
 }
 
 export function Skeleton({ width = '100%', height = 20, radius = borderRadius.md, style }: SkeletonProps) {
@@ -16,14 +15,16 @@ export function Skeleton({ width = '100%', height = 20, radius = borderRadius.md
   const shimmerValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const shimmer = Animated.loop(
       Animated.timing(shimmerValue, {
         toValue: 1,
         duration: 1500,
         useNativeDriver: Platform.OS !== 'web',
       })
-    ).start();
-  }, []);
+    );
+    shimmer.start();
+    return () => shimmer.stop();
+  }, [shimmerValue]);
 
   const translateX = shimmerValue.interpolate({
     inputRange: [0, 1],

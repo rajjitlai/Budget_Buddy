@@ -3,7 +3,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
-import { colors, typography, spacing } from '@/lib/theme';
+import { colors, typography } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 
 interface CircularProgressProps {

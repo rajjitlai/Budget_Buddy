@@ -8,13 +8,11 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   FadeInDown,
   FadeInRight,
-  FadeOut,
   SlideInRight,
   SlideOutLeft,
 } from 'react-native-reanimated';
@@ -24,24 +22,21 @@ import {
   ShieldCheck,
   TrendingUp,
   ChevronRight,
-  ChevronLeft,
   CheckCircle2,
   PieChart as PieIcon,
   Sparkles,
   Plus,
   Trash2,
-  Menu,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
 import { useData } from '@/lib/DataContext';
-import { useRouter, useNavigation } from 'expo-router';
-import { DrawerActions } from '@react-navigation/native';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { formatCurrency, MonthlyPlan } from '@/lib/types';
-import { getCurrentMonthlyPlan, saveMonthlyPlan, deleteCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
-import { getTransactions } from '@/lib/services/transactions';
+import { saveMonthlyPlan, deleteCurrentMonthlyPlan, monthKey } from '@/lib/services/monthlyPlans';
+import { monthsBetween } from '@/lib/utils/dates';
 import { InputField } from '@/components/ui/InputField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { AnimatedScale } from '@/components/ui/AnimatedScale';
@@ -50,7 +45,8 @@ const SUGGESTED_FIXED = ['Rent', 'Electricity', 'Water', 'Internet', 'Insurance'
 const SUGGESTED_SAVINGS = ['Emergency Fund', 'Retirement', 'Mutual Funds', 'Stocks', 'Vacation'];
 const SUGGESTED_ALLOWANCES = ['Dining Out', 'Shopping', 'Entertainment', 'Cafes', 'Gym / Health'];
 
-const { width } = Dimensions.get('window');
+let planRowSeq = 0;
+const nextPlanRowId = () => `plan-row-${planRowSeq++}`;
 
 type Step = 'income' | 'fixed' | 'savings' | 'variable' | 'summary';
 
@@ -63,12 +59,10 @@ interface PlanItem {
 export default function PlannerScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
-  const { refreshKey, triggerRefresh } = useData();
-  const navigation = useNavigation();
-  
+  const { triggerRefresh, monthlyPlan, transactions, loading } = useData();
+    
   const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
   const [currentStep, setCurrentStep] = useState<Step>('income');
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [hasExistingPlan, setHasExistingPlan] = useState(false);
@@ -90,45 +84,34 @@ export default function PlannerScreen() {
     { id: '1', label: 'Variable Spending', amount: '' },
   ]);
 
+  // Rebuild wizard fields from the cached plan whenever it changes.
   useEffect(() => {
-    loadExistingPlan();
-  }, [refreshKey]);
+    if (monthlyPlan) {
+      setHasExistingPlan(true);
+      setSalary(monthlyPlan.salary.toString());
 
-  const loadExistingPlan = async () => {
-    try {
-      setLoading(true);
-      const plan = await getCurrentMonthlyPlan();
-      if (plan) {
-        setHasExistingPlan(true);
-        setSalary(plan.salary.toString());
-        
-        // Reconstruct dynamic fields from the flat structure (legacy support)
-        const fixed: PlanItem[] = [];
-        if (plan.essentials.rent) fixed.push({ id: Math.random().toString(), label: 'Rent', amount: plan.essentials.rent.toString() });
-        if (plan.essentials.bills) fixed.push({ id: Math.random().toString(), label: 'Bills', amount: plan.essentials.bills.toString() });
-        if (plan.essentials.other) fixed.push({ id: Math.random().toString(), label: 'Other Fixed', amount: plan.essentials.other.toString() });
-        if (fixed.length > 0) setFixedExpenses(fixed);
+      // Reconstruct dynamic fields from the flat structure (legacy support)
+      const fixed: PlanItem[] = [];
+      if (monthlyPlan.essentials.rent) fixed.push({ id: 'plan-rent', label: 'Rent', amount: monthlyPlan.essentials.rent.toString() });
+      if (monthlyPlan.essentials.bills) fixed.push({ id: 'plan-bills', label: 'Bills', amount: monthlyPlan.essentials.bills.toString() });
+      if (monthlyPlan.essentials.other) fixed.push({ id: 'plan-other', label: 'Other Fixed', amount: monthlyPlan.essentials.other.toString() });
+      if (fixed.length > 0) setFixedExpenses(fixed);
 
-        const savings: PlanItem[] = [];
-        if (plan.allocations.savings) savings.push({ id: Math.random().toString(), label: 'Savings Goal', amount: plan.allocations.savings.toString() });
-        if (savings.length > 0) setSavingsGoals(savings);
+      const savings: PlanItem[] = [];
+      if (monthlyPlan.allocations.savings) savings.push({ id: 'plan-savings', label: 'Savings Goal', amount: monthlyPlan.allocations.savings.toString() });
+      if (savings.length > 0) setSavingsGoals(savings);
 
-        const allow: PlanItem[] = [];
-        if (plan.allocations.spending) allow.push({ id: Math.random().toString(), label: 'Variable Spending', amount: plan.allocations.spending.toString() });
-        if (plan.allocations.salaryBuffer) allow.push({ id: Math.random().toString(), label: 'Buffer', amount: plan.allocations.salaryBuffer.toString() });
-        if (allow.length > 0) setAllowances(allow);
-      } else {
-        setHasExistingPlan(false);
-      }
-    } catch (error) {
-      console.error('Error loading plan:', error);
-    } finally {
-      setLoading(false);
+      const allow: PlanItem[] = [];
+      if (monthlyPlan.allocations.spending) allow.push({ id: 'plan-spending', label: 'Variable Spending', amount: monthlyPlan.allocations.spending.toString() });
+      if (monthlyPlan.allocations.salaryBuffer) allow.push({ id: 'plan-buffer', label: 'Buffer', amount: monthlyPlan.allocations.salaryBuffer.toString() });
+      if (allow.length > 0) setAllowances(allow);
+    } else {
+      setHasExistingPlan(false);
     }
-  };
+  }, [monthlyPlan]);
 
   const addItem = (setFn: React.Dispatch<React.SetStateAction<PlanItem[]>>) => {
-    setFn(prev => [...prev, { id: Math.random().toString(), label: '', amount: '' }]);
+    setFn(prev => [...prev, { id: nextPlanRowId(), label: '', amount: '' }]);
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -146,11 +129,9 @@ export default function PlannerScreen() {
     if (income <= 0) return;
     setSuggesting(true);
     try {
-      const transactions = await getTransactions({});
       const now = new Date();
       const last3Months = transactions.filter((t) => {
-        const d = new Date(t.date);
-        const monthsAgo = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+        const monthsAgo = monthsBetween(new Date(t.date), now);
         return monthsAgo >= 0 && monthsAgo < 3 && t.type === 'expense';
       });
 
@@ -219,9 +200,7 @@ export default function PlannerScreen() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const now = new Date();
-      const month = now.toLocaleString('default', { month: 'long' });
-      const year = now.getFullYear();
+      const month = monthKey();
 
       // Aggregate totals
       const sum = (items: PlanItem[]) => items.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
@@ -241,7 +220,7 @@ export default function PlannerScreen() {
         },
       };
 
-      await saveMonthlyPlan(month, year, planData);
+      await saveMonthlyPlan(month, planData);
       setHasExistingPlan(true);
       triggerRefresh();
       if (Platform.OS !== 'web') {
@@ -252,12 +231,12 @@ export default function PlannerScreen() {
       } else {
         Alert.alert('Success', 'Plan saved! Your Budget Buddy is updated.');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving plan:', error);
       if (Platform.OS === 'web') {
-        window.alert('Error: ' + (error?.message || 'Failed to save plan.'));
+        window.alert('Error: ' + (error instanceof Error ? error.message : 'Failed to save plan.'));
       } else {
-        Alert.alert('Error', error?.message || 'Failed to save plan.');
+        Alert.alert('Error', error instanceof Error ? error.message : 'Failed to save plan.');
       }
     } finally {
       setSaving(false);
@@ -267,7 +246,6 @@ export default function PlannerScreen() {
   const handleDeletePlan = () => {
     const performDelete = async () => {
       try {
-        setLoading(true);
         await deleteCurrentMonthlyPlan();
         
         // Reset states
@@ -298,8 +276,6 @@ export default function PlannerScreen() {
       } catch (err) {
         console.error('Error deleting plan:', err);
         Alert.alert('Error', 'Failed to delete budget plan.');
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -371,7 +347,7 @@ export default function PlannerScreen() {
                       updated[emptyIndex] = { ...updated[emptyIndex], label: s };
                       return updated;
                     }
-                    return [...prev, { id: Math.random().toString(), label: s, amount: '' }];
+                    return [...prev, { id: nextPlanRowId(), label: s, amount: '' }];
                   });
                 }
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -482,23 +458,12 @@ export default function PlannerScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeInDown} style={styles.header}>
-          <View style={styles.headerLeft}>
-            <AnimatedScale 
-              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-              style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10`, marginRight: spacing.md }]}
-            >
-              <Menu size={22} color={textSecondary} />
-            </AnimatedScale>
-            <View style={[styles.headerIcon, { backgroundColor: `${colors.primary[500]}15` }]}>
-              <Target size={28} color={colors.primary[500]} />
-            </View>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.title, { color: textPrimary }]}>Budget Strategy</Text>
-            <Text style={[styles.subtitle, { color: textSecondary }]}>Customize your monthly allocations</Text>
-          </View>
-        </Animated.View>
+        <ScreenHeader
+          entering={FadeInDown}
+          title="Budget Strategy"
+          subtitle="Customize your monthly allocations"
+          icon={<Target size={28} color={colors.primary[500]} />}
+        />
 
         {renderProgress()}
 
@@ -683,14 +648,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingBottom: spacing.xl },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', padding: spacing.xl, gap: spacing.md },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIcon: { width: 56, height: 56, borderRadius: borderRadius['2xl'], alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  title: { fontSize: typography.fontSizes['2xl'], fontWeight: typography.fontWeights.bold },
-  subtitle: { fontSize: typography.fontSizes.sm, opacity: 0.8 },
   progressContainer: { flexDirection: 'row', paddingHorizontal: spacing.xl, gap: spacing.xs, marginBottom: spacing.xl },
   progressDot: { height: 4, borderRadius: 2 },
   cardContainer: { paddingHorizontal: spacing.xl },
@@ -734,13 +691,6 @@ const styles = StyleSheet.create({
   aiSuggestText: {
     fontSize: typography.fontSizes.sm,
     fontWeight: typography.fontWeights.semibold,
-  },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   suggestionsRow: {
     flexDirection: 'row',

@@ -1,18 +1,10 @@
-import { getDatabase } from '@/lib/database/sqlite';
+import { getDatabase, NotificationRow } from '@/lib/database/sqlite';
 import * as Crypto from 'expo-crypto';
-
-export interface AppNotification {
-  id: string;
-  title: string;
-  body: string;
-  type: 'warning' | 'success' | 'info';
-  read: boolean;
-  createdAt: string;
-}
+import type { AppNotification } from '@/lib/types';
 
 export async function getNotifications(): Promise<AppNotification[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<any>('SELECT * FROM notifications ORDER BY created_at DESC');
+  const rows = await db.getAllAsync<NotificationRow>('SELECT * FROM notifications ORDER BY created_at DESC');
   return rows.map(rowToNotification);
 }
 
@@ -119,12 +111,12 @@ export async function generateAlerts(params: {
   }
 }
 
-function rowToNotification(row: any): AppNotification {
+function rowToNotification(row: NotificationRow): AppNotification {
   return {
     id: row.id,
     title: row.title,
     body: row.body,
-    type: row.type,
+    type: row.type as AppNotification['type'],
     read: row.read === 1,
     createdAt: row.created_at,
   };

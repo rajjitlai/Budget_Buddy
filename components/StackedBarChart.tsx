@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Svg, { Rect, G } from 'react-native-svg';
 import { colors, borderRadius, typography, spacing } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 
@@ -23,24 +22,27 @@ export function StackedBarChart({
   height = 24,
   showLegend = true,
 }: StackedBarChartProps) {
-  const { isDarkMode, textPrimary, textSecondary, cardBackground } = useTheme();
+  const { isDarkMode, textPrimary, textSecondary } = useTheme();
   
   const total = segments.reduce((sum, seg) => sum + seg.value, 0);
-  
-  let currentX = 0;
-  const barSegments = segments.map((segment, index) => {
-    const width = (segment.value / total) * 100;
-    const x = currentX;
-    currentX += width;
-    
-    return {
-      ...segment,
-      x,
-      width,
-      isFirst: index === 0,
-      isLast: index === segments.length - 1,
-    };
-  });
+
+  const barSegments = React.useMemo(() => {
+    const safeTotal = total > 0 ? total : 1;
+    let currentX = 0;
+    return segments.map((segment, index) => {
+      const width = (segment.value / safeTotal) * 100;
+      const x = currentX;
+      currentX += width;
+
+      return {
+        ...segment,
+        x,
+        width,
+        isFirst: index === 0,
+        isLast: index === segments.length - 1,
+      };
+    });
+  }, [segments, total]);
 
   return (
     <View style={styles.container}>
@@ -82,7 +84,7 @@ export function StackedBarChart({
                 {segment.label}
               </Text>
               <Text style={[styles.legendValue, { color: textPrimary }]}>
-                {Math.round((segment.value / total) * 100)}%
+                {total > 0 ? Math.round((segment.value / total) * 100) : 0}%
               </Text>
             </View>
           ))}

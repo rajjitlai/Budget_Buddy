@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import Svg, { G, Path, Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import { colors, borderRadius, typography, spacing } from '@/lib/theme';
+import { borderRadius, typography, spacing } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { formatCurrency } from '@/lib/types';
-import { getCategoryColor } from '@/lib/utils/categorizer';
+import { getCategoryColor, stripCategoryEmoji } from '@/lib/utils/categorizer';
 
 export interface PieChartItem {
   label: string;
@@ -25,12 +25,12 @@ interface PieChartProps {
 }
 
 interface SliceData {
+  index: number;
   item: PieChartItem;
+  label: string;
   path: string;
   percentage: number;
   color: string;
-  startAngle: number;
-  endAngle: number;
 }
 
 export function PieChart({
@@ -42,39 +42,22 @@ export function PieChart({
   showLegend = true,
   onSelectCategory,
 }: PieChartProps) {
-  const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
-  const [selectedSlice, setSelectedSlice] = useState<string | null>(null);
+  const { isDarkMode, textPrimary, textSecondary, borderColor } = useTheme();
+  const [selectedSlice, setSelectedSlice] = useState<number | null>(null);
 
   const radius = size / 2;
   const innerRadius = donut ? radius * 0.62 : 0;
-  const total = data.reduce((sum, item) => sum + (item.value > 0 ? item.value : 0), 0);
+  const total = useMemo(
+    () => data.reduce((sum, item) => sum + (item.value > 0 ? item.value : 0), 0),
+    [data]
+  );
 
-  // If total is 0 or data is empty, render empty state
-  if (total === 0 || data.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Svg width={size} height={size}>
-          <Circle
-            cx={radius}
-            cy={radius}
-            r={radius - 8}
-            fill="none"
-            stroke={isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}
-            strokeWidth={donut ? 18 : 2}
-          />
-        </Svg>
-        <View style={[StyleSheet.absoluteFillObject, styles.centerTextContainer]}>
-          <Text style={[styles.emptyText, { color: textSecondary }]}>No spending data</Text>
-        </View>
-      </View>
-    );
-  }
+  const slices = useMemo<SliceData[]>(() => {
+    const built: SliceData[] = [];
+    let currentAngle = -Math.PI / 2; // Start from 12 o'clock
 
-  // Calculate slices with angles and SVG path definitions
-  let currentAngle = -Math.PI / 2; // Start from 12 o'clock
-  const slices: SliceData[] = data
-    .filter((d) => d.value > 0)
-    .map((item) => {
+    data.forEach((item, index) => {
+      if (item.value <= 0) return;
       const percentage = (item.value / total) * 100;
       const angle = (item.value / total) * (Math.PI * 2);
       const startAngle = currentAngle;
@@ -82,9 +65,10 @@ export function PieChart({
       currentAngle = endAngle;
 
       const color = item.color || getCategoryColor(item.label);
+      const label = stripCategoryEmoji(item.label) || item.label;
 
-      // SVG Arc Path coordinates
-      const isSelected = selectedSlice === item.label;
+      // Selected slice pops out slightly
+      const isSelected = selectedSlice === index;
       const effectiveRadius = isSelected ? radius : radius - 4;
       const effectiveInnerRadius = innerRadius > 0 ? (isSelected ? innerRadius - 2 : innerRadius) : 0;
 
@@ -118,29 +102,54 @@ export function PieChart({
         ].join(' ');
       }
 
-      return {
+      built.push({
+        index,
         item: { ...item, percentage },
+        label,
         path,
         percentage,
         color,
-        startAngle,
-        endAngle,
-      };
+      });
     });
 
-  const activeItem = data.find((d) => d.label === selectedSlice) || null;
+    return built;
+  }, [data, total, radius, innerRadius, donut, selectedSlice]);
 
-  const handleSlicePress = (label: string) => {
+  const activeSlice =
+    selectedSlice !== null ? slices.find((s) => s.index === selectedSlice) ?? null : null;
+
+  const handleSlicePress = (index: number) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    const newSelection = selectedSlice === label ? null : label;
+    const newSelection = selectedSlice === index ? null : index;
     setSelectedSlice(newSelection);
-    const item = data.find((d) => d.label === label);
+    const item = data[index];
     if (item && onSelectCategory) {
       onSelectCategory(item);
     }
   };
+
+  // If total is 0 or data is empty, render empty state
+  if (total === 0 || data.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Svg width={size} height={size}>
+          <Circle
+            cx={radius}
+            cy={radius}
+            r={radius - 8}
+            fill="none"
+            stroke={isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}
+            strokeWidth={donut ? 18 : 2}
+          />
+        </Svg>
+        <View style={[StyleSheet.absoluteFillObject, styles.centerTextContainer]}>
+          <Text style={[styles.emptyText, { color: textSecondary }]}>No spending data</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -150,11 +159,11 @@ export function PieChart({
           <G>
             {slices.map((slice) => (
               <Path
-                key={slice.item.label}
+                key={slice.index}
                 d={slice.path}
                 fill={slice.color}
-                opacity={selectedSlice === null || selectedSlice === slice.item.label ? 1 : 0.4}
-                onPress={() => handleSlicePress(slice.item.label)}
+                opacity={selectedSlice === null || selectedSlice === slice.index ? 1 : 0.4}
+                onPress={() => handleSlicePress(slice.index)}
               />
             ))}
           </G>
@@ -164,14 +173,14 @@ export function PieChart({
         {donut && (
           <View style={[StyleSheet.absoluteFillObject, styles.centerTextContainer]} pointerEvents="none">
             <Text style={[styles.centerSub, { color: textSecondary }]}>
-              {activeItem ? activeItem.label : (centerTitle || 'Total')}
+              {activeSlice ? activeSlice.label : (centerTitle || 'Total')}
             </Text>
             <Text style={[styles.centerVal, { color: textPrimary }]}>
-              {formatCurrency(activeItem ? activeItem.value : total, currency)}
+              {formatCurrency(activeSlice ? activeSlice.item.value : total, currency)}
             </Text>
-            {activeItem && (
-              <Text style={[styles.centerPct, { color: activeItem.color || getCategoryColor(activeItem.label) }]}>
-                {((activeItem.value / total) * 100).toFixed(1)}%
+            {activeSlice && (
+              <Text style={[styles.centerPct, { color: activeSlice.color }]}>
+                {activeSlice.percentage.toFixed(1)}%
               </Text>
             )}
           </View>
@@ -182,11 +191,11 @@ export function PieChart({
       {showLegend && (
         <View style={styles.legendContainer}>
           {slices.map((slice) => {
-            const isSelected = selectedSlice === slice.item.label;
+            const isSelected = selectedSlice === slice.index;
             return (
               <TouchableOpacity
-                key={slice.item.label}
-                onPress={() => handleSlicePress(slice.item.label)}
+                key={slice.index}
+                onPress={() => handleSlicePress(slice.index)}
                 activeOpacity={0.7}
                 style={[
                   styles.legendItem,
@@ -198,7 +207,7 @@ export function PieChart({
               >
                 <View style={[styles.legendDot, { backgroundColor: slice.color }]} />
                 <Text style={[styles.legendLabel, { color: textPrimary }]} numberOfLines={1}>
-                  {slice.item.label}
+                  {slice.label}
                 </Text>
                 <Text style={[styles.legendPct, { color: textSecondary }]}>
                   {slice.percentage.toFixed(1)}%

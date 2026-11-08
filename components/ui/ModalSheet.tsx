@@ -17,8 +17,6 @@ import Animated, {
   withSpring,
   withTiming,
   useAnimatedKeyboard,
-  FadeIn,
-  FadeOut,
 } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -52,7 +50,7 @@ export function ModalSheet({ visible, onClose, title, children }: ModalSheetProp
       scale.value = withTiming(0.92, { duration: 150 });
       opacity.value = withTiming(0, { duration: 150 });
     }
-  }, [visible]);
+  }, [visible, opacity, scale]);
 
   // Handle Android hardware / system back button
   useEffect(() => {

@@ -1,10 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, GestureResponderEvent } from 'react-native';
+import Animated from 'react-native-reanimated';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -18,6 +14,7 @@ import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
 import { formatCurrency, Transaction, Account } from '@/lib/types';
 import { getCategoryColor } from '@/lib/utils/categorizer';
+import { usePressScale } from '@/components/ui/usePressScale';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -26,11 +23,11 @@ export interface TransactionItemProps {
   sourceAccount?: Account;
   destinationAccount?: Account;
   onPress?: () => void;
-  onEdit?: () => void;
-  onDelete?: () => void;
+  onEdit?: (transaction: Transaction) => void;
+  onDelete?: (transaction: Transaction) => void;
 }
 
-export function TransactionItem({
+export const TransactionItem = React.memo(function TransactionItem({
   transaction,
   sourceAccount,
   destinationAccount,
@@ -38,9 +35,9 @@ export function TransactionItem({
   onEdit,
   onDelete,
 }: TransactionItemProps) {
-  const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
+  const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
   const { user } = useUser();
-  const scale = useSharedValue(1);
+  const { animatedStyle, handlePressIn, handlePressOut } = usePressScale({ scaleTo: 0.98 });
 
   const getTypeIcon = () => {
     switch (transaction.type) {
@@ -86,33 +83,21 @@ export function TransactionItem({
     }
   };
 
-  const handlePressIn = () => {
-    scale.value = withSpring(0.98, { damping: 15, stiffness: 400 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 400 });
-  };
-
-  const handleEdit = (e: any) => {
+  const handleEdit = (e: GestureResponderEvent) => {
     e.stopPropagation();
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    onEdit?.();
+    onEdit?.(transaction);
   };
 
-  const handleDelete = (e: any) => {
+  const handleDelete = (e: GestureResponderEvent) => {
     e.stopPropagation();
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    onDelete?.();
+    onDelete?.(transaction);
   };
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
 
   const Icon = getTypeIcon();
   const typeColor = getTypeColor();
@@ -204,7 +189,7 @@ export function TransactionItem({
       </View>
     </AnimatedTouchable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

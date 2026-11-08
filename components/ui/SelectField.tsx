@@ -1,26 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Modal,
-  ScrollView,
   Platform,
-  BackHandler,
-  useWindowDimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
-import { ChevronDown, Check, X, Wallet } from 'lucide-react-native';
+import { ChevronDown, Check, Wallet } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/lib/ThemeContext';
-import { colors, spacing, typography, borderRadius, shadows } from '@/lib/theme';
+import { colors, spacing, typography, borderRadius } from '@/lib/theme';
+import { ModalSheet } from './ModalSheet';
 
 export interface SelectOption {
   id: string;
@@ -47,33 +37,7 @@ export function SelectField({
   error,
 }: SelectFieldProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary, borderColor } = useTheme();
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const [isModalVisible, setIsModalVisible] = useState(false);
-
-  const scale = useSharedValue(0.92);
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    if (isModalVisible) {
-      scale.value = withSpring(1, { damping: 24, stiffness: 280, mass: 0.7 });
-      opacity.value = withTiming(1, { duration: 180 });
-    } else {
-      scale.value = withTiming(0.92, { duration: 150 });
-      opacity.value = withTiming(0, { duration: 150 });
-    }
-  }, [isModalVisible]);
-
-  // Android back button handling
-  useEffect(() => {
-    if (!isModalVisible) return;
-    const onBack = () => {
-      handleClose();
-      return true;
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
-    return () => sub.remove();
-  }, [isModalVisible]);
 
   const selectedOption = options.find((opt) => opt.id === value);
 
@@ -95,18 +59,6 @@ export function SelectField({
   const handleClose = () => {
     setIsModalVisible(false);
   };
-
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }],
-  }));
-
-  const modalWidth = Math.min(width - spacing.xl * 2, 460);
-  const maxModalHeight = Math.min(height - (insets.top + insets.bottom + 48), 580);
 
   return (
     <View style={styles.container}>
@@ -148,155 +100,77 @@ export function SelectField({
         <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
       )}
 
-      {/* Centered Popup Grid Modal */}
-      <Modal
+      <ModalSheet
         visible={isModalVisible}
-        transparent
-        animationType="none"
-        onRequestClose={handleClose}
-        statusBarTranslucent
+        onClose={handleClose}
+        title={label || 'Select Account'}
       >
-        <View style={styles.modalRoot}>
-          {/* Backdrop */}
-          <Animated.View style={[styles.backdrop, backdropStyle]}>
-            <TouchableOpacity
-              style={styles.backdropTouchable}
-              activeOpacity={1}
-              onPress={handleClose}
-            />
-          </Animated.View>
+        <View style={styles.gridRow}>
+          {options.map((item) => {
+            const isSelected = value === item.id;
+            const itemColor = item.color || colors.primary[500];
 
-          {/* Centered Card */}
-          <View
-            style={[
-              styles.centerWrapper,
-              {
-                paddingTop: insets.top + spacing.md,
-                paddingBottom: insets.bottom + spacing.md,
-              },
-            ]}
-            pointerEvents="box-none"
-          >
-            <Animated.View
-              style={[
-                styles.popupCard,
-                {
-                  width: modalWidth,
-                  maxHeight: maxModalHeight,
-                  backgroundColor: cardBackground,
-                  borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(15, 23, 42, 0.08)',
-                },
-                cardAnimStyle,
-              ]}
-            >
-              {/* Header */}
-              <View
+            return (
+              <TouchableOpacity
+                key={item.id}
+                onPress={() => handleSelect(item.id)}
+                activeOpacity={0.75}
                 style={[
-                  styles.modalHeader,
+                  styles.gridCard,
                   {
-                    borderBottomColor: isDarkMode
-                      ? 'rgba(255, 255, 255, 0.08)'
-                      : colors.slate[200],
+                    backgroundColor: isSelected
+                      ? `${itemColor}15`
+                      : isDarkMode
+                      ? 'rgba(255, 255, 255, 0.03)'
+                      : colors.slate[50],
+                    borderColor: isSelected ? itemColor : borderColor,
                   },
                 ]}
               >
-                <Text style={[styles.modalTitle, { color: textPrimary }]}>
-                  {label || 'Select Account'}
-                </Text>
-                <TouchableOpacity
-                  onPress={handleClose}
+                <View
                   style={[
-                    styles.closeButton,
+                    styles.iconRing,
                     {
-                      backgroundColor: isDarkMode
-                        ? 'rgba(255, 255, 255, 0.06)'
-                        : colors.slate[100],
+                      backgroundColor: `${itemColor}18`,
+                      borderColor: `${itemColor}35`,
                     },
                   ]}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  activeOpacity={0.7}
                 >
-                  <X size={18} color={textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Grid Content */}
-              <ScrollView
-                style={styles.gridScroll}
-                contentContainerStyle={styles.gridContent}
-                showsVerticalScrollIndicator={true}
-                nestedScrollEnabled={true}
-              >
-                <View style={styles.gridRow}>
-                  {options.map((item) => {
-                    const isSelected = value === item.id;
-                    const itemColor = item.color || colors.primary[500];
-
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
-                        onPress={() => handleSelect(item.id)}
-                        activeOpacity={0.75}
-                        style={[
-                          styles.gridCard,
-                          {
-                            backgroundColor: isSelected
-                              ? `${itemColor}15`
-                              : isDarkMode
-                              ? 'rgba(255, 255, 255, 0.03)'
-                              : colors.slate[50],
-                            borderColor: isSelected ? itemColor : borderColor,
-                          },
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.iconRing,
-                            {
-                              backgroundColor: `${itemColor}18`,
-                              borderColor: `${itemColor}35`,
-                            },
-                          ]}
-                        >
-                          {item.icon ? (
-                            <Text style={{ fontSize: 20 }}>{item.icon}</Text>
-                          ) : (
-                            <Wallet size={20} color={itemColor} />
-                          )}
-                        </View>
-
-                        <Text
-                          style={[
-                            styles.cardLabel,
-                            {
-                              color: isSelected ? itemColor : textPrimary,
-                              fontWeight: isSelected ? 'bold' : '600',
-                            },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {item.label}
-                        </Text>
-
-                        {isSelected && (
-                          <View
-                            style={[
-                              styles.checkBadge,
-                              { backgroundColor: itemColor },
-                            ]}
-                          >
-                            <Check size={12} color="#ffffff" />
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {item.icon ? (
+                    <Text style={{ fontSize: 20 }}>{item.icon}</Text>
+                  ) : (
+                    <Wallet size={20} color={itemColor} />
+                  )}
                 </View>
-              </ScrollView>
-            </Animated.View>
-          </View>
+
+                <Text
+                  style={[
+                    styles.cardLabel,
+                    {
+                      color: isSelected ? itemColor : textPrimary,
+                      fontWeight: isSelected ? 'bold' : '600',
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.label}
+                </Text>
+
+                {isSelected && (
+                  <View
+                    style={[
+                      styles.checkBadge,
+                      { backgroundColor: itemColor },
+                    ]}
+                  >
+                    <Check size={12} color="#ffffff" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
-      </Modal>
+      </ModalSheet>
     </View>
   );
 }
@@ -331,58 +205,6 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: typography.fontSizes.xs,
     marginTop: spacing.xs,
-  },
-  modalRoot: {
-    flex: 1,
-    position: 'relative',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-  },
-  backdropTouchable: {
-    flex: 1,
-  },
-  centerWrapper: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  popupCard: {
-    borderRadius: borderRadius['2xl'],
-    borderWidth: 1,
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-    ...shadows.xl,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md + 2,
-    borderBottomWidth: 1,
-  },
-  modalTitle: {
-    fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.bold,
-    flex: 1,
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gridScroll: {
-    flexGrow: 0,
-    flexShrink: 1,
-  },
-  gridContent: {
-    padding: spacing.md,
   },
   gridRow: {
     flexDirection: 'row',

@@ -1,5 +1,6 @@
 
-import { getDatabase } from '@/lib/database/sqlite';
+import { getDatabase, AccountRow } from '@/lib/database/sqlite';
+import type { SQLiteBindValue } from 'expo-sqlite';
 import { Account } from '@/lib/types';
 import * as Crypto from 'expo-crypto';
 
@@ -8,7 +9,7 @@ import * as Crypto from 'expo-crypto';
  */
 export async function getAccounts(): Promise<Account[]> {
   const db = await getDatabase();
-  const results = await db.getAllAsync<any>('SELECT * FROM accounts ORDER BY name ASC');
+  const results = await db.getAllAsync<AccountRow>('SELECT * FROM accounts ORDER BY name ASC');
   
   return results.map(row => ({
     id: row.id,
@@ -25,7 +26,7 @@ export async function getAccounts(): Promise<Account[]> {
  */
 export async function getAccount(accountId: string): Promise<Account> {
   const db = await getDatabase();
-  const result = await db.getFirstAsync<any>('SELECT * FROM accounts WHERE id = ?', [accountId]);
+  const result = await db.getFirstAsync<AccountRow>('SELECT * FROM accounts WHERE id = ?', [accountId]);
   
   if (!result) {
     throw new Error('Account not found');
@@ -61,8 +62,16 @@ export async function createAccount(accountData: Omit<Account, 'id'>): Promise<A
 }
 
 /**
- * Update an account
+ * Update an account (whitelisted columns only)
  */
+const UPDATE_COLUMNS: Record<string, string> = {
+  name: 'name',
+  type: 'type',
+  balance: 'balance',
+  icon: 'icon',
+  color: 'color',
+};
+
 export async function updateAccount(
   accountId: string,
   updates: Partial<Omit<Account, 'id'>>
@@ -70,15 +79,25 @@ export async function updateAccount(
   const db = await getDatabase();
   const lastUpdated = new Date().toISOString();
 
-  // Build dynamic update query
-  const fields = Object.keys(updates);
-  if (fields.length === 0) return;
+  const setClauses: string[] = [];
+  const values: SQLiteBindValue[] = [];
 
-  const setClause = fields.map(field => `${field} = ?`).join(', ');
-  const values = [...Object.values(updates), lastUpdated, accountId];
+  for (const [key, column] of Object.entries(UPDATE_COLUMNS)) {
+    const field = key as keyof typeof updates;
+    const value = updates[field];
+    if (value !== undefined) {
+      setClauses.push(`${column} = ?`);
+      values.push(value as SQLiteBindValue);
+    }
+  }
+
+  if (setClauses.length === 0) return;
+
+  setClauses.push('last_updated = ?');
+  values.push(lastUpdated, accountId);
 
   await db.runAsync(
-    `UPDATE accounts SET ${setClause}, last_updated = ? WHERE id = ?`,
+    `UPDATE accounts SET ${setClauses.join(', ')} WHERE id = ?`,
     values
   );
 }

@@ -1,13 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, Platform, ActivityIndicator } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/lib/ThemeContext';
 import { colors, spacing, typography, borderRadius, shadows } from '@/lib/theme';
+import { usePressScale } from './usePressScale';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -35,18 +32,14 @@ export function PrimaryButton({
   loading = false,
 }: PrimaryButtonProps) {
   const { textPrimary } = useTheme();
-  const scale = useSharedValue(1);
+  const { animatedStyle, handlePressIn: pressIn, handlePressOut: pressOut } = usePressScale({ scaleTo: 0.97 });
 
   const handlePressIn = () => {
-    if (!disabled) {
-      scale.value = withSpring(0.97, { damping: 15, stiffness: 400 });
-    }
+    if (!disabled) pressIn();
   };
 
   const handlePressOut = () => {
-    if (!disabled) {
-      scale.value = withSpring(1, { damping: 15, stiffness: 400 });
-    }
+    if (!disabled) pressOut();
   };
 
   const handlePress = () => {
@@ -57,10 +50,6 @@ export function PrimaryButton({
     }
     onPress();
   };
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
 
   const getButtonStyle = () => {
     switch (variant) {

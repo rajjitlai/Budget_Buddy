@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   Plus,
-  Menu,
   TrendingDown,
   TrendingUp,
   Calendar,
@@ -26,18 +25,16 @@ import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
-import { useNavigation } from 'expo-router';
-import { DrawerActions } from '@react-navigation/native';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useData } from '@/lib/DataContext';
 import { formatCurrency } from '@/lib/types';
 import {
-  Loan,
-  getLoans,
   createLoan,
   updateLoan,
   deleteLoan,
   recordRepayment,
 } from '@/lib/services/loans';
+import type { Loan } from '@/lib/types';
 import { ModalSheet } from '@/components/ui/ModalSheet';
 import { InputField } from '@/components/ui/InputField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -49,12 +46,9 @@ type LoanType = 'borrowed' | 'lent';
 export default function LoansScreen() {
   const { backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
-  const { refreshKey } = useData();
-  const navigation = useNavigation();
+  const { loans, loading, triggerRefresh } = useData();
   const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
 
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isRepayModalVisible, setIsRepayModalVisible] = useState(false);
@@ -70,22 +64,6 @@ export default function LoansScreen() {
   const [formNotes, setFormNotes] = useState('');
   const [repayAmount, setRepayAmount] = useState('');
   const [saving, setSaving] = useState(false);
-
-  const loadLoans = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await getLoans();
-      setLoans(data);
-    } catch (e) {
-      console.error('Error loading loans:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadLoans();
-  }, [refreshKey]);
 
   const resetForm = () => {
     setFormName('');
@@ -115,12 +93,12 @@ export default function LoansScreen() {
         lenderBorrower: formParty || undefined,
         notes: formNotes || undefined,
       });
-      await loadLoans();
+      triggerRefresh();
       setIsAddModalVisible(false);
       resetForm();
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to add loan');
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to add loan');
     } finally {
       setSaving(false);
     }
@@ -140,12 +118,12 @@ export default function LoansScreen() {
         lenderBorrower: formParty || undefined,
         notes: formNotes || undefined,
       });
-      await loadLoans();
+      triggerRefresh();
       setIsEditModalVisible(false);
       resetForm();
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to update loan');
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to update loan');
     } finally {
       setSaving(false);
     }
@@ -175,12 +153,12 @@ export default function LoansScreen() {
     setSaving(true);
     try {
       await recordRepayment(editingLoan.id, parseFloat(repayAmount) || 0);
-      await loadLoans();
+      triggerRefresh();
       setIsRepayModalVisible(false);
       setEditingLoan(null);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to record repayment');
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to record repayment');
     } finally {
       setSaving(false);
     }
@@ -190,10 +168,10 @@ export default function LoansScreen() {
     const doDelete = async () => {
       try {
         await deleteLoan(loan.id);
-        await loadLoans();
+        triggerRefresh();
         if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch (e: any) {
-        Alert.alert('Error', e.message || 'Failed to delete loan');
+      } catch (e) {
+        Alert.alert('Error', e instanceof Error ? e.message : 'Failed to delete loan');
       }
     };
     if (Platform.OS === 'web') {
@@ -326,16 +304,10 @@ export default function LoansScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
-      <View style={styles.header}>
-        <AnimatedScale
-          onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-          style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10` }]}
-        >
-          <Menu size={22} color={textSecondary} />
-        </AnimatedScale>
-        <Text style={[styles.title, { color: textPrimary }]}>Loans</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader
+        title="Loans"
+        right={<View style={{ width: 44 }} />}
+      />
 
       {/* Summary Strip */}
       <View style={styles.summaryRow}>
@@ -430,23 +402,6 @@ export default function LoansScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-  },
-  iconButton: {
-    width: 40, height: 40,
-    borderRadius: borderRadius.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: typography.fontSizes['2xl'],
-    fontWeight: typography.fontWeights.bold,
-  },
   summaryRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,

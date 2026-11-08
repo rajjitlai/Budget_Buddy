@@ -1,11 +1,12 @@
 import React from 'react';
 import { Drawer } from 'expo-router/drawer';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import {
   DrawerContentScrollView,
   DrawerItemList,
   DrawerItem,
 } from '@react-navigation/drawer';
+import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -18,36 +19,23 @@ import {
   Bell,
   MessageCircle,
 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
 import { useData } from '@/lib/DataContext';
-import { getUnreadCount } from '@/lib/services/notifications';
 import { colors, borderRadius, typography, spacing } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 
 export default function DrawerLayout() {
-  const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
+  const { isDarkMode, textPrimary, textSecondary } = useTheme();
   const router = useRouter();
-  const { notifRefreshKey } = useData();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { unreadCount } = useData();
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const count = await getUnreadCount();
-        setUnreadCount(count);
-      } catch (e) {}
-    };
-    load();
-  }, [notifRefreshKey]);
-
-  function CustomDrawerContent(props: any) {
+  function CustomDrawerContent(props: DrawerContentComponentProps) {
     return (
       <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: 0 }}>
         <View style={styles.drawerHeader}>
           <Text style={[styles.drawerTitle, { color: textPrimary }]}>Budget Buddy</Text>
-          <Text style={[styles.drawerSubtitle, { color: textSecondary }]}>v{Constants.expoConfig?.version || '2.3.1'} Premium</Text>
+          <Text style={[styles.drawerSubtitle, { color: textSecondary }]}>v{Constants.expoConfig?.version || '2.4.0'} Premium</Text>
         </View>
         <DrawerItemList {...props} />
         <View style={styles.drawerDivider} />

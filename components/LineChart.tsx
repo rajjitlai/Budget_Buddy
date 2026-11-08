@@ -20,6 +20,8 @@ interface LineChartProps {
   title?: string;
 }
 
+let gradientSeq = 0;
+
 export function LineChart({
   data,
   height = 200,
@@ -33,7 +35,46 @@ export function LineChart({
 
   const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
 
-  if (data.length === 0) {
+  const gradientId = React.useMemo(() => `area-gradient-${gradientSeq++}`, []);
+
+  const chart = React.useMemo(() => {
+    if (data.length === 0) return null;
+
+    const padding = 36;
+    const chartWidth = 310;
+    const innerWidth = chartWidth - padding * 2;
+    const innerHeight = height - padding * 2;
+
+    const maxValue = Math.max(...data.map((d) => d.value), 0);
+    const minValue = Math.min(...data.map((d) => d.value), 0);
+    const valueRange = maxValue - minValue || 1;
+
+    const points = data.map((point, index) => {
+      const x = padding + (index / (data.length - 1 || 1)) * innerWidth;
+      const y =
+        padding +
+        innerHeight -
+        ((point.value - minValue) / valueRange) * innerHeight;
+      return { x, y, value: point.value, label: point.label };
+    });
+
+    const linePoints = points.map((point) => `${point.x},${point.y}`).join(' ');
+
+    const areaPoints = [
+      ...points.map((p) => `${p.x},${p.y}`),
+      `${points[points.length - 1].x},${padding + innerHeight}`,
+      `${points[0].x},${padding + innerHeight}`,
+    ].join(' ');
+
+    const gridLines = 4;
+    const gridLineYPositions = Array.from({ length: gridLines }, (_, i) => {
+      return padding + (i / (gridLines - 1)) * innerHeight;
+    });
+
+    return { padding, chartWidth, points, linePoints, areaPoints, gridLineYPositions };
+  }, [data, height]);
+
+  if (!chart) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={[styles.emptyText, { color: textSecondary }]}>
@@ -43,41 +84,8 @@ export function LineChart({
     );
   }
 
-  const padding = 36;
-  const chartWidth = 310;
+  const { padding, chartWidth, points, linePoints, areaPoints, gridLineYPositions } = chart;
   const chartHeight = height;
-  const innerWidth = chartWidth - padding * 2;
-  const innerHeight = chartHeight - padding * 2;
-
-  const maxValue = Math.max(...data.map((d) => d.value), 0);
-  const minValue = Math.min(...data.map((d) => d.value), 0);
-  const valueRange = maxValue - minValue || 1;
-
-  // Calculate points
-  const points = data.map((point, index) => {
-    const x = padding + (index / (data.length - 1 || 1)) * innerWidth;
-    const y =
-      padding +
-      innerHeight -
-      ((point.value - minValue) / valueRange) * innerHeight;
-    return { x, y, value: point.value, label: point.label };
-  });
-
-  // Create path for the line
-  const linePoints = points.map((point) => `${point.x},${point.y}`).join(' ');
-
-  // Create area polygon points with smooth bottom closing
-  const areaPoints = [
-    ...points.map((p) => `${p.x},${p.y}`),
-    `${points[points.length - 1].x},${padding + innerHeight}`,
-    `${points[0].x},${padding + innerHeight}`,
-  ].join(' ');
-
-  // Grid lines
-  const gridLines = 4;
-  const gridLineYPositions = Array.from({ length: gridLines }, (_, i) => {
-    return padding + (i / (gridLines - 1)) * innerHeight;
-  });
 
   // Determine trend
   const firstValue = data[0]?.value || 0;
@@ -87,8 +95,6 @@ export function LineChart({
     firstValue > 0
       ? Math.abs(((lastValue - firstValue) / firstValue) * 100).toFixed(1)
       : '0';
-
-  const gradientId = `area-gradient-${Math.random().toString(36).substring(2, 8)}`;
 
   return (
     <View style={styles.container}>

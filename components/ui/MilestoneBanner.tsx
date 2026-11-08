@@ -1,9 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, TrendingUp, ShieldCheck, ArrowRight } from 'lucide-react-native';
-import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
-import { useTheme } from '@/lib/ThemeContext';
+import { TrendingUp, ShieldCheck, ArrowRight } from 'lucide-react-native';
+import { borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { formatCurrency } from '@/lib/types';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -20,8 +19,6 @@ export function MilestoneBanner({
   currency,
   onPress,
 }: MilestoneBannerProps) {
-  const { isDarkMode } = useTheme();
-
   if (savingsRate < 20 && surplus <= 0) {
     return null;
   }
@@ -29,7 +26,7 @@ export function MilestoneBanner({
   const isExcellent = savingsRate >= 30;
   const isHealthy = savingsRate >= 20;
 
-  const gradientColors = isExcellent
+  const gradientColors: [string, string, string] = isExcellent
     ? ['#065F46', '#059669', '#10B981']
     : isHealthy
     ? ['#0F766E', '#0D9488', '#14B8A6']
@@ -55,7 +52,7 @@ export function MilestoneBanner({
         disabled={!onPress}
       >
         <LinearGradient
-          colors={gradientColors as any}
+          colors={gradientColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  View,
   Text,
   StyleSheet,
   ScrollView,
@@ -28,48 +27,13 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{
-    name?: string;
-    email?: string;
-    password?: string;
-    confirmPassword?: string;
-  }>({});
-
-  const validate = () => {
-    const newErrors: typeof errors = {};
-    
-    if (!name.trim()) {
-      newErrors.name = 'Name is required';
-    }
-    
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email is invalid';
-    }
-    
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    }
-    
-    if (!confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
-    } else if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleSignup = async () => {
     setLoading(true);
     try {
       await updateUser({ name: name.trim() || 'Guest', onboarded: true });
       router.replace('/(tabs)');
-    } catch (error: any) {
+    } catch {
       Alert.alert('Sign Up Failed', 'Unable to continue. Please try again.');
     } finally {
       setLoading(false);
@@ -108,7 +72,6 @@ export default function SignupScreen() {
               placeholder="Enter your name"
               value={name}
               onChangeText={setName}
-              error={errors.name}
               icon={<User size={18} color={textSecondary} />}
             />
 
@@ -118,7 +81,6 @@ export default function SignupScreen() {
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
-              error={errors.email}
               icon={<Mail size={18} color={textSecondary} />}
             />
 
@@ -128,7 +90,6 @@ export default function SignupScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
-              error={errors.password}
               icon={<Lock size={18} color={textSecondary} />}
             />
 
@@ -138,7 +99,6 @@ export default function SignupScreen() {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
-              error={errors.confirmPassword}
               icon={<Lock size={18} color={textSecondary} />}
             />
 

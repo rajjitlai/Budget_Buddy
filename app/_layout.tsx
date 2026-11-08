@@ -1,28 +1,14 @@
 
 
 import React from "react";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack } from "expo-router";
 import { ThemeProvider, useTheme } from "@/lib/ThemeContext";
 import { UserProvider, useUser } from "@/lib/UserContext";
 import { DataProvider } from "@/lib/DataContext";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StyleSheet, View, ActivityIndicator, Platform } from "react-native";
-import { useEffect } from "react";
+import { StyleSheet, View, ActivityIndicator } from "react-native";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-
-if (Platform.OS === 'web') {
-  const _warn = console.warn.bind(console);
-  console.warn = (...args: any[]) => {
-    const msg = args[0];
-    if (typeof msg === 'string' && (
-      msg.includes('props.pointerEvents is deprecated') ||
-      msg.includes('Unexpected text node') ||
-      msg.includes('useNativeDriver')
-    )) return;
-    _warn(...args);
-  };
-}
 
 function ThemedStatusBar() {
     const { isDarkMode } = useTheme();
@@ -30,8 +16,7 @@ function ThemedStatusBar() {
 }
 
 function RootLayoutNav() {
-    const { user, loading } = useUser();
-    const router = useRouter();
+    const { loading } = useUser();
 
     if (loading) {
         return (

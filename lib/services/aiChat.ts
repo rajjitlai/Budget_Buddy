@@ -1,6 +1,8 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { getDatabase } from '@/lib/database/sqlite';
+import { getDatabase, ChatMessageRow } from '@/lib/database/sqlite';
+import { getSessionApiKey } from '@/lib/utils/sessionKey';
+import type { ChatMessage } from '@/lib/types';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
@@ -14,14 +16,6 @@ export const FALLBACK_MODELS = [
 const REFERER = 'https://budget-buddy.app';
 const APP_TITLE = 'Budget Buddy';
 
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-  isAI?: boolean;
-  modelUsed?: string;
-}
 
 export interface FinancialContext {
   netWorth: number;
@@ -49,24 +43,37 @@ export async function getAIConfig(): Promise<{
   apiUrl: string;
   customInstructions?: string;
 }> {
-  let apiKey: string | null = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY || null;
+  let apiKey: string | null = null;
   let model = DEFAULT_MODEL;
   let provider = 'openrouter';
   let customInstructions: string | undefined;
 
   try {
-    const stored = Platform.OS === 'web'
-      ? (typeof window !== 'undefined' ? window.localStorage.getItem('budget_buddy_user_profile') : null)
-      : await SecureStore.getItemAsync('budget_buddy_user_profile');
-
-    if (stored) {
-      const user = JSON.parse(stored);
-      if (user.aiConfig?.apiKey?.trim()) {
-        // Strip any accidental quotes or whitespace
-        apiKey = user.aiConfig.apiKey.trim().replace(/^["']|["']$/g, '');
-        model = user.aiConfig.model?.trim() || model;
-        provider = user.aiConfig.provider || provider;
-        customInstructions = user.aiConfig.customInstructions || undefined;
+    if (Platform.OS === 'web') {
+      // The API key is never persisted to localStorage — it lives in the
+      // in-memory session store (see lib/utils/sessionKey.ts).
+      const stored = typeof window !== 'undefined' ? window.localStorage.getItem('budget_buddy_user_profile') : null;
+      if (stored) {
+        const user = JSON.parse(stored);
+        model = user.aiConfig?.model?.trim() || model;
+        provider = user.aiConfig?.provider || provider;
+        customInstructions = user.aiConfig?.customInstructions || undefined;
+      }
+      const sessionKey = getSessionApiKey();
+      if (sessionKey.trim()) {
+        apiKey = sessionKey.trim().replace(/^["']|["']$/g, '');
+      }
+    } else {
+      const stored = await SecureStore.getItemAsync('budget_buddy_user_profile');
+      if (stored) {
+        const user = JSON.parse(stored);
+        if (user.aiConfig?.apiKey?.trim()) {
+          // Strip any accidental quotes or whitespace
+          apiKey = user.aiConfig.apiKey.trim().replace(/^["']|["']$/g, '');
+          model = user.aiConfig.model?.trim() || model;
+          provider = user.aiConfig?.provider || provider;
+          customInstructions = user.aiConfig.customInstructions || undefined;
+        }
       }
     }
   } catch (err) {
@@ -135,22 +142,29 @@ export async function sendChatMessage(
   let lastErrorStatus: number | null = null;
   let lastErrorMessage = '';
 
-  for (const currentModel of modelsToTry) {
-    try {
-      console.log(`[AI Chat] Trying model: ${currentModel}`);
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': REFERER,
-          'X-Title': APP_TITLE,
-        },
-        body: JSON.stringify({
-          model: currentModel,
-          messages,
-        }),
-      });
+  // Hard cap for the whole model-fallback loop (all attempts combined)
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
+
+  try {
+    for (const currentModel of modelsToTry) {
+      if (controller.signal.aborted) break;
+      try {
+        console.log(`[AI Chat] Trying model: ${currentModel}`);
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': REFERER,
+            'X-Title': APP_TITLE,
+          },
+          body: JSON.stringify({
+            model: currentModel,
+            messages,
+          }),
+          signal: controller.signal,
+        });
 
       if (response.ok) {
         const data = await response.json();
@@ -190,10 +204,13 @@ export async function sendChatMessage(
           };
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       console.warn(`[AI Chat] Network error with ${currentModel}:`, err);
-      lastErrorMessage = err?.message || 'Network request failed';
+      lastErrorMessage = err instanceof Error ? err.message : 'Network request failed';
     }
+    }
+  } finally {
+    clearTimeout(timer);
   }
 
   // If all models failed, provide helpful diagnostics instead of generic offline fallback
@@ -213,7 +230,7 @@ export async function sendChatMessage(
 
 export async function getChatHistory(): Promise<ChatMessage[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<any>(
+  const rows = await db.getAllAsync<ChatMessageRow>(
     'SELECT * FROM chat_messages ORDER BY created_at ASC'
   );
   return rows.map((r) => ({

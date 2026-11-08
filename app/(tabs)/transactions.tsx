@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,71 +11,53 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   FadeInDown,
-  FadeInUp,
   useAnimatedKeyboard,
   useAnimatedStyle,
 } from 'react-native-reanimated';
 import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  ArrowLeftRight,
-  Calendar,
-  FileText,
   Plus,
   History,
   Search,
   Filter,
   X,
-  Menu,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react-native';
 import { RefreshButton } from '@/components/RefreshButton';
-import { AnimatedScale } from '@/components/ui/AnimatedScale';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
-import { useNavigation } from 'expo-router';
-import { DrawerActions } from '@react-navigation/native';
 import {
-  SUGGESTED_CATEGORIES,
   formatCurrency,
+  Account,
+  Transaction,
 } from '@/lib/types';
-import { inferCategoryFromText } from '@/lib/utils/categorizer';
-import { getAccounts } from '@/lib/services/accounts';
 import { 
   createTransaction, 
-  getTransactions, 
   updateTransaction,
   deleteTransaction
 } from '@/lib/services/transactions';
 import { useUser } from '@/lib/UserContext';
 import { useData } from '@/lib/DataContext';
-import { Account, Transaction } from '@/lib/types';
 import { InputField } from '@/components/ui/InputField';
 import { SelectField } from '@/components/ui/SelectField';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { TransactionItem } from '@/components/TransactionItem';
+import { TransactionForm, TransactionFormValues, TransactionType } from '@/components/TransactionForm';
 import { ModalSheet } from '@/components/ui/ModalSheet';
+import { filterTransactions } from '@/lib/utils/transactionFilter';
 
-type TransactionType = 'expense' | 'income' | 'transfer';
 type TabType = 'add' | 'history';
 
 export default function TransactionScreen() {
-  const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
+  const { backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
-  const { refreshKey, triggerRefresh } = useData();
-  const navigation = useNavigation();
+  const { accounts, transactions, loading, refreshKey, triggerRefresh } = useData();
   
   const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
-  const insets = useSafeAreaInsets();
   const keyboard = useAnimatedKeyboard({ isStatusBarTranslucentAndroid: true });
   const formScrollRef = React.useRef<ScrollView>(null);
-  const suggestionScrollRef = React.useRef<ScrollView>(null);
 
   const animatedKeyboardPadding = useAnimatedStyle(() => {
     const kbHeight = keyboard.height.value;
@@ -86,10 +68,6 @@ export default function TransactionScreen() {
   });
 
   const [activeTab, setActiveTab] = useState<TabType>('add');
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [transactionsLoading, setTransactionsLoading] = useState(true);
   
   // Add transaction form state
   const [transactionType, setTransactionType] = useState<TransactionType>('expense');
@@ -112,97 +90,35 @@ export default function TransactionScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadAccounts();
-  }, [refreshKey]);
-
-  useEffect(() => {
-    if (activeTab === 'history') {
-      loadTransactions();
-    }
-  }, [activeTab]);
-
-  const refreshData = async () => {
+  const refreshData = () => {
     setRefreshing(true);
-    try {
-      await loadAccounts();
-      if (activeTab === 'history') {
-        await loadTransactions();
-      }
-    } finally {
-      setRefreshing(false);
-    }
+    triggerRefresh();
   };
 
-  const loadAccounts = async () => {
-    try {
-      setLoading(true);
-      const accountDocs = await getAccounts();
-      const accountList: Account[] = accountDocs.map((doc) => ({
-        id: doc.id,
-        name: doc.name,
-        type: doc.type,
-        balance: doc.balance,
-        icon: doc.icon,
-        color: doc.color,
-      }));
-      setAccounts(accountList);
-    } catch (error) {
-      console.error('Error loading accounts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    if (refreshing) setRefreshing(false);
+  }, [refreshKey, refreshing]);
 
-  const loadTransactions = async () => {
-    try {
-      setTransactionsLoading(true);
-      const transactionDocs = await getTransactions({ limit: 500 }); // Load more for filtering
-      setTransactions(transactionDocs);
-    } catch (error) {
-      console.error('Error loading transactions:', error);
-    } finally {
-      setTransactionsLoading(false);
-    }
-  };
+  // Account lookup (memoized Map — declared before filteredTransactions uses it)
+  const accountsById = useMemo(
+    () => new Map<string, Account>(accounts.map((acc) => [acc.id, acc])),
+    [accounts]
+  );
 
-  // Filter and search transactions
-  const filteredTransactions = transactions.filter((transaction) => {
-    // Type filter
-    if (filterType !== 'all' && transaction.type !== filterType) {
-      return false;
-    }
+  const getAccountById = useCallback(
+    (accountId: string) => accountsById.get(accountId),
+    [accountsById]
+  );
 
-    // Account filter
-    if (filterAccount !== 'all') {
-      if (transaction.sourceAccountId !== filterAccount && 
-          transaction.destinationAccountId !== filterAccount) {
-        return false;
-      }
-    }
-
-    // Search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      const categoryMatch = transaction.category.toLowerCase().includes(query);
-      const notesMatch = transaction.notes?.toLowerCase().includes(query) || false;
-      const amountMatch = transaction.amount.toString().includes(query);
-      
-      // Check account names
-      const sourceAccount = getAccountById(transaction.sourceAccountId);
-      const destAccount = transaction.destinationAccountId 
-        ? getAccountById(transaction.destinationAccountId) 
-        : null;
-      const sourceAccountMatch = sourceAccount?.name.toLowerCase().includes(query) || false;
-      const destAccountMatch = destAccount?.name.toLowerCase().includes(query) || false;
-
-      if (!categoryMatch && !notesMatch && !amountMatch && !sourceAccountMatch && !destAccountMatch) {
-        return false;
-      }
-    }
-
-    return true;
-  });
+  // Filter and search transactions (recomputed only when inputs change)
+  const filteredTransactions = useMemo(
+    () => filterTransactions(transactions, accounts, {
+      type: filterType,
+      account: filterAccount,
+      query: searchQuery,
+    }),
+    [transactions, accounts, filterType, filterAccount, searchQuery]
+  );
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -229,14 +145,6 @@ export default function TransactionScreen() {
     setActiveTab(tab);
   };
 
-  const handleTypeChange = (type: TransactionType) => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    setTransactionType(type);
-    setCategory(null);
-  };
-
   const resetForm = () => {
     setAmount('');
     setCategory(null);
@@ -247,17 +155,24 @@ export default function TransactionScreen() {
     setTransactionType('expense');
   };
 
-  const handleNotesChange = (text: string) => {
-    setNotes(text);
-    if (!category || category.trim() === '') {
-      const inferred = inferCategoryFromText(text);
-      if (inferred) {
-        setCategory(inferred.category);
-        if (transactionType !== 'transfer') {
-          setTransactionType(inferred.type);
-        }
-      }
-    }
+  const handleFormChange = useCallback((patch: Partial<TransactionFormValues>) => {
+    if (patch.amount !== undefined) setAmount(patch.amount);
+    if (patch.category !== undefined) setCategory(patch.category);
+    if (patch.date !== undefined) setDate(patch.date);
+    if (patch.notes !== undefined) setNotes(patch.notes);
+    if (patch.transactionType !== undefined) setTransactionType(patch.transactionType);
+    if (patch.sourceAccount !== undefined) setSourceAccount(patch.sourceAccount);
+    if (patch.destinationAccount !== undefined) setDestinationAccount(patch.destinationAccount);
+  }, []);
+
+  const formValues: TransactionFormValues = {
+    amount,
+    category,
+    date,
+    notes,
+    transactionType,
+    sourceAccount,
+    destinationAccount,
   };
 
   const handleSubmit = async () => {
@@ -290,25 +205,24 @@ export default function TransactionScreen() {
       
       // Switch to history tab to show the new transaction
       setActiveTab('history');
-      await loadTransactions();
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to create transaction');
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create transaction');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleEdit = (transaction: Transaction) => {
+  const handleEdit = useCallback((transaction: Transaction) => {
     setEditingTransaction(transaction);
     setAmount(transaction.amount.toString());
     setCategory(transaction.category);
     setSourceAccount(transaction.sourceAccountId);
     setDestinationAccount(transaction.destinationAccountId || null);
-    setNotes(transaction.notes);
+    setNotes(transaction.notes ?? '');
     setDate(transaction.date.split('T')[0]);
     setTransactionType(transaction.type);
     setIsEditModalVisible(true);
-  };
+  }, []);
 
   const handleUpdate = async () => {
     if (!editingTransaction || !amount || !sourceAccount || (transactionType !== 'transfer' && !category)) {
@@ -335,15 +249,14 @@ export default function TransactionScreen() {
       setEditingTransaction(null);
       resetForm();
       triggerRefresh();
-      await loadTransactions();
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update transaction');
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update transaction');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = (transaction: Transaction) => {
+  const handleDelete = useCallback((transaction: Transaction) => {
     Alert.alert(
       'Delete Transaction',
       'Are you sure you want to delete this transaction? This action cannot be undone.',
@@ -359,41 +272,32 @@ export default function TransactionScreen() {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }
               triggerRefresh();
-              await loadTransactions();
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to delete transaction');
+            } catch (error) {
+              Alert.alert('Error', error instanceof Error ? error.message : 'Failed to delete transaction');
             }
           },
         },
       ]
     );
-  };
+  }, [triggerRefresh]);
 
-  const getTypeIcon = (type: TransactionType) => {
-    switch (type) {
-      case 'income':
-        return ArrowDownLeft;
-      case 'expense':
-        return ArrowUpRight;
-      case 'transfer':
-        return ArrowLeftRight;
-    }
-  };
+  const renderTransactionItem = useCallback(
+    ({ item }: { item: Transaction }) => (
+      <TransactionItem
+        transaction={item}
+        sourceAccount={getAccountById(item.sourceAccountId)}
+        destinationAccount={item.destinationAccountId ? getAccountById(item.destinationAccountId) : undefined}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+    ),
+    [getAccountById, handleEdit, handleDelete]
+  );
 
-  const getTypeColor = (type: TransactionType, isActive: boolean) => {
-    if (!isActive) return textSecondary;
-    switch (type) {
-      case 'income':
-        return colors.success;
-      case 'expense':
-        return colors.error;
-      case 'transfer':
-        return colors.info;
-    }
-  };
-
-  const getAccountById = (accountId: string) => {
-    return accounts.find((acc) => acc.id === accountId);
+  const closeEditModal = () => {
+    setIsEditModalVisible(false);
+    setEditingTransaction(null);
+    resetForm();
   };
 
   const renderAddTransaction = () => (
@@ -404,181 +308,24 @@ export default function TransactionScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-      {/* Transaction Type Selector */}
-      <Animated.View
-        entering={FadeInDown.delay(200).duration(500)}
-        style={[styles.typeSelector, { backgroundColor: cardBackground }]}
-      >
-        {(['expense', 'income', 'transfer'] as TransactionType[]).map((type) => {
-          const Icon = getTypeIcon(type);
-          const isActive = transactionType === type;
-          return (
-            <TouchableOpacity
-              key={type}
-              onPress={() => handleTypeChange(type)}
-              style={[
-                styles.typeButton,
-                isActive && {
-                  backgroundColor: `${getTypeColor(type, true)}15`,
-                  borderColor: getTypeColor(type, true),
-                },
-              ]}
-            >
-              <Icon size={20} color={getTypeColor(type, isActive)} />
-              <Text
-                style={[
-                  styles.typeLabel,
-                  { color: getTypeColor(type, isActive) },
-                  isActive && styles.typeLabelActive,
-                ]}
-              >
-                {type.charAt(0).toUpperCase() + type.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </Animated.View>
-
-      {/* Form */}
-      <Animated.View
-        entering={FadeInDown.delay(300).duration(500)}
-        style={styles.form}
-      >
-        {/* Amount Input */}
-        <View style={[styles.amountContainer, { backgroundColor: cardBackground }]}>
-          <Text style={[styles.currencySymbol, { color: textSecondary }]}>Rs.</Text>
-          <InputField
-            label=""
-            placeholder="0"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-            containerStyle={styles.amountInput}
-          />
-        </View>
-
-        {/* Two Column Layout */}
-        <View style={styles.twoColumn}>
-          <View style={styles.column}>
-            <InputField
-              label="Category"
-              placeholder="e.g. Lunch"
-              value={category || ''}
-              onChangeText={setCategory}
-            />
-          </View>
-          <View style={styles.column}>
-            <InputField
-              label="Date"
-              placeholder="YYYY-MM-DD"
-              value={date}
-              onChangeText={setDate}
-              icon={<Calendar size={18} color={textSecondary} />}
-            />
-          </View>
-        </View>
-
-        {/* Category Suggestion Chips - full width below both columns */}
-        <View style={styles.scrollIndicatorContainer}>
-          <TouchableOpacity 
-            onPress={() => suggestionScrollRef.current?.scrollTo({ x: 0, animated: true })}
-            style={styles.scrollIndicator}
-          >
-            <ChevronLeft size={16} color={textSecondary} />
-          </TouchableOpacity>
-          
-          <ScrollView 
-            ref={suggestionScrollRef}
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            style={styles.suggestionScroll}
-            contentContainerStyle={styles.suggestionContent}
-          >
-            {SUGGESTED_CATEGORIES.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                onPress={() => {
-                  setCategory(cat);
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                style={[
-                  styles.suggestionChip,
-                  { backgroundColor: cardBackground, borderColor }
-                ]}
-              >
-                <Text style={{ color: textPrimary }}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          <TouchableOpacity 
-            onPress={() => suggestionScrollRef.current?.scrollToEnd({ animated: true })}
-            style={styles.scrollIndicator}
-          >
-            <ChevronRight size={16} color={textSecondary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Account Selection */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <Text style={[styles.loadingText, { color: textSecondary }]}>
-              Loading accounts...
-            </Text>
-          </View>
-        ) : (
-          <SelectField
-            label={transactionType === 'transfer' ? 'From Account' : 'Account'}
-            options={accountOptions}
-            value={sourceAccount}
-            onChange={setSourceAccount}
-            placeholder="Select account"
-          />
-        )}
-
-        {transactionType === 'transfer' && (
-          <Animated.View entering={FadeInUp.duration(300)}>
-            <SelectField
-              label="To Account"
-              options={accountOptions.filter((acc) => acc.id !== sourceAccount)}
-              value={destinationAccount}
-              onChange={setDestinationAccount}
-              placeholder="Select destination"
-            />
-          </Animated.View>
-        )}
-
-        {/* Notes */}
-        <InputField
-          label="Notes (Optional)"
-          placeholder="e.g. Starbucks, Uber, Walmart Groceries, Rent..."
-          value={notes}
-          onChangeText={handleNotesChange}
-          multiline
-          numberOfLines={3}
-          onFocus={() => {
+        <TransactionForm
+          mode="add"
+          values={formValues}
+          onChange={handleFormChange}
+          accountOptions={accountOptions}
+          accountsLoading={loading}
+          submitting={submitting}
+          onSubmit={handleSubmit}
+          onNotesFocus={() => {
             setTimeout(() => formScrollRef.current?.scrollToEnd({ animated: true }), 150);
           }}
-          icon={<FileText size={18} color={textSecondary} />}
         />
-
-        {/* Submit Button */}
-        <View style={styles.submitContainer}>
-          <PrimaryButton
-            title={submitting ? 'Adding...' : `Add ${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)}`}
-            onPress={handleSubmit}
-            disabled={!amount || !sourceAccount || (transactionType !== 'transfer' && !category) || submitting || loading}
-            fullWidth
-            size="lg"
-          />
-        </View>
-      </Animated.View>
-    </ScrollView>
-  </Animated.View>
-);
+      </ScrollView>
+    </Animated.View>
+  );
 
   const renderHistory = () => {
-    if (transactionsLoading) {
+    if (loading) {
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary[500]} />
@@ -748,15 +495,8 @@ export default function TransactionScreen() {
           <FlatList
             data={filteredTransactions}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TransactionItem
-                transaction={item}
-                sourceAccount={getAccountById(item.sourceAccountId)}
-                destinationAccount={item.destinationAccountId ? getAccountById(item.destinationAccountId) : undefined}
-                onEdit={() => handleEdit(item)}
-                onDelete={() => handleDelete(item)}
-              />
-            )}
+            renderItem={renderTransactionItem}
+            extraData={accountsById}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           />
@@ -768,30 +508,12 @@ export default function TransactionScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
       {/* Dynamic Header */}
-      <Animated.View
+      <ScreenHeader
         entering={FadeInDown.delay(100).duration(500)}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.headerLeft}>
-            <AnimatedScale 
-              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-              style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10`, marginRight: spacing.md }]}
-            >
-              <Menu size={22} color={textSecondary} />
-            </AnimatedScale>
-            <View>
-              <Text style={[styles.title, { color: textPrimary }]}>
-                {activeTab === 'add' ? 'Add Transaction' : 'History'}
-              </Text>
-              <Text style={[styles.subtitle, { color: textSecondary }]}>
-                {activeTab === 'add' ? 'Record your activity' : 'Your transaction log'}
-              </Text>
-            </View>
-          </View>
-          <RefreshButton onPress={refreshData} refreshing={refreshing} />
-        </View>
-      </Animated.View>
+        title={activeTab === 'add' ? 'Add Transaction' : 'History'}
+        subtitle={activeTab === 'add' ? 'Record your activity' : 'Your transaction log'}
+        right={<RefreshButton onPress={refreshData} refreshing={refreshing} />}
+      />
 
       {/* Tab Selector */}
       <View style={[styles.tabContainer, { backgroundColor: cardBackground }]}>
@@ -839,154 +561,19 @@ export default function TransactionScreen() {
       {/* Edit Transaction Modal */}
       <ModalSheet
         visible={isEditModalVisible}
-        onClose={() => {
-          setIsEditModalVisible(false);
-          setEditingTransaction(null);
-          resetForm();
-        }}
+        onClose={closeEditModal}
         title="Edit Transaction"
       >
-        <View style={styles.modalContent}>
-          {/* Transaction Type Selector */}
-          <View style={[styles.typeSelector, { backgroundColor: cardBackground }]}>
-            {(['expense', 'income', 'transfer'] as TransactionType[]).map((type) => {
-              const Icon = getTypeIcon(type);
-              const isActive = transactionType === type;
-              return (
-                <TouchableOpacity
-                  key={type}
-                  onPress={() => handleTypeChange(type)}
-                  style={[
-                    styles.typeButton,
-                    isActive && {
-                      backgroundColor: `${getTypeColor(type, true)}15`,
-                      borderColor: getTypeColor(type, true),
-                    },
-                  ]}
-                >
-                  <Icon size={20} color={getTypeColor(type, isActive)} />
-                  <Text
-                    style={[
-                      styles.typeLabel,
-                      { color: getTypeColor(type, isActive) },
-                      isActive && styles.typeLabelActive,
-                    ]}
-                  >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Amount Input */}
-          <View style={[styles.amountContainer, { backgroundColor: cardBackground }]}>
-            <Text style={[styles.currencySymbol, { color: textSecondary }]}>Rs.</Text>
-            <InputField
-              label=""
-              placeholder="0"
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-              containerStyle={styles.amountInput}
-            />
-          </View>
-
-          {/* Two Column Layout */}
-          <View style={styles.twoColumn}>
-            <View style={styles.column}>
-              <InputField
-                label="Category"
-                placeholder="e.g. Lunch"
-                value={category || ''}
-                onChangeText={setCategory}
-              />
-            </View>
-            <View style={styles.column}>
-              <InputField
-                label="Date"
-                placeholder="YYYY-MM-DD"
-                value={date}
-                onChangeText={setDate}
-                icon={<Calendar size={18} color={textSecondary} />}
-              />
-            </View>
-          </View>
-
-          {/* Category Suggestion Chips - full width below both columns */}
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            style={styles.suggestionScroll}
-            contentContainerStyle={styles.suggestionContent}
-          >
-            {SUGGESTED_CATEGORIES.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                onPress={() => {
-                  setCategory(cat);
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                style={[
-                  styles.suggestionChip,
-                  { backgroundColor: cardBackground, borderColor }
-                ]}
-              >
-                <Text style={{ color: textPrimary }}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Account Selection */}
-          <SelectField
-            label={transactionType === 'transfer' ? 'From Account' : 'Account'}
-            options={accountOptions}
-            value={sourceAccount}
-            onChange={setSourceAccount}
-            placeholder="Select account"
-          />
-
-          {transactionType === 'transfer' && (
-            <SelectField
-              label="To Account"
-              options={accountOptions.filter((acc) => acc.id !== sourceAccount)}
-              value={destinationAccount}
-              onChange={setDestinationAccount}
-              placeholder="Select destination"
-            />
-          )}
-
-          {/* Notes */}
-          <InputField
-            label="Notes (Optional)"
-            placeholder="Add a note..."
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            numberOfLines={3}
-            icon={<FileText size={18} color={textSecondary} />}
-          />
-
-          {/* Action Buttons */}
-          <View style={styles.modalActions}>
-            <PrimaryButton
-              title="Cancel"
-              onPress={() => {
-                setIsEditModalVisible(false);
-                setEditingTransaction(null);
-                resetForm();
-              }}
-              variant="ghost"
-              style={styles.cancelButton}
-            />
-            <PrimaryButton
-              title={submitting ? 'Updating...' : 'Update Transaction'}
-              onPress={handleUpdate}
-              disabled={!amount || !sourceAccount || (transactionType !== 'transfer' && !category) || submitting}
-              style={styles.submitButton}
-            />
-          </View>
-        </View>
+        <TransactionForm
+          mode="edit"
+          values={formValues}
+          onChange={handleFormChange}
+          accountOptions={accountOptions}
+          accountsLoading={loading}
+          submitting={submitting}
+          onSubmit={handleUpdate}
+          onCancel={closeEditModal}
+        />
       </ModalSheet>
     </SafeAreaView>
   );
@@ -1141,137 +728,5 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: typography.fontSizes.md,
     textAlign: 'center',
-  },
-  header: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: typography.fontSizes['2xl'],
-    fontWeight: typography.fontWeights.bold,
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    fontSize: typography.fontSizes.md,
-  },
-  typeSelector: {
-    flexDirection: 'row',
-    marginHorizontal: spacing.xl,
-    padding: spacing.sm,
-    borderRadius: borderRadius.xl,
-    gap: spacing.sm,
-    ...shadows.sm,
-  },
-  typeButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  typeLabel: {
-    fontSize: typography.fontSizes.sm,
-    fontWeight: typography.fontWeights.medium,
-  },
-  typeLabelActive: {
-    fontWeight: typography.fontWeights.semibold,
-  },
-  form: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-  },
-  amountContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: borderRadius.xl,
-    paddingLeft: spacing.xl,
-    marginBottom: spacing.lg,
-    ...shadows.sm,
-  },
-  currencySymbol: {
-    fontSize: typography.fontSizes['3xl'],
-    fontWeight: typography.fontWeights.bold,
-  },
-  amountInput: {
-    flex: 1,
-    marginBottom: 0,
-  },
-  twoColumn: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  column: {
-    flex: 1,
-  },
-  submitContainer: {
-    marginTop: spacing.lg,
-  },
-  loadingContainer: {
-    padding: spacing.lg,
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: typography.fontSizes.sm,
-  },
-  modalContent: {
-    paddingBottom: spacing['3xl'],
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.lg,
-  },
-  cancelButton: {
-    flex: 1,
-  },
-  submitButton: {
-    flex: 2,
-  },
-  suggestionScroll: {
-    // Margins moved to container
-  },
-  suggestionContent: {
-    gap: spacing.sm,
-    paddingRight: spacing.xl,
-  },
-  suggestionChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-  },
-  scrollIndicatorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.lg,
-  },
-  scrollIndicator: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

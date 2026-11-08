@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, GestureResponderEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Wallet,
@@ -35,17 +35,17 @@ const iconMap: Record<string, React.ComponentType<{ size: number; color: string 
 
 export function BalanceCard({ account, onPress }: BalanceCardProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
-  const { user } = useUser();
-  const [isVisible, setIsVisible] = useState(true);
+  const { user, balancesHidden, toggleBalances } = useUser();
+  const isVisible = !balancesHidden;
 
   const IconComponent = iconMap[account.icon] || Wallet;
 
-  const toggleVisibility = (e: any) => {
+  const toggleVisibility = (e: GestureResponderEvent) => {
     e.stopPropagation();
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    setIsVisible(!isVisible);
+    toggleBalances();
   };
 
   const getHiddenBalance = () => {

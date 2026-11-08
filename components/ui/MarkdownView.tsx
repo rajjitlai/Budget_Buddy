@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, Linking, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, Linking, Platform, ViewStyle } from 'react-native';
 import { colors, borderRadius, typography, spacing } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 
 export interface MarkdownViewProps {
   content: string;
-  style?: any;
+  style?: ViewStyle;
   textColor?: string;
   isUserBubble?: boolean;
 }
@@ -18,7 +18,24 @@ type BlockType =
   | { type: 'hr' }
   | { type: 'paragraph'; text: string };
 
+const parseCache = new Map<string, BlockType[]>();
+const PARSE_CACHE_LIMIT = 100;
+
 function parseBlocks(rawText: string): BlockType[] {
+  const cached = parseCache.get(rawText);
+  if (cached) return cached;
+
+  const blocks = parseBlocksUncached(rawText);
+
+  if (parseCache.size >= PARSE_CACHE_LIMIT) {
+    const oldest = parseCache.keys().next().value;
+    if (oldest !== undefined) parseCache.delete(oldest);
+  }
+  parseCache.set(rawText, blocks);
+  return blocks;
+}
+
+function parseBlocksUncached(rawText: string): BlockType[] {
   const lines = rawText.split('\n');
   const blocks: BlockType[] = [];
   let inCodeBlock = false;
@@ -288,7 +305,7 @@ function renderInlineFormatted(
   });
 }
 
-export function MarkdownView({
+export const MarkdownView = React.memo(function MarkdownView({
   content,
   style,
   textColor,
@@ -436,7 +453,7 @@ export function MarkdownView({
       })}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

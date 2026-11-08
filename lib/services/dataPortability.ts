@@ -10,16 +10,27 @@ import { getChatHistory } from './aiChat';
 import { getDatabase } from '@/lib/database/sqlite';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import type { Account, Transaction, Loan, AppNotification, ChatMessage } from '@/lib/types';
+import type { StoredMonthlyPlan } from './monthlyPlans';
+
+/** Import shapes: current exports are camelCase, but older backups used raw
+ * DB rows (snake_case / $id / last_updated) — accept both. */
+type RawAccount = Account & { $id?: string; last_updated?: string; lastUpdated?: string };
+type RawTransaction = Transaction & { $id?: string; source_account_id?: string; destination_account_id?: string | null };
+type RawMonthlyPlan = StoredMonthlyPlan & { $id?: string };
+type RawLoan = Loan & { interest_rate?: number; due_date?: string | null; lender_borrower?: string | null; created_at?: string };
+type RawNotification = AppNotification & { created_at?: string };
+type RawChatMessage = ChatMessage & { createdAt?: string; created_at?: string };
 
 export interface ExportData {
   version: string;
   timestamp: string;
-  accounts: any[];
-  transactions: any[];
-  monthlyPlans: any[];
-  loans?: any[];
-  notifications?: any[];
-  chatMessages?: any[];
+  accounts: RawAccount[];
+  transactions: RawTransaction[];
+  monthlyPlans: RawMonthlyPlan[];
+  loans?: RawLoan[];
+  notifications?: RawNotification[];
+  chatMessages?: RawChatMessage[];
 }
 
 /**
@@ -35,7 +46,7 @@ export async function exportData(): Promise<void> {
     const chatMessages = await getChatHistory();
 
     const data: ExportData = {
-      version: Constants.expoConfig?.version || '2.3.1',
+      version: Constants.expoConfig?.version || '2.4.0',
       timestamp: new Date().toISOString(),
       accounts,
       transactions,
@@ -73,9 +84,9 @@ export async function exportData(): Promise<void> {
         });
       }
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error exporting data:', error);
-    throw new Error(`Failed to export data: ${error?.message || error}`);
+    throw new Error(`Failed to export data: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -136,7 +147,7 @@ export async function importData(jsonString: string): Promise<void> {
             transaction.$id || transaction.id,
             transaction.amount,
             transaction.category,
-            transaction.sourceAccountId || transaction.source_account_id,
+            transaction.sourceAccountId || transaction.source_account_id || '',
             transaction.destinationAccountId || transaction.destination_account_id || null,
             transaction.notes || null,
             transaction.date,

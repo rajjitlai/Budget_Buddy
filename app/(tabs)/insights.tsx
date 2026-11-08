@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -20,26 +20,18 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  CheckCircle2,
-  RefreshCw,
-  Menu,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
 import { useData } from '@/lib/DataContext';
-import { useRouter, useNavigation } from 'expo-router';
-import { DrawerActions } from '@react-navigation/native';
-import { AnimatedScale } from '@/components/ui/AnimatedScale';
-import { formatCurrency, Account, Transaction, MonthlyPlan } from '@/lib/types';
-import { getAccounts } from '@/lib/services/accounts';
-import { getTransactions } from '@/lib/services/transactions';
-import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { formatCurrency } from '@/lib/types';
 import { generateAIInsights } from '@/lib/services/ai';
+import type { AIInsight } from '@/lib/types';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { AIInsightCard } from '@/components/AIInsightCard';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { AdvancedCharts } from '@/components/AdvancedCharts';
 import { RefreshButton } from '@/components/RefreshButton';
 import * as SecureStore from 'expo-secure-store';
@@ -63,32 +55,12 @@ interface ExpandableSection {
 export default function AIRecommendationScreen() {
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
-  const { refreshKey } = useData();
-  const navigation = useNavigation();
+  const { accounts, transactions, monthlyPlan, loading, refreshKey, triggerRefresh } = useData();
   
-  const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
-  const [insights, setInsights] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [insights, setInsights] = useState<AIInsight[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const [showAdvancedCharts, setShowAdvancedCharts] = useState(false);
-
-  useEffect(() => {
-    loadData();
-    loadAdvancedChartsSetting();
-  }, [refreshKey]);
-
-  const refreshData = async () => {
-    setRefreshing(true);
-    try {
-      await loadData();
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   const loadAdvancedChartsSetting = async () => {
     try {
@@ -104,85 +76,69 @@ export default function AIRecommendationScreen() {
     }
   };
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      await Promise.all([loadAccounts(), loadTransactions(), loadMonthlyPlan()]);
-      await generateInsights();
-    } catch (error) {
-      console.error('Error loading insights data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    loadAdvancedChartsSetting();
+  }, []);
 
-  const loadAccounts = async () => {
-    try {
-      const accountDocs = await getAccounts();
-      const accountList: Account[] = accountDocs.map((doc) => ({
-        id: doc.id,
-        name: doc.name,
-        type: doc.type,
-        balance: doc.balance,
-        icon: doc.icon,
-        color: doc.color,
-      }));
-      setAccounts(accountList);
-    } catch (error) {
-      console.error('Error loading accounts:', error);
-    }
-  };
+  // Regenerate insights when cached data changes. Data is read from context *after*
+  // it has been committed, so insights are never built from stale state.
+  const lastGeneratedSig = useRef<string | null>(null);
+  const generatingRef = useRef(false);
 
-  const loadTransactions = async () => {
-    try {
-      const transactionDocs = await getTransactions({ limit: 200 });
-      const transactionList: Transaction[] = transactionDocs;
-      setTransactions(transactionList);
-    } catch (error) {
-      console.error('Error loading transactions:', error);
-    }
-  };
+  useEffect(() => {
+    if (loading) return;
 
-  const loadMonthlyPlan = async () => {
-    try {
-      const plan = await getCurrentMonthlyPlan();
-      setMonthlyPlan(plan);
-    } catch (error) {
-      console.error('Error loading monthly plan:', error);
-    }
-  };
+    // Skip the (potentially paid) AI call when nothing meaningful changed.
+    const signature = [
+      accounts.map((a) => `${a.id}:${a.balance}`).join(','),
+      transactions.length,
+      transactions[0]?.id ?? '',
+      monthlyPlan ? `${monthlyPlan.salary}:${JSON.stringify(monthlyPlan.essentials)}:${JSON.stringify(monthlyPlan.allocations)}` : '',
+    ].join('|');
+    if (lastGeneratedSig.current === signature || generatingRef.current) return;
 
-  const generateInsights = async () => {
-    try {
-      const generatedInsights = await generateAIInsights({
-        accounts,
-        transactions,
-        monthlyPlan: monthlyPlan || undefined,
-      });
-      setInsights(generatedInsights);
-    } catch (error) {
-      console.error('Error generating insights:', error);
-      setInsights([]);
-    }
-  };
+    let cancelled = false;
+    const controller = new AbortController();
+    generatingRef.current = true;
+    (async () => {
+      try {
+        const generated = await generateAIInsights(
+          {
+            accounts,
+            transactions,
+            monthlyPlan: monthlyPlan || undefined,
+          },
+          { signal: controller.signal }
+        );
+        if (!cancelled) {
+          setInsights(generated);
+          lastGeneratedSig.current = signature;
+        }
+      } catch (error) {
+        console.error('Error generating insights:', error);
+        if (!cancelled) setInsights([]);
+      } finally {
+        generatingRef.current = false;
+      }
+    })();
 
-  const handleRefresh = async () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [loading, accounts, transactions, monthlyPlan]);
+
+  const refreshData = () => {
     setRefreshing(true);
-    await loadData();
-    await loadAdvancedChartsSetting();
-    setRefreshing(false);
+    triggerRefresh();
   };
+
+  useEffect(() => {
+    if (refreshing) setRefreshing(false);
+  }, [refreshKey, refreshing]);
 
   // Calculate metrics
-  const calculateMetrics = (): MetricCard[] => {
-    const expenses = transactions.filter((t) => t.type === 'expense');
-    const income = transactions.filter((t) => t.type === 'income');
-    const totalExpenses = expenses.reduce((sum, t) => sum + t.amount, 0);
-    const totalIncome = income.reduce((sum, t) => sum + t.amount, 0);
-
+  const metrics = useMemo((): MetricCard[] => {
     // Get recent transactions (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -208,7 +164,7 @@ export default function AIRecommendationScreen() {
       {
         id: 'essentials',
         title: 'Monthly Essentials',
-        value: displayCurrency(monthlyEssentials || monthlySpending),
+        value: formatCurrency(monthlyEssentials || monthlySpending, user?.currency),
         subtitle: monthlyPlan && monthlyPlan.salary > 0
           ? `${Math.round((monthlyEssentials / monthlyPlan.salary) * 100)}% of income`
           : 'Based on recent spending',
@@ -219,9 +175,9 @@ export default function AIRecommendationScreen() {
       {
         id: 'buffer',
         title: 'Salary Buffer',
-        value: displayCurrency(monthlyPlan?.allocations.salaryBuffer || 0),
+        value: formatCurrency(monthlyPlan?.allocations.salaryBuffer || 0, user?.currency),
         subtitle: monthlyPlan?.allocations.salaryBuffer
-          ? `Target: ${displayCurrency(monthlyPlan.allocations.salaryBuffer)}`
+          ? `Target: ${formatCurrency(monthlyPlan.allocations.salaryBuffer, user?.currency)}`
           : 'Not set',
         icon: Shield,
         color: colors.warning,
@@ -230,7 +186,7 @@ export default function AIRecommendationScreen() {
       {
         id: 'emergency',
         title: 'Emergency Fund',
-        value: displayCurrency(emergencyFund),
+        value: formatCurrency(emergencyFund, user?.currency),
         subtitle: monthsCovered > 0
           ? `${monthsCovered.toFixed(1)} months covered`
           : 'Not calculated',
@@ -248,9 +204,7 @@ export default function AIRecommendationScreen() {
         trend: savingsRate >= 20 ? 'up' : savingsRate >= 10 ? 'neutral' : 'down',
       },
     ];
-  };
-
-  const metrics = calculateMetrics();
+  }, [transactions, monthlyPlan, accounts, user?.currency]);
 
   const explanations: ExpandableSection[] = insights
     .filter((insight) => insight.description)
@@ -301,40 +255,20 @@ export default function AIRecommendationScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={handleRefresh}
+            onRefresh={refreshData}
             tintColor={colors.primary[500]}
             colors={[colors.primary[500]]}
           />
         }
       >
         {/* Header */}
-        <Animated.View
+        <ScreenHeader
           entering={FadeInDown.delay(100).duration(500)}
-          style={styles.header}
-        >
-          <View style={styles.headerTop}>
-            <View style={styles.headerLeft}>
-              <AnimatedScale 
-                onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-                style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10`, marginRight: spacing.md }]}
-              >
-                <Menu size={22} color={textSecondary} />
-              </AnimatedScale>
-              <View style={[styles.headerIcon, { backgroundColor: `${colors.primary[500]}15` }]}>
-                <Sparkles size={28} color={colors.primary[500]} />
-              </View>
-              <View>
-                <Text style={[styles.title, { color: textPrimary }]}>
-                  Insights
-                </Text>
-                <Text style={[styles.subtitle, { color: textSecondary }]}>
-                  {user?.aiConfig?.apiKey ? 'Using AI Intelligence' : 'Using custom calculations'}
-                </Text>
-              </View>
-            </View>
-            <RefreshButton onPress={refreshData} refreshing={refreshing} />
-          </View>
-        </Animated.View>
+          title="Insights"
+          subtitle={user?.aiConfig?.apiKey ? 'Using AI Intelligence' : 'Using custom calculations'}
+          icon={<Sparkles size={28} color={colors.primary[500]} />}
+          right={<RefreshButton onPress={refreshData} refreshing={refreshing} />}
+        />
 
         {/* Metrics Grid */}
         <Animated.View
@@ -506,54 +440,6 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: typography.fontSizes.md,
   },
-  header: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xl,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: spacing.lg,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  headerIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: borderRadius.xl,
-    backgroundColor: `${colors.primary[500]}15`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  refreshButton: {
-    position: 'absolute',
-    right: 0,
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.sm,
-  },
-  title: {
-    fontSize: typography.fontSizes['2xl'],
-    fontWeight: typography.fontWeights.bold,
-    marginBottom: spacing.xs,
-    marginHorizontal: spacing.md,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: typography.fontSizes.md,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.xs,
-    textAlign: 'center',
-  },
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -661,12 +547,5 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.sm,
     lineHeight: 20,
     marginLeft: spacing.xs,
-  },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

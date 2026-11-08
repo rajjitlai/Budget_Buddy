@@ -6,7 +6,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
   FadeIn,
 } from 'react-native-reanimated';
 import {
@@ -22,6 +21,7 @@ import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme'
 import { useTheme } from '@/lib/ThemeContext';
 import { AIInsight } from '@/lib/types';
 import { MarkdownView } from '@/components/ui/MarkdownView';
+import { usePressScale } from '@/components/ui/usePressScale';
 
 interface AIInsightCardProps {
   insight: AIInsight;
@@ -30,11 +30,11 @@ interface AIInsightCardProps {
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-export function AIInsightCard({ insight, onActionPress }: AIInsightCardProps) {
+export const AIInsightCard = React.memo(function AIInsightCard({ insight, onActionPress }: AIInsightCardProps) {
   const { isDarkMode, cardBackground, textPrimary, textSecondary } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
   const rotation = useSharedValue(0);
-  const scale = useSharedValue(1);
+  const { animatedStyle, handlePressIn, handlePressOut } = usePressScale({ scaleTo: 0.98 });
 
   const getTypeConfig = () => {
     switch (insight.type) {
@@ -89,20 +89,8 @@ export function AIInsightCard({ insight, onActionPress }: AIInsightCardProps) {
     rotation.value = withSpring(isExpanded ? 0 : 180);
   };
 
-  const handlePressIn = () => {
-    scale.value = withSpring(0.98, { damping: 15, stiffness: 400 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 400 });
-  };
-
   const animatedChevronStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
-  }));
-
-  const animatedCardStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
   }));
 
   return (
@@ -114,7 +102,7 @@ export function AIInsightCard({ insight, onActionPress }: AIInsightCardProps) {
       style={[
         styles.container,
         { backgroundColor: cardBackground },
-        animatedCardStyle,
+        animatedStyle,
       ]}
     >
       <View style={styles.header}>
@@ -175,7 +163,7 @@ export function AIInsightCard({ insight, onActionPress }: AIInsightCardProps) {
       )}
     </AnimatedTouchable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

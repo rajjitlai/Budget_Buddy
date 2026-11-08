@@ -16,11 +16,42 @@ export interface Transaction {
   amount: number;
   category: string; // Custom category (e.g. "🍱 Lunch", "⛽ Fuel")
   sourceAccountId: string;
-  destinationAccountId?: string;
-  notes: string;
+  destinationAccountId?: string | null;
+  notes: string | null;
   date: string;
   type: 'expense' | 'income' | 'transfer';
   warning?: string;
+}
+
+export interface Loan {
+  id: string;
+  name: string;
+  type: 'borrowed' | 'lent';
+  principal: number;
+  remaining: number;
+  interestRate: number;
+  dueDate?: string;
+  lenderBorrower?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  body: string;
+  type: 'warning' | 'success' | 'info';
+  read: boolean;
+  createdAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  isAI?: boolean;
+  modelUsed?: string;
 }
 
 export interface AIInsight {
@@ -54,17 +85,18 @@ export const SUGGESTED_ACCOUNT_TYPES = [
 ];
 
 
-// Helper function to format currency dynamically
-export const formatCurrency = (amount: number, currency: string = 'Rs.'): string => {
-  const formatterOptions: Intl.NumberFormatOptions = {
-    maximumFractionDigits: 0,
-  };
+// Helper function to format currency dynamically (Intl.NumberFormat cached — it's expensive to construct)
+const numberFormatters = new Map<string, Intl.NumberFormat>();
 
+export const formatCurrency = (amount: number, currency: string = 'Rs.'): string => {
   // Format number with Indian number system (lakhs, crores) if Rs.
   const locale = currency === 'Rs.' ? 'en-IN' : 'en-US';
-  const numeric = new Intl.NumberFormat(locale, formatterOptions).format(amount);
-  
-  return `${currency} ${numeric}`;
+  let formatter = numberFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
+    numberFormatters.set(locale, formatter);
+  }
+  return `${currency} ${formatter.format(amount)}`;
 };
 
 // Helper function to calculate total balance

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TrendingUp, Wallet, Eye, EyeOff, Sparkles } from 'lucide-react-native';
+import { TrendingUp, Wallet, Eye, EyeOff } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
+import { borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useUser } from '@/lib/UserContext';
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 
@@ -13,14 +13,14 @@ interface NetWorthCardProps {
 }
 
 export function NetWorthCard({ totalBalance, changePercent = null }: NetWorthCardProps) {
-  const { user } = useUser();
-  const [isVisible, setIsVisible] = useState(true);
+  const { user, balancesHidden, toggleBalances } = useUser();
+  const isVisible = !balancesHidden;
 
   const toggleVisibility = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    setIsVisible(!isVisible);
+    toggleBalances();
   };
 
   const getHiddenBalance = () => {

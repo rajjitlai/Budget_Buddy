@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.0] - 2026-11-08
+
+### Added
+- **Shared ScreenHeader**: Unified header component (drawer menu / back button, icon tile, title + optional subtitle/greeting, and a right-action slot) adopted on all 11 main screens — dashboard, transactions, charts, planner, loans, notifications, insights, settings, privacy policy, terms of service, and help & support.
+- **Shared Card shell**: Consistent themed card surface (background, border, radius, shadow tokens) now backing all settings sections and legal document cards.
+- **usePressScale hook**: Single implementation of the spring press-scale micro-interaction, replacing four hand-rolled copies across AnimatedScale, PrimaryButton, AIInsightCard, and TransactionItem.
+- **ModalSheet-based SelectField**: The account picker now renders inside the shared ModalSheet, matching spring animations, backdrop behavior, and Android hardware back handling.
+- **Session-only AI key on web**: The API key is kept in memory for the session instead of plaintext localStorage; previously stored keys are migrated into the session store and erased from storage.
+- **Testing infrastructure**: jest-expo + React Native Testing Library, a 5-suite / 34-test suite (transaction filtering, dates, category normalization, currency formatting, and service-layer SQL), Prettier config, and CI running `tsc --noEmit`, `eslint`, and `npm test` on every pull request.
+- **Typed data layer**: Per-table SQLite row interfaces, `SQLiteBindValue` parameter typing, `StoredMonthlyPlan`, and shared `Loan` / `AppNotification` / `ChatMessage` types in `lib/types.ts`.
+- **Transaction filter utility**: Extracted the transaction search/filter predicate into a tested pure function (`lib/utils/transactionFilter.ts`).
+- **In-app changelog**: New v2.4.0 release notes entry in Settings.
+- **Explicit babel.config.js** with the `react-native-worklets/plugin` entry required by Reanimated 4.
+
+### Changed
+- **Release packaging**: `eas.json` production profile now builds an **AAB** (Play Store requirement); preview remains an internal APK.
+- **Deep link scheme**: replaced placeholder `"myapp"` with `budgetbuddy://`; added the iOS `bundleIdentifier` and an OTA `runtimeVersion` policy (`appVersion`).
+- **Settings screen**: split into focused modal components (`CurrencyModal`, `AIConfigModal`, `HelpModal`, `ChangelogModal`) plus shared `LegalDocumentBody`, `FAQSection`, and `HelpSections`; settings screen shrank from 1793 → 792 lines with no behavior change.
+- **Transactions screen**: now 763 lines (from 1239) after extracting `TransactionForm`, `ScreenHeader`, and `filterTransactions`.
+- **Type safety**: `Transaction.notes` and `destinationAccountId` are now truthfully nullable (`string | null`), matching the database.
+- **Date helpers**: month math (`isSameMonth`, `toMonthKey`, `monthStart`, `monthsBetween`) consolidated into `lib/utils/dates.ts` and shared across dashboard, chat, planner, and charts screens.
+- **Legal/FAQ content**: privacy policy, terms of service, and help & support deduplicated into `lib/content/` single sources.
+- **Removed unused dependencies**: pruned 10 packages (`@expo/vector-icons`, slider, navigation elements/bottom-tabs, expo-blur, expo-font, expo-image, expo-symbols, expo-system-ui, react-native-webview) and dead files (`BudgetHealthCard`, `Avatar`, `AccountList`, old `export.ts`, services barrel).
+- **Zero `any`, enforced**: every explicit `: any` / `as any` in the codebase replaced with precise types; `@typescript-eslint/no-explicit-any` is now an error in ESLint.
+
+### Security
+- Removed the `EXPO_PUBLIC_OPENROUTER_API_KEY` client-bundle fallback (`ai.ts`, `aiChat.ts`) — AI calls use only the user-supplied key (rule-based fallback unchanged).
+- Stopped persisting the user AI key in plaintext `localStorage` on web (`UserContext.tsx`).
+- `npm audit fix`: 47 → 27 vulnerabilities (remaining findings are toolchain-only).
+- Removed the web `console.warn` monkey-patch from the root layout.
+
+### Fixed
+- **Update checker semver compare**: `Number('1-beta')` produced `NaN`, so pre-release updates were never reported — prereleases now compare as older than their release.
+- **Strict update whitelists**: every `update*` now iterates an explicit column map with typed `SQLiteBindValue` binding, so partial updates can't overwrite unrelated fields.
+- **Import data** accepts both camelCase (current) and legacy raw-DB (snake_case / `$id`) backup shapes.
+- **Lint baseline**: cleared all 17 remaining warnings (duplicate React imports, unused vars/refs, exhaustive-deps) — `eslint` reports 0 problems.
+- **Router push casts**: replaced `as any` route casts with real typed routes.
+
+### Testing
+- 34 passing tests across 5 suites: transaction filter/search, date helpers, category normalization + colors, currency/net-worth helpers, and service-layer SQL (query text, bound params, row → domain mapping).
+- CI workflow: `npm ci && npx tsc --noEmit && npm run lint && npm test` on pull requests and pushes to main.
+
+---
+
 ## [2.3.1] - 2026-08-20
 
 ### Added

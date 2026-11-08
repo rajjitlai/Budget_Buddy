@@ -1,11 +1,8 @@
 import React from 'react';
 import { TouchableOpacity, TouchableOpacityProps, Platform } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { usePressScale } from './usePressScale';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -23,14 +20,13 @@ export function AnimatedScale({
   style,
   ...props
 }: AnimatedScaleProps) {
-  const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const { animatedStyle, handlePressIn: pressIn, handlePressOut } = usePressScale({
+    scaleTo,
+    stiffness: 300,
+  });
 
   const handlePressIn = () => {
-    scale.value = withSpring(scaleTo, { damping: 15, stiffness: 300 });
+    pressIn();
     if (haptic !== 'none' && Platform.OS !== 'web') {
       switch (haptic) {
         case 'light': Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); break;
@@ -39,10 +35,6 @@ export function AnimatedScale({
         case 'selection': Haptics.selectionAsync(); break;
       }
     }
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
   };
 
   return (

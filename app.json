@@ -2,14 +2,18 @@
   "expo": {
     "name": "Budget Buddy",
     "slug": "budget-buddy",
-    "version": "2.3.1",
+    "version": "2.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "budgetbuddy",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rjsblog.budgetbuddy"
     },
     "android": {
       "package": "com.rjsblog.budgetbuddy",
@@ -35,7 +39,6 @@
         }
       ],
       "expo-secure-store",
-      "expo-font",
       "expo-web-browser",
       "expo-sqlite"
     ],

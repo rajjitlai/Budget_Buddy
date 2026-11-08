@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-    View,
     Text,
     StyleSheet,
     ScrollView,
@@ -26,33 +25,13 @@ export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-
-    const validate = () => {
-        const newErrors: { email?: string; password?: string } = {};
-
-        if (!email.trim()) {
-            newErrors.email = 'Email is required';
-        } else if (!/\S+@\S+\.\S+/.test(email)) {
-            newErrors.email = 'Email is invalid';
-        }
-
-        if (!password) {
-            newErrors.password = 'Password is required';
-        } else if (password.length < 8) {
-            newErrors.password = 'Password must be at least 8 characters';
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
 
     const handleLogin = async () => {
         setLoading(true);
         try {
             await updateUser({ onboarded: true });
             router.replace('/(tabs)');
-        } catch (error: any) {
+        } catch {
             Alert.alert('Login Failed', 'Unable to continue. Please try again.');
         } finally {
             setLoading(false);
@@ -92,7 +71,6 @@ export default function LoginScreen() {
                             value={email}
                             onChangeText={setEmail}
                             keyboardType="email-address"
-                            error={errors.email}
                             icon={<Mail size={18} color={textSecondary} />}
                         />
 
@@ -102,7 +80,6 @@ export default function LoginScreen() {
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry
-                            error={errors.password}
                             icon={<Lock size={18} color={textSecondary} />}
                         />
 

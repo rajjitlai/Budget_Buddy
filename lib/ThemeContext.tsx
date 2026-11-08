@@ -1,6 +1,5 @@
 
-
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { Appearance, Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { colors } from './theme';
@@ -103,9 +102,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setStoredTheme(isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
-  const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
+  const toggleDarkMode = useCallback(() => setIsDarkMode((prev) => !prev), []);
 
-  const getColor = (colorPath: string): string => {
+  const getColor = useCallback((colorPath: string): string => {
     const parts = colorPath.split('.');
     let result: unknown = colors;
     for (const part of parts) {
@@ -114,20 +113,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
     }
     return typeof result === 'string' ? result : '#000000';
-  };
+  }, []);
 
-  const value: ThemeContextType = {
-    isDarkMode,
-    toggleDarkMode,
-    getColor,
+  const value = useMemo<ThemeContextType>(
+    () => ({
+      isDarkMode,
+      toggleDarkMode,
+      getColor,
 
-    backgroundColor: isDarkMode ? colors.background.dark : colors.background.light,
-    cardBackground: isDarkMode ? colors.background.card.dark : colors.background.card.light,
-    textPrimary: isDarkMode ? colors.text.primary.dark : colors.text.primary.light,
-    textSecondary: isDarkMode ? colors.text.secondary.dark : colors.text.secondary.light,
-    textMuted: isDarkMode ? colors.text.muted.dark : colors.text.muted.light,
-    borderColor: isDarkMode ? colors.slate[700] : colors.slate[200],
-  };
+      backgroundColor: isDarkMode ? colors.background.dark : colors.background.light,
+      cardBackground: isDarkMode ? colors.background.card.dark : colors.background.card.light,
+      textPrimary: isDarkMode ? colors.text.primary.dark : colors.text.primary.light,
+      textSecondary: isDarkMode ? colors.text.secondary.dark : colors.text.secondary.light,
+      textMuted: isDarkMode ? colors.text.muted.dark : colors.text.muted.light,
+      borderColor: isDarkMode ? colors.slate[700] : colors.slate[200],
+    }),
+    [isDarkMode, toggleDarkMode, getColor]
+  );
 
   return (
     <ThemeContext.Provider value={value}>

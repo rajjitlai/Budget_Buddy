@@ -1,12 +1,11 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
 } from 'react-native';
@@ -26,11 +25,9 @@ import { useUser } from '@/lib/UserContext';
 import { useNavigation, useRouter } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
 import { useData } from '@/lib/DataContext';
-import { formatCurrency } from '@/lib/types';
-import { getAccounts } from '@/lib/services/accounts';
-import { getTransactions } from '@/lib/services/transactions';
-import { getLoans } from '@/lib/services/loans';
-import { ChatMessage, FinancialContext, sendChatMessage, getChatHistory, saveChatMessage, clearChatHistory, buildOfflineResponse } from '@/lib/services/aiChat';
+import { isSameMonth } from '@/lib/utils/dates';
+import { FinancialContext, sendChatMessage, getChatHistory, saveChatMessage, clearChatHistory, buildOfflineResponse } from '@/lib/services/aiChat';
+import type { ChatMessage } from '@/lib/types';
 import { AnimatedScale } from '@/components/ui/AnimatedScale';
 import { MarkdownView } from '@/components/ui/MarkdownView';
 
@@ -41,21 +38,87 @@ const SUGGESTED_PROMPTS = [
   'What is my net worth?',
 ];
 
-export default function ChatScreen() {
+const formatTime = (iso: string) => {
+  return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+};
+
+const EmptyState = React.memo(function EmptyState({
+  onSend,
+}: {
+  onSend: (text: string) => void;
+}) {
+  const { textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
+
+  return (
+    <Animated.View entering={FadeInDown.springify()} style={styles.emptyState}>
+      <View style={[styles.avatarLarge, { backgroundColor: `${colors.primary[500]}15` }]}>
+        <MessageCircle size={40} color={colors.primary[500]} />
+      </View>
+      <Text style={[styles.emptyTitle, { color: textPrimary }]}>Your Finance Assistant</Text>
+      <Text style={[styles.emptySubtitle, { color: textSecondary }]}>
+        Ask me anything about your spending, savings, or budget.
+      </Text>
+      <View style={styles.suggestedRow}>
+        {SUGGESTED_PROMPTS.map((p) => (
+          <TouchableOpacity
+            key={p}
+            onPress={() => onSend(p)}
+            style={[styles.suggestChip, { backgroundColor: cardBackground, borderColor }]}
+          >
+            <Text style={[styles.suggestChipText, { color: textPrimary }]}>{p}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </Animated.View>
+  );
+});
+
+const ChatBubble = React.memo(function ChatBubble({ msg }: { msg: ChatMessage }) {
+  const { textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
+  const isUser = msg.role === 'user';
+
+  return (
+    <Animated.View
+      entering={isUser ? FadeInRight.duration(250) : FadeInLeft.duration(250)}
+      style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowAssistant]}
+    >
+      {!isUser && (
+        <View style={[styles.avatar, { backgroundColor: `${colors.primary[500]}15` }]}>
+          <Sparkles size={14} color={colors.primary[500]} />
+        </View>
+      )}
+      <View style={[
+        styles.bubble,
+        isUser
+          ? { backgroundColor: colors.primary[500] }
+          : { backgroundColor: cardBackground, borderColor, borderWidth: 1 },
+      ]}>
+        <MarkdownView
+          content={msg.content}
+          isUserBubble={isUser}
+          textColor={isUser ? '#ffffff' : textPrimary}
+        />
+        <Text style={[styles.bubbleTime, { color: isUser ? 'rgba(255,255,255,0.6)' : textSecondary }]}>
+          {formatTime(msg.timestamp)}
+        </Text>
+      </View>
+    </Animated.View>
+  );
+});
+
+const ChatInputBar = React.memo(function ChatInputBar({
+  sending,
+  onSend,
+  onInputFocus,
+}: {
+  sending: boolean;
+  onSend: (text: string) => void;
+  onInputFocus: () => void;
+}) {
   const insets = useSafeAreaInsets();
   const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
-  const { user } = useUser();
-  const { refreshKey } = useData();
-  const navigation = useNavigation();
-  const router = useRouter();
-  const scrollRef = useRef<ScrollView>(null);
-
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [context, setContext] = useState<FinancialContext | null>(null);
-  const [aiEnabled, setAiEnabled] = useState(true);
 
   const keyboard = useAnimatedKeyboard({ isStatusBarTranslucentAndroid: true });
 
@@ -67,15 +130,86 @@ export default function ChatScreen() {
     };
   });
 
+  const canSend = input.trim().length > 0 && !sending;
+
+  const handleSend = () => {
+    if (!canSend) return;
+    onSend(input.trim());
+    setInput('');
+  };
+
+  return (
+    <Animated.View
+      style={[
+        styles.inputContainer,
+        { backgroundColor },
+        animatedBottomStyle,
+      ]}
+    >
+      <View
+        style={[
+          styles.inputBar,
+          {
+            backgroundColor: cardBackground,
+            borderColor: isFocused ? colors.primary[500] : borderColor,
+          },
+        ]}
+      >
+        <TextInput
+          style={[styles.input, { color: textPrimary }]}
+          placeholder="Ask about your finances..."
+          placeholderTextColor={textSecondary}
+          value={input}
+          onChangeText={setInput}
+          multiline
+          maxLength={500}
+          onFocus={() => {
+            setIsFocused(true);
+            onInputFocus();
+          }}
+          onBlur={() => setIsFocused(false)}
+        />
+        <TouchableOpacity
+          onPress={handleSend}
+          disabled={!canSend}
+          activeOpacity={0.7}
+          style={[
+            styles.sendBtn,
+            {
+              backgroundColor: canSend
+                ? colors.primary[500]
+                : isDarkMode
+                ? 'rgba(255, 255, 255, 0.08)'
+                : colors.slate[200],
+            },
+          ]}
+        >
+          <Send
+            size={18}
+            color={canSend ? '#ffffff' : textSecondary}
+          />
+        </TouchableOpacity>
+      </View>
+    </Animated.View>
+  );
+});
+
+export default function ChatScreen() {
+  const { backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
+  const { user } = useUser();
+  const { accounts, transactions, loans, refreshKey } = useData();
+  const navigation = useNavigation();
+  const router = useRouter();
+  const scrollRef = useRef<FlatList<ChatMessage>>(null);
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sending, setSending] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(true);
+
   const hasApiKey = !!(user?.aiConfig?.apiKey);
   const usingAI = hasApiKey && aiEnabled;
 
-  useEffect(() => {
-    loadContext();
-    loadHistory();
-  }, [refreshKey]);
-
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     try {
       const history = await getChatHistory();
       setMessages(history);
@@ -83,7 +217,11 @@ export default function ChatScreen() {
     } catch (e) {
       console.error('Error loading chat history:', e);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [refreshKey, loadHistory]);
 
   const handleClearChat = async () => {
     await clearChatHistory();
@@ -94,106 +232,89 @@ export default function ChatScreen() {
     }
   };
 
-  const loadContext = async () => {
-    try {
-      const [accounts, transactions, loans] = await Promise.all([
-        getAccounts(),
-        getTransactions({}),
-        getLoans(),
-      ]);
-      const now = new Date();
-      const monthTxns = transactions.filter((t) => {
-        const d = new Date(t.date);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-      });
-      const income = monthTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-      const expenses = monthTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-      const savingsRate = income > 0 ? Math.round(((income - expenses) / income) * 100) : 0;
-      const categoryMap: Record<string, number> = {};
-      monthTxns.filter((t) => t.type === 'expense').forEach((t) => {
-        categoryMap[t.category] = (categoryMap[t.category] || 0) + t.amount;
-      });
-      const topCategories = Object.entries(categoryMap)
-        .map(([category, amount]) => ({ category, amount }))
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 3);
-      const netWorth = accounts.reduce((s, a) => s + a.balance, 0);
-      const totalLoansOwed = loans.filter((l) => l.type === 'borrowed').reduce((s, l) => s + l.remaining, 0);
-      const totalLoansLent = loans.filter((l) => l.type === 'lent').reduce((s, l) => s + l.remaining, 0);
+  const context = useMemo<FinancialContext>(() => {
+    const monthTxns = transactions.filter((t) => isSameMonth(t.date));
+    const income = monthTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const expenses = monthTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    const savingsRate = income > 0 ? Math.round(((income - expenses) / income) * 100) : 0;
+    const categoryMap: Record<string, number> = {};
+    monthTxns.filter((t) => t.type === 'expense').forEach((t) => {
+      categoryMap[t.category] = (categoryMap[t.category] || 0) + t.amount;
+    });
+    const topCategories = Object.entries(categoryMap)
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 3);
+    const netWorth = accounts.reduce((s, a) => s + a.balance, 0);
+    const totalLoansOwed = loans.filter((l) => l.type === 'borrowed').reduce((s, l) => s + l.remaining, 0);
+    const totalLoansLent = loans.filter((l) => l.type === 'lent').reduce((s, l) => s + l.remaining, 0);
 
-      setContext({
-        netWorth,
-        currency: user?.currency || 'Rs.',
-        monthlyIncome: income,
-        monthlyExpenses: expenses,
-        savingsRate,
-        topCategories,
-        accountCount: accounts.length,
-        totalLoansOwed,
-        totalLoansLent,
-      });
-    } catch (e) {
-      console.error('Error loading chat context:', e);
-    }
-  };
-
-  const send = async (text?: string) => {
-    const messageText = (text ?? input).trim();
-    if (!messageText || sending || !context) return;
-
-    const userMsg: ChatMessage = {
-      id: Crypto.randomUUID(),
-      role: 'user',
-      content: messageText,
-      timestamp: new Date().toISOString(),
+    return {
+      netWorth,
+      currency: user?.currency || 'Rs.',
+      monthlyIncome: income,
+      monthlyExpenses: expenses,
+      savingsRate,
+      topCategories,
+      accountCount: accounts.length,
+      totalLoansOwed,
+      totalLoansLent,
     };
+  }, [accounts, transactions, loans, user?.currency]);
 
-    setMessages((prev) => [...prev, userMsg]);
-    setInput('');
-    setSending(true);
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+  const send = useCallback(
+    async (text: string) => {
+      const messageText = text.trim();
+      if (!messageText || sending) return;
 
-    try {
-      await saveChatMessage(userMsg);
-      const chatResult = usingAI
-        ? await sendChatMessage(messageText, messages, context)
-        : {
-            reply: buildOfflineResponse(
-              messageText,
-              context ?? {
-                netWorth: 0,
-                currency: user?.currency || 'Rs.',
-                monthlyIncome: 0,
-                monthlyExpenses: 0,
-                savingsRate: 0,
-                topCategories: [],
-                accountCount: 0,
-              }
-            ),
-            isAI: false,
-          };
-
-      const assistantMsg: ChatMessage = {
+      const userMsg: ChatMessage = {
         id: Crypto.randomUUID(),
-        role: 'assistant',
-        content: chatResult.reply,
+        role: 'user',
+        content: messageText,
         timestamp: new Date().toISOString(),
-        isAI: chatResult.isAI,
-        modelUsed: chatResult.modelUsed,
       };
-      await saveChatMessage(assistantMsg);
-      setMessages((prev) => [...prev, assistantMsg]);
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch (e) {
-      console.error('Chat error:', e);
-    } finally {
-      setSending(false);
-    }
-  };
 
-  const formatTime = (iso: string) => {
-    return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-  };
+      setMessages((prev) => [...prev, userMsg]);
+      setSending(true);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+
+      try {
+        await saveChatMessage(userMsg);
+        const chatResult = usingAI
+          ? await sendChatMessage(messageText, messages, context)
+          : {
+              reply: buildOfflineResponse(messageText, context),
+              isAI: false,
+            };
+
+        const assistantMsg: ChatMessage = {
+          id: Crypto.randomUUID(),
+          role: 'assistant',
+          content: chatResult.reply,
+          timestamp: new Date().toISOString(),
+          isAI: chatResult.isAI,
+          modelUsed: chatResult.modelUsed,
+        };
+        await saveChatMessage(assistantMsg);
+        setMessages((prev) => [...prev, assistantMsg]);
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+      } catch (e) {
+        console.error('Chat error:', e);
+      } finally {
+        setSending(false);
+      }
+    },
+    [sending, messages, context, usingAI]
+  );
+
+  const handleInputFocus = useCallback(() => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+  }, []);
+
+  const renderMessage = useCallback(
+    ({ item }: { item: ChatMessage }) => <ChatBubble msg={item} />,
+    []
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
@@ -229,7 +350,7 @@ export default function ChatScreen() {
             </AnimatedScale>
           )}
           <AnimatedScale
-            onPress={() => router.push('/settings' as any)}
+            onPress={() => router.push('/(tabs)/settings')}
             style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10` }]}
           >
             <Settings size={20} color={textSecondary} />
@@ -260,140 +381,35 @@ export default function ChatScreen() {
       )}
 
       <View style={{ flex: 1 }}>
-        <ScrollView
+        <FlatList
           ref={scrollRef}
-          showsVerticalScrollIndicator={false}
+          data={messages}
+          keyExtractor={(msg) => msg.id}
+          renderItem={renderMessage}
+          ListEmptyComponent={<EmptyState onSend={send} />}
+          ListFooterComponent={
+            <>
+              {sending && (
+                <Animated.View entering={FadeInLeft.duration(200)} style={[styles.msgRow, styles.msgRowAssistant]}>
+                  <View style={[styles.avatar, { backgroundColor: `${colors.primary[500]}15` }]}>
+                    <Sparkles size={14} color={colors.primary[500]} />
+                  </View>
+                  <View style={[styles.bubble, { backgroundColor: cardBackground, borderColor, borderWidth: 1 }]}>
+                    <ActivityIndicator size="small" color={colors.primary[500]} />
+                  </View>
+                </Animated.View>
+              )}
+              <View style={{ height: 12 }} />
+            </>
+          }
           contentContainerStyle={styles.messagesContent}
+          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
-        >
-          {/* Welcome / Empty state */}
-          {messages.length === 0 && (
-            <Animated.View entering={FadeInDown.springify()} style={styles.emptyState}>
-              <View style={[styles.avatarLarge, { backgroundColor: `${colors.primary[500]}15` }]}>
-                <MessageCircle size={40} color={colors.primary[500]} />
-              </View>
-              <Text style={[styles.emptyTitle, { color: textPrimary }]}>Your Finance Assistant</Text>
-              <Text style={[styles.emptySubtitle, { color: textSecondary }]}>
-                Ask me anything about your spending, savings, or budget.
-              </Text>
-              <View style={styles.suggestedRow}>
-                {SUGGESTED_PROMPTS.map((p) => (
-                  <TouchableOpacity
-                    key={p}
-                    onPress={() => send(p)}
-                    style={[styles.suggestChip, { backgroundColor: cardBackground, borderColor }]}
-                  >
-                    <Text style={[styles.suggestChipText, { color: textPrimary }]}>{p}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </Animated.View>
-          )}
-
-          {/* Messages */}
-          {messages.map((msg, index) => (
-            <Animated.View
-              key={msg.id}
-              entering={msg.role === 'user' ? FadeInRight.duration(250) : FadeInLeft.duration(250)}
-              style={[styles.msgRow, msg.role === 'user' ? styles.msgRowUser : styles.msgRowAssistant]}
-            >
-              {msg.role === 'assistant' && (
-                <View style={[styles.avatar, { backgroundColor: `${colors.primary[500]}15` }]}>
-                  <Sparkles size={14} color={colors.primary[500]} />
-                </View>
-              )}
-              <View style={[
-                styles.bubble,
-                msg.role === 'user'
-                  ? { backgroundColor: colors.primary[500] }
-                  : { backgroundColor: cardBackground, borderColor, borderWidth: 1 },
-              ]}>
-                <MarkdownView
-                  content={msg.content}
-                  isUserBubble={msg.role === 'user'}
-                  textColor={msg.role === 'user' ? '#ffffff' : textPrimary}
-                />
-                <Text style={[styles.bubbleTime, { color: msg.role === 'user' ? 'rgba(255,255,255,0.6)' : textSecondary }]}>
-                  {formatTime(msg.timestamp)}
-                </Text>
-              </View>
-            </Animated.View>
-          ))}
-
-          {/* Typing indicator */}
-          {sending && (
-            <Animated.View entering={FadeInLeft.duration(200)} style={[styles.msgRow, styles.msgRowAssistant]}>
-              <View style={[styles.avatar, { backgroundColor: `${colors.primary[500]}15` }]}>
-                <Sparkles size={14} color={colors.primary[500]} />
-              </View>
-              <View style={[styles.bubble, { backgroundColor: cardBackground, borderColor, borderWidth: 1 }]}>
-                <ActivityIndicator size="small" color={colors.primary[500]} />
-              </View>
-            </Animated.View>
-          )}
-
-          <View style={{ height: 12 }} />
-        </ScrollView>
+        />
 
         {/* Input bar */}
-        <Animated.View
-          style={[
-            styles.inputContainer,
-            { backgroundColor },
-            animatedBottomStyle,
-          ]}
-        >
-          <View
-            style={[
-              styles.inputBar,
-              {
-                backgroundColor: cardBackground,
-                borderColor: isFocused ? colors.primary[500] : borderColor,
-              },
-            ]}
-          >
-            <TextInput
-              style={[styles.input, { color: textPrimary }]}
-              placeholder="Ask about your finances..."
-              placeholderTextColor={textSecondary}
-              value={input}
-              onChangeText={setInput}
-              multiline
-              maxLength={500}
-              onFocus={() => {
-                setIsFocused(true);
-                setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
-              }}
-              onBlur={() => setIsFocused(false)}
-            />
-            <TouchableOpacity
-              onPress={() => send()}
-              disabled={!input.trim() || sending || !context}
-              activeOpacity={0.7}
-              style={[
-                styles.sendBtn,
-                {
-                  backgroundColor:
-                    input.trim() && !sending && context
-                      ? colors.primary[500]
-                      : isDarkMode
-                      ? 'rgba(255, 255, 255, 0.08)'
-                      : colors.slate[200],
-                },
-              ]}
-            >
-              <Send
-                size={18}
-                color={
-                  input.trim() && !sending && context
-                    ? '#ffffff'
-                    : textSecondary
-                }
-              />
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
+        <ChatInputBar sending={sending} onSend={send} onInputFocus={handleInputFocus} />
       </View>
     </SafeAreaView>
   );

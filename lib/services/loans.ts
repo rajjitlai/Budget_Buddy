@@ -1,22 +1,11 @@
-import { getDatabase } from '@/lib/database/sqlite';
+import { getDatabase, LoanRow } from '@/lib/database/sqlite';
+import type { SQLiteBindValue } from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
-
-export interface Loan {
-  id: string;
-  name: string;
-  type: 'borrowed' | 'lent';
-  principal: number;
-  remaining: number;
-  interestRate: number;
-  dueDate?: string;
-  lenderBorrower?: string;
-  notes?: string;
-  createdAt: string;
-}
+import type { Loan } from '@/lib/types';
 
 export async function getLoans(): Promise<Loan[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<any>('SELECT * FROM loans ORDER BY created_at DESC');
+  const rows = await db.getAllAsync<LoanRow>('SELECT * FROM loans ORDER BY created_at DESC');
   return rows.map(rowToLoan);
 }
 
@@ -46,12 +35,13 @@ export async function updateLoan(id: string, data: Partial<Omit<Loan, 'id' | 'cr
   };
 
   const setClauses: string[] = [];
-  const values: any[] = [];
+  const values: SQLiteBindValue[] = [];
 
   for (const [key, dbColumn] of Object.entries(fieldMap)) {
-    if (key in data) {
+    const field = key as keyof typeof data;
+    if (field in data) {
       setClauses.push(`${dbColumn} = ?`);
-      values.push((data as any)[key] ?? null);
+      values.push((data[field] ?? null) as SQLiteBindValue);
     }
   }
 
@@ -74,11 +64,11 @@ export async function recordRepayment(id: string, amount: number): Promise<void>
   await db.runAsync('UPDATE loans SET remaining = MAX(0, remaining - ?) WHERE id=?', [amount, id]);
 }
 
-function rowToLoan(row: any): Loan {
+function rowToLoan(row: LoanRow): Loan {
   return {
     id: row.id,
     name: row.name,
-    type: row.type,
+    type: row.type as Loan['type'],
     principal: row.principal,
     remaining: row.remaining,
     interestRate: row.interest_rate,

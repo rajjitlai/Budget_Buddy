@@ -31,7 +31,7 @@ export function RefreshButton({ onPress, refreshing = false, size = 20 }: Refres
         easing: Easing.out(Easing.quad),
       });
     }
-  }, [refreshing]);
+  }, [refreshing, rotation]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {

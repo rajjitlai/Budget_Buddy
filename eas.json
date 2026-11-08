@@ -22,7 +22,7 @@
         },
         "production": {
             "android": {
-                "buildType": "apk"
+                "buildType": "aab"
             },
             "env": {
                 "EXPO_USE_GRADLE_DAEMON": "true"

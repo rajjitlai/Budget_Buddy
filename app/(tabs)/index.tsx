@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,16 +20,15 @@ import Animated, {
   interpolate,
   Extrapolate
 } from 'react-native-reanimated';
-import { Plus, Bell, RefreshCw, Menu, TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
+import { Plus, Bell, RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import { AnimatedScale } from '@/components/ui/AnimatedScale';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { RefreshButton } from '@/components/RefreshButton';
 import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, spacing, shadows } from '@/lib/theme';
 import { useTheme } from '@/lib/ThemeContext';
 import { useUser } from '@/lib/UserContext';
-import { useRouter, useNavigation } from 'expo-router';
-import { DrawerActions } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import {
   Account,
   calculateNetWorth,
@@ -37,45 +36,53 @@ import {
   SUGGESTED_ACCOUNT_TYPES,
   Transaction,
 } from '@/lib/types';
-import { getAccounts, createAccount, updateAccount, deleteAccount } from '@/lib/services/accounts';
+import { createAccount, updateAccount, deleteAccount } from '@/lib/services/accounts';
 import { useData } from '@/lib/DataContext';
 import { getTransactions, createTransaction } from '@/lib/services/transactions';
-import { generateAlerts, getUnreadCount } from '@/lib/services/notifications';
-import { getCurrentMonthlyPlan } from '@/lib/services/monthlyPlans';
+import { isSameMonth } from '@/lib/utils/dates';
+import { generateAlerts } from '@/lib/services/notifications';
 import { NetWorthCard } from '@/components/NetWorthCard';
 import { BalanceCard } from '@/components/BalanceCard';
-import { AccountList } from '@/components/AccountList';
 import { TransactionItem } from '@/components/TransactionItem';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ModalSheet } from '@/components/ui/ModalSheet';
 import { InputField } from '@/components/ui/InputField';
-import { SelectField } from '@/components/ui/SelectField';
 import { MilestoneBanner } from '@/components/ui/MilestoneBanner';
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { isDarkMode, backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
+  const { backgroundColor, textPrimary, textSecondary, cardBackground, borderColor } = useTheme();
   const { user } = useUser();
-  const { refreshKey, triggerRefresh, notifRefreshKey } = useData();
+  const {
+    accounts: cachedAccounts,
+    transactions,
+    monthlyPlan,
+    loading,
+    unreadCount,
+    refreshKey,
+    triggerRefresh,
+    triggerNotifRefresh,
+  } = useData();
   const router = useRouter();
-  const navigation = useNavigation();
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [transactionsLoading, setTransactionsLoading] = useState(false);
+    const accounts = useMemo(
+    () => [...cachedAccounts].sort((a, b) => a.balance - b.balance),
+    [cachedAccounts]
+  );
   
   const displayCurrency = (amount: number) => formatCurrency(amount, user?.currency);
+  const goToTransactions = useCallback(
+    () => router.push('/(tabs)/transactions'),
+    [router]
+  );
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [isViewAllModalVisible, setIsViewAllModalVisible] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [newAccountName, setNewAccountName] = useState('');
   const [newAccountType, setNewAccountType] = useState('');
   const [newAccountBalance, setNewAccountBalance] = useState('');
   const [newAccountIcon, setNewAccountIcon] = useState('🏦');
   const [refreshing, setRefreshing] = useState(false);
-  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -86,11 +93,7 @@ export default function DashboardScreen() {
   const netWorth = calculateNetWorth(accounts);
 
   const thisMonth = useMemo(() => {
-    const now = new Date();
-    const filtered = transactions.filter(t => {
-      const d = new Date(t.date);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    });
+    const filtered = transactions.filter(t => isSameMonth(t.date));
     const income = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     const expenses = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
     const savingsPct = income > 0 ? Math.round(((income - expenses) / income) * 100) : 0;
@@ -98,31 +101,12 @@ export default function DashboardScreen() {
   }, [transactions]);
 
   useEffect(() => {
-    loadAccounts();
-    loadRecentTransactions();
-    loadUnreadCount();
-  }, [refreshKey]);
-
-  useEffect(() => {
-    loadUnreadCount();
-  }, [notifRefreshKey]);
-
-  const loadUnreadCount = async () => {
-    try {
-      const count = await getUnreadCount();
-      setUnreadNotifCount(count);
-    } catch (e) {
-      console.error('Error loading unread count:', e);
-    }
-  };
+    if (refreshing) setRefreshing(false);
+  }, [refreshKey, refreshing]);
 
   const runAlertGeneration = async (txns: Transaction[]) => {
     try {
-      const now = new Date();
-      const monthTxns = txns.filter(t => {
-        const d = new Date(t.date);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-      });
+      const monthTxns = txns.filter(t => isSameMonth(t.date));
       const income = monthTxns.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
       const expenses = monthTxns.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
       const savingsPct = income > 0 ? Math.round(((income - expenses) / income) * 100) : 0;
@@ -133,64 +117,32 @@ export default function DashboardScreen() {
       const categoryBreakdown = Object.entries(categoryMap)
         .map(([category, amount]) => ({ category, amount }))
         .sort((a, b) => b.amount - a.amount);
-      const plan = await getCurrentMonthlyPlan();
       await generateAlerts({
-        salary: plan?.salary ?? 0,
+        salary: monthlyPlan?.salary ?? 0,
         monthlyExpenses: expenses,
         savingsRate: savingsPct,
         categoryBreakdown,
         totalExpenses: expenses,
         hasTransactionsThisMonth: monthTxns.length > 0,
       });
-      const count = await getUnreadCount();
-      setUnreadNotifCount(count);
+      triggerNotifRefresh();
     } catch (e) {
       console.error('Error generating alerts:', e);
     }
   };
 
-  const refreshData = async () => {
+  // Generate budget/overspend alerts whenever the cached data reloads.
+  const alertsRunForRefresh = useRef(-1);
+  useEffect(() => {
+    if (loading || alertsRunForRefresh.current === refreshKey) return;
+    alertsRunForRefresh.current = refreshKey;
+    runAlertGeneration(transactions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, refreshKey, transactions, monthlyPlan]);
+
+  const refreshData = () => {
     setRefreshing(true);
-    try {
-      await Promise.all([loadAccounts(), loadRecentTransactions()]);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const loadAccounts = async () => {
-    try {
-      setLoading(true);
-      const accountDocs = await getAccounts();
-      const accountList: Account[] = accountDocs.map((doc) => ({
-        id: doc.id,
-        name: doc.name,
-        type: doc.type,
-        balance: doc.balance,
-        icon: doc.icon,
-        color: doc.color,
-      }));
-      // Sort accounts by balance (lowest first)
-      accountList.sort((a, b) => a.balance - b.balance);
-      setAccounts(accountList);
-    } catch (error) {
-      console.error('Error loading accounts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadRecentTransactions = async () => {
-    try {
-      setTransactionsLoading(true);
-      const transactionDocs = await getTransactions({ limit: 10 }); // Get 10 most recent
-      setTransactions(transactionDocs);
-      runAlertGeneration(transactionDocs);
-    } catch (error) {
-      console.error('Error loading transactions:', error);
-    } finally {
-      setTransactionsLoading(false);
-    }
+    triggerRefresh();
   };
 
   const resetForm = () => {
@@ -231,8 +183,8 @@ export default function DashboardScreen() {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to create account');
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create account');
     }
   };
 
@@ -284,8 +236,8 @@ export default function DashboardScreen() {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update account');
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update account');
     }
   };
 
@@ -315,8 +267,8 @@ export default function DashboardScreen() {
           if (Platform.OS !== 'web') {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }
-        } catch (error: any) {
-          Alert.alert('Error', error.message || 'Failed to delete account');
+        } catch (error) {
+          Alert.alert('Error', error instanceof Error ? error.message : 'Failed to delete account');
         }
       };
 
@@ -333,9 +285,107 @@ export default function DashboardScreen() {
           );
         }
       }, 300);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to check account transactions');
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to check account transactions');
     }
+  };
+
+  const closeAddAccountModal = () => {
+    setIsAddModalVisible(false);
+    resetForm();
+  };
+
+  const closeEditAccountModal = () => {
+    setIsEditModalVisible(false);
+    resetForm();
+  };
+
+  const renderAccountForm = (mode: 'add' | 'edit') => {
+    const isAdd = mode === 'add';
+    return (
+      <View style={styles.modalContent}>
+        <InputField
+          label="Account Name"
+          placeholder="e.g., Emergency Fund"
+          value={newAccountName}
+          onChangeText={setNewAccountName}
+        />
+        <View style={styles.twoColumn}>
+          <View style={styles.flex2}>
+            <InputField
+              label="Account Type"
+              placeholder="e.g., Savings"
+              value={newAccountType}
+              onChangeText={setNewAccountType}
+            />
+          </View>
+          <View style={styles.flex1}>
+            <InputField
+              label="Icon/Emoji"
+              placeholder="🏦"
+              value={newAccountIcon}
+              onChangeText={setNewAccountIcon}
+              maxLength={2}
+            />
+          </View>
+        </View>
+        {isAdd && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.suggestionScroll}
+            contentContainerStyle={styles.suggestionContent}
+          >
+            {SUGGESTED_ACCOUNT_TYPES.map((type) => (
+              <TouchableOpacity
+                key={type}
+                onPress={() => {
+                  const [emoji, ...nameParts] = type.split(' ');
+                  setNewAccountType(nameParts.join(' '));
+                  setNewAccountIcon(emoji);
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                style={[
+                  styles.suggestionChip,
+                  { backgroundColor: cardBackground, borderColor }
+                ]}
+              >
+                <Text style={{ color: textPrimary }}>{type}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+        <InputField
+          label={isAdd ? 'Initial Balance' : 'Balance'}
+          placeholder="0"
+          value={newAccountBalance}
+          onChangeText={setNewAccountBalance}
+          keyboardType="numeric"
+        />
+        <View style={styles.modalActions}>
+          <PrimaryButton
+            title="Cancel"
+            onPress={isAdd ? closeAddAccountModal : closeEditAccountModal}
+            variant="ghost"
+            style={styles.cancelButton}
+          />
+          <PrimaryButton
+            title={isAdd ? 'Add Account' : 'Update Account'}
+            onPress={isAdd ? handleAddAccount : handleUpdateAccount}
+            disabled={!newAccountName || !newAccountType || !newAccountBalance}
+            style={styles.submitButton}
+          />
+        </View>
+        {!isAdd && editingAccount && (
+          <TouchableOpacity
+            onPress={() => handleDeleteAccount(editingAccount)}
+            style={styles.deleteAccountBtn}
+          >
+            <Text style={styles.deleteAccountText}>Delete Account</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
   };
 
   const scrollY = useSharedValue(0);
@@ -366,43 +416,32 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Cinematic Header */}
-        <Animated.View style={[styles.header, headerStyle]}>
-          <View style={styles.headerLeft}>
-            <AnimatedScale 
-              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-              style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10`, marginRight: spacing.md }]}
-            >
-              <Menu size={22} color={textSecondary} />
-            </AnimatedScale>
-            <View>
-              <Text style={[styles.greeting, { color: textSecondary }]}>
-                {getGreeting()},
-              </Text>
-              <Text style={[styles.title, { color: textPrimary }]}>
-                {user?.name || 'Buddy'} 👋
-              </Text>
-            </View>
-          </View>
-          <View style={styles.headerActions}>
-            <AnimatedScale
-              onPress={() => router.push('/(tabs)/notifications' as any)}
-              style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10` }]}
-            >
-              <Bell size={20} color={textSecondary} />
-              {unreadNotifCount > 0 && (
-                <View style={[styles.bellBadge, { backgroundColor: colors.error }]}>
-                  <Text style={styles.bellBadgeText}>{unreadNotifCount > 9 ? '9+' : unreadNotifCount}</Text>
-                </View>
-              )}
-            </AnimatedScale>
-            <AnimatedScale 
-              onPress={refreshData}
-              style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10` }]}
-            >
-              <RefreshCw size={20} color={textSecondary} />
-            </AnimatedScale>
-          </View>
-        </Animated.View>
+        <ScreenHeader
+          style={headerStyle}
+          greeting={`${getGreeting()},`}
+          title={`${user?.name || 'Buddy'} 👋`}
+          right={
+            <>
+              <AnimatedScale
+                onPress={() => router.push('/(tabs)/notifications')}
+                style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10` }]}
+              >
+                <Bell size={20} color={textSecondary} />
+                {unreadCount > 0 && (
+                  <View style={[styles.bellBadge, { backgroundColor: colors.error }]}>
+                    <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                  </View>
+                )}
+              </AnimatedScale>
+              <AnimatedScale 
+                onPress={refreshData}
+                style={[styles.iconButton, { backgroundColor: `${colors.primary[500]}10` }]}
+              >
+                <RefreshCw size={20} color={refreshing ? colors.primary[500] : textSecondary} />
+              </AnimatedScale>
+            </>
+          }
+        />
 
         {/* Net Worth Hero */}
         <Animated.View entering={FadeInDown.delay(100).springify()}>
@@ -445,7 +484,7 @@ export default function DashboardScreen() {
             savingsRate={thisMonth.savingsPct}
             surplus={thisMonth.net}
             currency={user?.currency}
-            onPress={() => router.push('/(tabs)/charts' as any)}
+            onPress={() => router.push('/(tabs)/charts')}
           />
         )}
 
@@ -499,10 +538,10 @@ export default function DashboardScreen() {
           <SectionHeader
             title="Recent Activity"
             actionLabel="View All"
-            onAction={() => router.push('/(tabs)/transactions')}
+            onAction={goToTransactions}
           />
 
-          {transactionsLoading ? (
+          {loading ? (
             <ActivityIndicator color={colors.primary[500]} style={{ marginTop: spacing.xl }} />
           ) : transactions.length > 0 ? (
             <View style={styles.transactionsContainer}>
@@ -515,7 +554,7 @@ export default function DashboardScreen() {
                     transaction={transaction}
                     sourceAccount={accounts.find((a) => a.id === transaction.sourceAccountId)}
                     destinationAccount={accounts.find((a) => a.id === transaction.destinationAccountId)}
-                    onPress={() => router.push('/(tabs)/transactions')}
+                    onPress={goToTransactions}
                   />
                 </Animated.View>
               ))}
@@ -535,7 +574,7 @@ export default function DashboardScreen() {
 
       {/* Floating Action Button - Navigates to Add Transaction */}
       <AnimatedScale
-        onPress={() => router.push('/(tabs)/transactions' as any)}
+        onPress={() => router.push('/(tabs)/transactions')}
         style={[
           styles.fab,
           {
@@ -551,157 +590,19 @@ export default function DashboardScreen() {
       {/* Add Account Modal */}
       <ModalSheet
         visible={isAddModalVisible}
-        onClose={() => {
-          setIsAddModalVisible(false);
-          resetForm();
-        }}
+        onClose={closeAddAccountModal}
         title="Add New Account"
       >
-        <View style={styles.modalContent}>
-          <InputField
-            label="Account Name"
-            placeholder="e.g., Emergency Fund"
-            value={newAccountName}
-            onChangeText={setNewAccountName}
-          />
-          <View style={styles.twoColumn}>
-            <View style={styles.flex2}>
-              <InputField
-                label="Account Type"
-                placeholder="e.g., Savings"
-                value={newAccountType}
-                onChangeText={setNewAccountType}
-              />
-            </View>
-            <View style={styles.flex1}>
-              <InputField
-                label="Icon/Emoji"
-                placeholder="🏦"
-                value={newAccountIcon}
-                onChangeText={setNewAccountIcon}
-                maxLength={2}
-              />
-            </View>
-          </View>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            style={styles.suggestionScroll}
-            contentContainerStyle={styles.suggestionContent}
-          >
-            {SUGGESTED_ACCOUNT_TYPES.map((type) => (
-              <TouchableOpacity
-                key={type}
-                onPress={() => {
-                  const [emoji, ...nameParts] = type.split(' ');
-                  setNewAccountType(nameParts.join(' '));
-                  setNewAccountIcon(emoji);
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                style={[
-                  styles.suggestionChip,
-                  { backgroundColor: cardBackground, borderColor }
-                ]}
-              >
-                <Text style={{ color: textPrimary }}>{type}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          <InputField
-            label="Initial Balance"
-            placeholder="0"
-            value={newAccountBalance}
-            onChangeText={setNewAccountBalance}
-            keyboardType="numeric"
-          />
-          <View style={styles.modalActions}>
-            <PrimaryButton
-              title="Cancel"
-              onPress={() => {
-                setIsAddModalVisible(false);
-                resetForm();
-              }}
-              variant="ghost"
-              style={styles.cancelButton}
-            />
-            <PrimaryButton
-              title="Add Account"
-              onPress={handleAddAccount}
-              disabled={!newAccountName || !newAccountType || !newAccountBalance}
-              style={styles.submitButton}
-            />
-          </View>
-        </View>
+        {renderAccountForm('add')}
       </ModalSheet>
 
       {/* Edit Account Modal */}
       <ModalSheet
         visible={isEditModalVisible}
-        onClose={() => {
-          setIsEditModalVisible(false);
-          resetForm();
-        }}
+        onClose={closeEditAccountModal}
         title="Edit Account"
       >
-        <View style={styles.modalContent}>
-          <InputField
-            label="Account Name"
-            placeholder="e.g., Emergency Fund"
-            value={newAccountName}
-            onChangeText={setNewAccountName}
-          />
-          <View style={styles.twoColumn}>
-            <View style={styles.flex2}>
-              <InputField
-                label="Account Type"
-                placeholder="e.g., Savings"
-                value={newAccountType}
-                onChangeText={setNewAccountType}
-              />
-            </View>
-            <View style={styles.flex1}>
-              <InputField
-                label="Icon/Emoji"
-                placeholder="🏦"
-                value={newAccountIcon}
-                onChangeText={setNewAccountIcon}
-                maxLength={2}
-              />
-            </View>
-          </View>
-          <InputField
-            label="Balance"
-            placeholder="0"
-            value={newAccountBalance}
-            onChangeText={setNewAccountBalance}
-            keyboardType="numeric"
-          />
-          <View style={styles.modalActions}>
-            <PrimaryButton
-              title="Cancel"
-              onPress={() => {
-                setIsEditModalVisible(false);
-                resetForm();
-              }}
-              variant="ghost"
-              style={styles.cancelButton}
-            />
-            <PrimaryButton
-              title="Update Account"
-              onPress={handleUpdateAccount}
-              disabled={!newAccountName || !newAccountType || !newAccountBalance}
-              style={styles.submitButton}
-            />
-          </View>
-          {editingAccount && (
-            <TouchableOpacity
-              onPress={() => handleDeleteAccount(editingAccount)}
-              style={styles.deleteAccountBtn}
-            >
-              <Text style={styles.deleteAccountText}>Delete Account</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {renderAccountForm('edit')}
       </ModalSheet>
 
     </SafeAreaView>
@@ -724,31 +625,6 @@ const styles = StyleSheet.create({
     borderRadius: 150,
     backgroundColor: `${colors.primary[500]}08`,
     zIndex: -1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  greeting: {
-    fontSize: typography.fontSizes.sm,
-    fontWeight: typography.fontWeights.medium,
-    marginBottom: spacing.xs,
-  },
-  title: {
-    fontSize: typography.fontSizes['2xl'],
-    fontWeight: typography.fontWeights.bold,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
   },
   iconButton: {
     width: 44,

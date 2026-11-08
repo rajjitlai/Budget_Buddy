@@ -2,6 +2,8 @@
  * Category Inference & Dynamic Palette Utility for Budget Buddy
  */
 
+import { Transaction } from '@/lib/types';
+
 export interface CategoryInferenceRule {
   keywords: string[];
   category: string;
@@ -117,9 +119,7 @@ export function inferCategoryFromText(text: string): { category: string; type: '
 
   for (const rule of INFERENCE_RULES) {
     for (const keyword of rule.keywords) {
-      // Check for exact word or substring match
-      const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-      if (regex.test(lower) || lower.includes(keyword)) {
+      if (lower.includes(keyword)) {
         return {
           category: rule.category,
           type: rule.defaultType,
@@ -164,4 +164,103 @@ export function getCategoryColor(categoryName: string): string {
   
   const index = Math.abs(hash) % VIBRANT_PALETTE.length;
   return VIBRANT_PALETTE[index];
+}
+
+// Removes emoji, variation selectors, ZWJ, and keycap combiners anywhere in a label.
+const EMOJI_RE = /[\p{Extended_Pictographic}\uFE0E\uFE0F\u200D\u20E3]/gu;
+
+/**
+ * Strip emoji/symbols from a category label: "🍱 Food" → "Food".
+ */
+export function stripCategoryEmoji(text: string): string {
+  if (!text) return '';
+  return text.replace(EMOJI_RE, '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Merge key for categories: emoji-free + lowercase + single-spaced.
+ * "🍱 Food", "Food " and "food" all → "food".
+ */
+export function normalizeCategoryKey(text: string): string {
+  return stripCategoryEmoji(text).toLowerCase();
+}
+
+export interface CategoryAggregate {
+  /** Merge key (emoji-free, lowercase). */
+  category: string;
+  /** Display label: emoji-free, casing from the first transaction seen. */
+  label: string;
+  amount: number;
+}
+
+/** A calendar month used for filtering/aggregation. */
+export interface MonthKey {
+  year: number;
+  /** 0-11 (JS Date convention). */
+  month: number;
+}
+
+const MONTHS_ABBR = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+export function formatMonthLabel({ year, month }: MonthKey): string {
+  return `${MONTHS_ABBR[month]} ${year}`;
+}
+
+/** Exact month of a "YYYY-MM-DD" date string (no timezone parsing pitfalls). */
+function parseDateMonth(dateStr: string): { year: number; month: number } | null {
+  const m = /^(\d{4})-(\d{2})/.exec(dateStr);
+  if (!m) {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return null;
+    return { year: d.getFullYear(), month: d.getMonth() };
+  }
+  return { year: Number(m[1]), month: Number(m[2]) - 1 };
+}
+
+/**
+ * Unique months that have expense transactions, newest first.
+ */
+export function listExpenseMonths(transactions: Transaction[]): MonthKey[] {
+  const seen = new Map<string, MonthKey>();
+  for (const t of transactions) {
+    if (t.type !== 'expense') continue;
+    const parsed = parseDateMonth(t.date);
+    if (!parsed) continue;
+    const key = `${parsed.year}-${parsed.month}`;
+    if (!seen.has(key)) seen.set(key, parsed);
+  }
+  return [...seen.values()].sort((a, b) => b.year - a.year || b.month - a.month);
+}
+
+/**
+ * Aggregate expense totals per category, merging emoji variants.
+ *
+ * Groups by the emoji-stripped lowercase label so "🍱 Food", "Food" and
+ * "food" become one entry; the display label keeps the first-seen casing.
+ * Pass `month` to limit to a calendar month; omit for all time.
+ */
+export function aggregateByCategory(
+  transactions: Transaction[],
+  month?: MonthKey | null
+): CategoryAggregate[] {
+  const groups = new Map<string, CategoryAggregate>();
+  for (const t of transactions) {
+    if (t.type !== 'expense') continue;
+    if (month) {
+      const parsed = parseDateMonth(t.date);
+      if (!parsed || parsed.year !== month.year || parsed.month !== month.month) continue;
+    }
+    const key = normalizeCategoryKey(t.category);
+    if (!key) continue;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.amount += t.amount;
+    } else {
+      groups.set(key, { category: key, label: stripCategoryEmoji(t.category), amount: t.amount });
+    }
+  }
+  return [...groups.values()].sort((a, b) => b.amount - a.amount);
 }

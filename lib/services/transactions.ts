@@ -1,9 +1,9 @@
 
-import { getDatabase, runInTransaction } from '@/lib/database/sqlite';
-import { Transaction } from '@/lib/types';
-import { getAccount, updateAccountBalance } from './accounts';
+import * as SQLite from 'expo-sqlite';
+import { getDatabase, runInTransaction, TransactionRow } from '@/lib/database/sqlite';
+import type { SQLiteBindValue } from 'expo-sqlite';
+import { Transaction, formatCurrency } from '@/lib/types';
 import { getCurrentMonthlyPlan } from './monthlyPlans';
-import { formatCurrency } from '@/lib/types';
 import * as Crypto from 'expo-crypto';
 
 /**
@@ -19,11 +19,11 @@ export async function getTransactions(
 ): Promise<Transaction[]> {
   const db = await getDatabase();
   let query = 'SELECT * FROM transactions';
-  const params: any[] = [];
+  const params: SQLiteBindValue[] = [];
   const conditions: string[] = [];
 
   if (options?.accountId) {
-    conditions.push('source_account_id = ? OR destination_account_id = ?');
+    conditions.push('(source_account_id = ? OR destination_account_id = ?)');
     params.push(options.accountId, options.accountId);
   }
 
@@ -44,12 +44,13 @@ export async function getTransactions(
   }
 
   if (options?.offset) {
-    query += ' OFFSET ?';
+    // SQLite requires LIMIT before OFFSET; LIMIT -1 means "no limit".
+    query += options?.limit ? ' OFFSET ?' : ' LIMIT -1 OFFSET ?';
     params.push(options.offset);
   }
 
-  const results = await db.getAllAsync<any>(query, params);
-  
+  const results = await db.getAllAsync<TransactionRow>(query, params);
+
   return results.map(row => ({
     id: row.id,
     amount: row.amount,
@@ -58,7 +59,7 @@ export async function getTransactions(
     destinationAccountId: row.destination_account_id,
     notes: row.notes,
     date: row.date,
-    type: row.type,
+    type: row.type as Transaction['type'],
   }));
 }
 
@@ -67,7 +68,7 @@ export async function getTransactions(
  */
 export async function getTransaction(transactionId: string): Promise<Transaction> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<any>('SELECT * FROM transactions WHERE id = ?', [transactionId]);
+  const row = await db.getFirstAsync<TransactionRow>('SELECT * FROM transactions WHERE id = ?', [transactionId]);
   
   if (!row) {
     throw new Error('Transaction not found');
@@ -81,7 +82,7 @@ export async function getTransaction(transactionId: string): Promise<Transaction
     destinationAccountId: row.destination_account_id,
     notes: row.notes,
     date: row.date,
-    type: row.type,
+    type: row.type as Transaction['type'],
   };
 }
 
@@ -92,7 +93,7 @@ function calculateBalanceChanges(
   type: Transaction['type'],
   amount: number,
   sourceAccountId: string,
-  destinationAccountId?: string
+  destinationAccountId?: string | null
 ): { accountId: string; balanceChange: number }[] {
   const changes: { accountId: string; balanceChange: number }[] = [];
 
@@ -115,14 +116,58 @@ function calculateBalanceChanges(
 }
 
 /**
+ * Apply balance deltas atomically inside an open transaction.
+ * Negative deltas are guarded against overdrafts when `rejectNegative` is set.
+ */
+async function applyBalanceChanges(
+  db: SQLite.SQLiteDatabase,
+  changes: { accountId: string; balanceChange: number }[],
+  rejectNegative: boolean
+): Promise<void> {
+  const lastUpdated = new Date().toISOString();
+
+  for (const change of changes) {
+    if (rejectNegative && change.balanceChange < 0) {
+      const res = await db.runAsync(
+        'UPDATE accounts SET balance = balance + ?, last_updated = ? WHERE id = ? AND balance + ? >= 0',
+        [change.balanceChange, lastUpdated, change.accountId, change.balanceChange]
+      );
+      if (res.changes === 0) {
+        const account = await db.getFirstAsync<{ name: string }>(
+          'SELECT name FROM accounts WHERE id = ?',
+          [change.accountId]
+        );
+        if (!account) throw new Error('Account not found');
+        throw new Error(`Insufficient balance in ${account.name}`);
+      }
+    } else {
+      const res = await db.runAsync(
+        'UPDATE accounts SET balance = balance + ?, last_updated = ? WHERE id = ?',
+        [change.balanceChange, lastUpdated, change.accountId]
+      );
+      if (res.changes === 0) {
+        throw new Error('Account not found');
+      }
+    }
+  }
+}
+
+/** First day of the month containing `date`, as YYYY-MM-DD. */
+function monthStart(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+/**
  * Create a new transaction and update account balances
  */
 export async function createTransaction(
   transactionData: Omit<Transaction, 'id'>
-): Promise<Transaction> {
+): Promise<Transaction & { warning?: string }> {
   const id = Crypto.randomUUID();
+  const rejectNegative =
+    transactionData.type === 'expense' || transactionData.type === 'transfer';
 
-  return await runInTransaction(async (db) => {
+  const result = await runInTransaction(async (db) => {
     // 1. Insert transaction
     await db.runAsync(
       'INSERT INTO transactions (id, amount, category, source_account_id, destination_account_id, notes, date, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -146,53 +191,41 @@ export async function createTransaction(
       transactionData.destinationAccountId
     );
 
-    for (const change of balanceChanges) {
-      const account = await getAccount(change.accountId);
-      const newBalance = account.balance + change.balanceChange;
-      
-      if (newBalance < 0 && (transactionData.type === 'expense' || transactionData.type === 'transfer')) {
-        throw new Error(`Insufficient balance in ${account.name}`);
-      }
+    await applyBalanceChanges(db, balanceChanges, rejectNegative);
 
-      await updateAccountBalance(change.accountId, newBalance);
-    }
-
-    const result = {
+    return {
       id,
       ...transactionData,
     };
-
-    // 3. Check for budget alerts (don't block the transaction)
-    if (transactionData.type === 'expense') {
-      try {
-        const plan = await getCurrentMonthlyPlan();
-        if (plan) {
-          const transactions = await getTransactions();
-          const now = new Date();
-          const currentMonthSpent = transactions
-            .filter(t => {
-              const d = new Date(t.date);
-              return d.getMonth() === now.getMonth() && 
-                     d.getFullYear() === now.getFullYear() && 
-                     t.type === 'expense';
-            })
-            .reduce((sum, t) => sum + t.amount, 0);
-
-          const totalBudget = plan.allocations.spending + Object.values(plan.essentials).reduce((a, b) => a + b, 0);
-          
-          if (currentMonthSpent > totalBudget) {
-            (result as any).warning = `Budget exceeded by ${formatCurrency(currentMonthSpent - totalBudget)}`;
-          } else if (currentMonthSpent > totalBudget * 0.9) {
-            (result as any).warning = `90% of monthly budget reached (${formatCurrency(totalBudget - currentMonthSpent)} remaining)`;
-          }
-        }
-      } catch (err) {
-        console.error('Error checking budget alert:', err);
-      }
-    }
-
-    return result;
   });
+
+  // 3. Budget alert check — read-only queries, kept outside the write transaction
+  if (transactionData.type === 'expense') {
+    try {
+      const plan = await getCurrentMonthlyPlan();
+      if (plan) {
+        const db = await getDatabase();
+        const now = new Date();
+        const row = await db.getFirstAsync<{ total: number | null }>(
+          "SELECT SUM(amount) AS total FROM transactions WHERE type = 'expense' AND date >= ? AND date < ?",
+          [monthStart(now), monthStart(new Date(now.getFullYear(), now.getMonth() + 1, 1))]
+        );
+        const currentMonthSpent = row?.total ?? 0;
+
+        const totalBudget = plan.allocations.spending + Object.values(plan.essentials).reduce((a, b) => a + b, 0);
+
+        if (currentMonthSpent > totalBudget) {
+          result.warning = `Budget exceeded by ${formatCurrency(currentMonthSpent - totalBudget)}`;
+        } else if (currentMonthSpent > totalBudget * 0.9) {
+          result.warning = `90% of monthly budget reached (${formatCurrency(totalBudget - currentMonthSpent)} remaining)`;
+        }
+      }
+    } catch (err) {
+      console.error('Error checking budget alert:', err);
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -213,10 +246,11 @@ export async function updateTransaction(
       existing.destinationAccountId
     );
 
-    for (const change of oldChanges) {
-      const account = await getAccount(change.accountId);
-      await updateAccountBalance(change.accountId, account.balance - change.balanceChange);
-    }
+    await applyBalanceChanges(
+      db,
+      oldChanges.map((c) => ({ ...c, balanceChange: -c.balanceChange })),
+      false
+    );
 
     // 2. Update transaction record
     const finalType = updates.type ?? existing.type;
@@ -249,16 +283,11 @@ export async function updateTransaction(
       finalDestinationAccountId
     );
 
-    for (const change of newChanges) {
-      const account = await getAccount(change.accountId);
-      const newBalance = account.balance + change.balanceChange;
-      
-      if (newBalance < 0 && (finalType === 'expense' || finalType === 'transfer')) {
-        throw new Error(`Insufficient balance in ${account.name}`);
-      }
-
-      await updateAccountBalance(change.accountId, newBalance);
-    }
+    await applyBalanceChanges(
+      db,
+      newChanges,
+      finalType === 'expense' || finalType === 'transfer'
+    );
   });
 }
 
@@ -276,10 +305,11 @@ export async function deleteTransaction(transactionId: string): Promise<void> {
       transaction.destinationAccountId
     );
 
-    for (const change of balanceChanges) {
-      const account = await getAccount(change.accountId);
-      await updateAccountBalance(change.accountId, account.balance - change.balanceChange);
-    }
+    await applyBalanceChanges(
+      db,
+      balanceChanges.map((c) => ({ ...c, balanceChange: -c.balanceChange })),
+      false
+    );
 
     await db.runAsync('DELETE FROM transactions WHERE id = ?', [transactionId]);
   });
