@@ -22,7 +22,7 @@
         },
         "production": {
             "android": {
-                "buildType": "aab"
+                "buildType": "app-bundle"
             },
             "env": {
                 "EXPO_USE_GRADLE_DAEMON": "true"

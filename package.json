@@ -58,5 +58,33 @@
     "jest-expo": "^54.0.18",
     "prettier": "^3.9.10",
     "typescript": "~5.9.2"
+  },
+  "allowScripts": {
+    "unrs-resolver@1.11.1": true
+  },
+  "overrides": {
+    "decode-uri-component": "^0.5.1",
+    "postcss": "^8.5.32",
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.5"
+    },
+    "@expo/cli": {
+      "minimatch": "^11.0.5",
+      "glob": "^14.0.4"
+    },
+    "@expo/fingerprint": {
+      "minimatch": "^11.0.5",
+      "glob": "^14.0.4"
+    },
+    "@expo/config": {
+      "glob": "^14.0.4"
+    },
+    "@expo/config-plugins": {
+      "glob": "^14.0.4"
+    },
+    "@expo/metro-config": {
+      "glob": "^14.0.4"
+    },
+    "test-renderer": "1.1.0"
   }
 }
