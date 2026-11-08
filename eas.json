@@ -17,7 +17,8 @@
             },
             "distribution": "internal",
             "env": {
-                "EXPO_USE_GRADLE_DAEMON": "true"
+                "EXPO_USE_GRADLE_DAEMON": "true",
+                "GRADLE_OPTS": "-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
             }
         },
         "production": {
@@ -25,7 +26,8 @@
                 "buildType": "app-bundle"
             },
             "env": {
-                "EXPO_USE_GRADLE_DAEMON": "true"
+                "EXPO_USE_GRADLE_DAEMON": "true",
+                "GRADLE_OPTS": "-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
             }
         }
     },

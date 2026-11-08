@@ -40,7 +40,8 @@
       ],
       "expo-secure-store",
       "expo-web-browser",
-      "expo-sqlite"
+      "expo-sqlite",
+      "./plugins/withGradleWrapperTimeout.js"
     ],
     "experiments": {
       "typedRoutes": true
